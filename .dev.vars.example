@@ -1,10 +1,19 @@
 # Development environment variables
 # Copy this file to .dev.vars and fill in your values
 
-ENVIRONMENT=development
+# These variables are "normal secrets" for THIS WORKER ONLY.
+# They can be defined in .dev.vars for local development.
 
-CLERK_WEBHOOK_SECRET=whsec_your_webhook_secret_here
-CLERK_SECRET_KEY=sk_test_your_secret_key_here
-CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
-ALLOWED_ORIGIN=http://localhost:3000
+ENVIRONMENT=development
+CLERK_WEBHOOK_SECRET=whsec_your_secret_here
+
+# The variables below are Secret Store Variables.
+# They are available for various workers around the Cloudflare account.
+# They must be set using the "wrangler secrets-store create ..." command without --remote flag.
+# They do not work in .dev.vars.
+# See https://developers.cloudflare.com/workers/wrangler/commands/#secrets-store-secret
+
+# CLERK_SECRET_KEY=sk_test_your_secret_key_here
+# CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+# ALLOWED_ORIGIN=http://localhost:3000
 
