@@ -9,20 +9,6 @@ Guía paso a paso para implementar tu primer feature (Profiles).
 - ~30-45 minutos
 - **Lee esto primero**
 
-### 2. **[ARCHITECTURE_HEALTH_CHECK.md](./ARCHITECTURE_HEALTH_CHECK.md)** 📊 
-Verificación visual del estado de la base.
-- Checklist completado
-- Problemas arreglados
-- Timeline estimado
-- Status: 100% READY
-
-### 3. **[FIXES_SUMMARY.md](./FIXES_SUMMARY.md)** 🔧
-Detalle de qué se arregló en la base.
-- 8 problemas corregidos
-- Antes/después del código
-- Archivos modificados
-- Por qué cada cambio
-
 ---
 
 ## 📖 Documentación por Capa
@@ -65,17 +51,11 @@ Detalle de qué se arregló en la base.
 
 ## 🎯 Guía Rápida por Objetivo
 
-### "Quiero entender la arquitectura"
-→ Lee `AGENTS.md` luego `ARCHITECTURE_HEALTH_CHECK.md`
-
 ### "Quiero crear mi primer feature rápido"
 → Lee `QUICK_START.md` y síguelo paso a paso
 
 ### "Quiero entender cómo se conectan las capas"
 → Lee la sección de Domain → Application → Infrastructure en orden
-
-### "Quiero saber qué se arregló"
-→ Lee `FIXES_SUMMARY.md`
 
 ### "Quiero referencia de la arquitectura global"
 → Lee `AGENTS.md` (guía completa del proyecto)
