@@ -1,0 +1,10 @@
+# Development environment variables
+# Copy this file to .dev.vars and fill in your values
+
+ENVIRONMENT=development
+
+CLERK_WEBHOOK_SECRET=whsec_your_webhook_secret_here
+CLERK_SECRET_KEY=sk_test_your_secret_key_here
+CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
+ALLOWED_ORIGIN=http://localhost:3000
+

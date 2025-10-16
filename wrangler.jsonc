@@ -9,35 +9,52 @@
 	"compatibility_date": "2025-10-11",
 	"observability": {
 		"enabled": true
-	}
+	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
 	 */
-	// "placement": { "mode": "smart" }
-	/**
-	 * Bindings
-	 * Bindings allow your Worker to interact with resources on the Cloudflare Developer Platform, including
-	 * databases, object storage, AI inference, real-time communication and more.
-	 * https://developers.cloudflare.com/workers/runtime-apis/bindings/
-	 */
-	/**
-	 * Environment Variables
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#environment-variables
-	 */
-	// "vars": { "MY_VARIABLE": "production_value" }
-	/**
-	 * Note: Use secrets to store sensitive data.
-	 * https://developers.cloudflare.com/workers/configuration/secrets/
-	 */
+	"placement": { "mode": "smart" },
 	/**
 	 * Static Assets
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
 	// "assets": { "directory": "./public/", "binding": "ASSETS" }
+
 	/**
-	 * Service Bindings (communicate between multiple Workers)
-	 * https://developers.cloudflare.com/workers/wrangler/configuration/#service-bindings
+	 * Secrets - Set via: wrangler secret put CLERK_WEBHOOK_SECRET
+	 * In development, create .dev.vars file with:
+	 * CLERK_WEBHOOK_SECRET=whsec_your_secret_here
+	 * ENVIRONMENT=development|production
 	 */
-	// "services": [{ "binding": "MY_SERVICE", "service": "my-service" }]
+	/**
+	 * Secrets Store Bindings
+	 * https://developers.cloudflare.com/secrets-store/integrations/workers/
+	 */
+	"secrets_store_secrets": [
+		{
+			"binding": "ALLOWED_ORIGIN",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "ALLOWED_ORIGIN"
+		},
+		{
+			"binding": "CLERK_SECRET_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "CLERK_SECRET_KEY"
+		},
+		{
+			"binding": "CLERK_PUBLISHABLE_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "CLERK_PUBLISHABLE_KEY"
+		}
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "classmate-prod",
+			"database_id": "852a3bb7-6a97-4f30-810d-4b0a1d618890",
+			"preview_database_id": "classmate-local",
+			"migrations_dir": "drizzle/migrations"
+		}
+	]
 }
