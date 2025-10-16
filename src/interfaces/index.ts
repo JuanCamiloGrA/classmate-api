@@ -1,6 +1,6 @@
 import { Hono } from "hono";
-
 import type { Bindings, Variables } from "../config/bindings";
+import { resolveSecretBinding } from "../config/bindings";
 import { clerkMiddleware, getAuth } from "../infrastructure/auth";
 import { DatabaseFactory } from "../infrastructure/database/client";
 import { handleError } from "./http/middleware/error-handler";
@@ -31,7 +31,10 @@ export function createApp(_dependencies?: Dependencies) {
 	// 3. CORS middleware
 	app.use("*", async (c, next) => {
 		const origin = c.req.header("Origin");
-		const allowedOrigin = c.env.ALLOWED_ORIGIN;
+		const allowedOrigin = await resolveSecretBinding(
+			c.env.ALLOWED_ORIGIN,
+			"ALLOWED_ORIGIN",
+		);
 
 		if (origin === allowedOrigin) {
 			c.header("Access-Control-Allow-Origin", origin);
