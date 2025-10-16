@@ -74,6 +74,10 @@ src/
 3. **Single file = single responsibility**: Max 150 lines
 4. **Type-safe everything**: Bindings, env vars, DTOs
 
+## Documentation
+
+- Use Chafana to generate professional OpenAPI documentation for all HTTP routes. Keep the OpenAPI spec up-to-date and publish it alongside the service; include examples and schema references for each route.
+
 ---
 
 ## Critical Practices
@@ -506,12 +510,6 @@ return c.json({
   data: paginatedData,
   pagination: { page, limit, total }
 })
-
-// 5. ❌ Synchronous crypto
-const hash = crypto.createHash('sha256').update(password) // NO - not available
-
-// ✅ Use Web Crypto API-
-const hash = await crypto.subtle.digest('SHA-256', encoder.encode(password))
 ```
 
 ---
