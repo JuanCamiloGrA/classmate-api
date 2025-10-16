@@ -74,9 +74,13 @@ src/
 3. **Single file = single responsibility**: Max 150 lines
 4. **Type-safe everything**: Bindings, env vars, DTOs
 
-## Documentation
+## Route & OpenAPI Workflow
 
-- Use Chafana to generate professional OpenAPI documentation for all HTTP routes. Keep the OpenAPI spec up-to-date and publish it alongside the service; include examples and schema references for each route.
+- **Define endpoints** inside `src/interfaces/http/routes/<feature>.ts` as classes extending `OpenAPIRoute`; expose helper functions for shared logic when needed.
+- **Describe requests/responses** with existing Zod schemas via `contentJson(schema)` so Chanfana can emit accurate Swagger docs automatically.
+- **Register the routes** in `src/index.ts` through `apiApp.<method>('/path', EndpointClass)` – this wires the handler and the OpenAPI metadata in one place.
+- **Rely on shared middleware** by keeping all middleware in `createApp()`; the exported `apiApp` reuses that pipeline for every documented endpoint.
+- **Verify locally** with `bun run dev` and inspect `GET /openapi.json` (or `/` for Swagger UI) before shipping a feature.
 
 ---
 

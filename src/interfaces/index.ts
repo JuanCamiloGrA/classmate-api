@@ -72,11 +72,8 @@ export function createApp(_dependencies?: Dependencies) {
 		return c.json({ userId: auth.userId });
 	});
 
-	// Note: Profile routes are registered in index.ts (src/index.ts) via Chanfana's fromHono
-	// This allows them to be documented in the OpenAPI schema
-
-	// Add routes here:
-	// app.route('/api/terms', createTermRoutes(_dependencies));
+	// Application routes are registered through Chanfana in src/index.ts
+	// to keep routing and documentation aligned.
 
 	// ============================================
 	// ERROR HANDLER - Must be last!
