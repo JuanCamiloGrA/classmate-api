@@ -10,6 +10,7 @@ type SecretsStoreBinding =
 export type Bindings = {
 	DB: D1Database;
 	ENVIRONMENT: "development" | "staging" | "production";
+	CLERK_WEBHOOK_SECRET: string;
 	CLERK_SECRET_KEY: SecretsStoreBinding;
 	CLERK_PUBLISHABLE_KEY: SecretsStoreBinding;
 	ALLOWED_ORIGIN: SecretsStoreBinding;
