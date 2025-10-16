@@ -173,4 +173,33 @@ describe("clerkMiddleware()", () => {
 			}),
 		);
 	});
+
+	test("resolves secrets store bindings before authenticating", async () => {
+		authenticateRequestMock.mockResolvedValueOnce({
+			headers: new Headers(),
+			toAuth: () => "mockedAuth",
+		});
+		const app = new Hono();
+		app.use("*", clerkMiddleware());
+
+		app.get("/", (ctx) => ctx.json({ auth: getAuth(ctx) }));
+
+		const secretKeyBinding = {
+			get: vi.fn().mockResolvedValue(EnvVariables.CLERK_SECRET_KEY),
+		};
+		const publishableKeyBinding = {
+			get: vi.fn().mockResolvedValue(EnvVariables.CLERK_PUBLISHABLE_KEY),
+		};
+
+		const response = await app.fetch(new Request("http://localhost/"), {
+			...EnvVariables,
+			CLERK_SECRET_KEY: secretKeyBinding,
+			CLERK_PUBLISHABLE_KEY: publishableKeyBinding,
+		});
+
+		expect(response.status).toEqual(200);
+		expect(await response.json()).toEqual({ auth: "mockedAuth" });
+		expect(secretKeyBinding.get).toHaveBeenCalledTimes(1);
+		expect(publishableKeyBinding.get).toHaveBeenCalledTimes(1);
+	});
 });
