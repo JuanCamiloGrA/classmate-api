@@ -7,6 +7,13 @@ import {
 	GetProfileEndpoint,
 } from "./interfaces/http/routes/profiles";
 import {
+	CreateSubjectEndpoint,
+	HardDeleteSubjectEndpoint,
+	ListSubjectsEndpoint,
+	SoftDeleteSubjectEndpoint,
+	UpdateSubjectEndpoint,
+} from "./interfaces/http/routes/subjects";
+import {
 	CreateTermEndpoint,
 	HardDeleteTermEndpoint,
 	ListTermsEndpoint,
@@ -48,6 +55,13 @@ export default {
 		apiApp.put("/terms/:id", UpdateTermEndpoint);
 		apiApp.delete("/terms/:id", SoftDeleteTermEndpoint);
 		apiApp.delete("/terms/:id/hard", HardDeleteTermEndpoint);
+
+		// Subject endpoints
+		apiApp.get("/subjects", ListSubjectsEndpoint);
+		apiApp.post("/subjects", CreateSubjectEndpoint);
+		apiApp.put("/subjects/:id", UpdateSubjectEndpoint);
+		apiApp.delete("/subjects/:id", SoftDeleteSubjectEndpoint);
+		apiApp.delete("/subjects/:id/hard", HardDeleteSubjectEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},
