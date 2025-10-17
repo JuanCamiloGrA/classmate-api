@@ -27,6 +27,9 @@
 	 * CLERK_WEBHOOK_SECRET=whsec_your_secret_here
 	 * ENVIRONMENT=development|production
 	 */
+	"vars": {
+		"ENVIRONMENT": "production"
+	},
 	/**
 	 * Secrets Store Bindings
 	 * https://developers.cloudflare.com/secrets-store/integrations/workers/
