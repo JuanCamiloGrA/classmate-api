@@ -40,6 +40,6 @@ export class D1ProfileRepository implements ProfileRepository {
 			.where(eq(profiles.id, id))
 			.get();
 
-		return result !== null;
+		return result !== undefined && result !== null;
 	}
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Database } from "../client";
 import { D1ProfileRepository } from "./profile.repository";
 
@@ -26,5 +26,34 @@ describe("D1ProfileRepository", () => {
 		expect(typeof repo.findById).toBe("function");
 		expect(typeof repo.create).toBe("function");
 		expect(typeof repo.existsById).toBe("function");
+	});
+
+	const createDbStub = (result: unknown) =>
+		({
+			select: vi.fn().mockReturnValue({
+				from: vi.fn().mockReturnValue({
+					where: vi.fn().mockReturnValue({
+						get: vi.fn().mockResolvedValue(result),
+					}),
+				}),
+			}),
+		}) as unknown as Database;
+
+	it("existsById should return false when profile is absent", async () => {
+		const dbStub = createDbStub(undefined);
+		const repo = new D1ProfileRepository(dbStub);
+
+		const exists = await repo.existsById("user_123");
+
+		expect(exists).toBe(false);
+	});
+
+	it("existsById should return true when profile is present", async () => {
+		const dbStub = createDbStub({ id: "user_123" });
+		const repo = new D1ProfileRepository(dbStub);
+
+		const exists = await repo.existsById("user_123");
+
+		expect(exists).toBe(true);
 	});
 });
