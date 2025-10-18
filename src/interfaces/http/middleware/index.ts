@@ -1,3 +1,4 @@
+export { corsMiddleware } from "./cors";
 export {
 	DomainError,
 	ForbiddenError,

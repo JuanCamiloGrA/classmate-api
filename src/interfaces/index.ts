@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import type { Bindings, Variables } from "../config/bindings";
-import { resolveSecretBinding } from "../config/bindings";
 import { clerkMiddleware, getAuth } from "../infrastructure/auth";
 import { DatabaseFactory } from "../infrastructure/database/client";
+import { corsMiddleware } from "./http/middleware/cors";
 import { handleError } from "./http/middleware/error-handler";
 import { requestIdMiddleware } from "./http/middleware/request-id";
 
@@ -29,29 +29,7 @@ export function createApp(_dependencies?: Dependencies) {
 	});
 
 	// 3. CORS middleware
-	app.use("*", async (c, next) => {
-		const origin = c.req.header("Origin");
-		const allowedOrigin = await resolveSecretBinding(
-			c.env.ALLOWED_ORIGIN,
-			"ALLOWED_ORIGIN",
-		);
-
-		if (origin === allowedOrigin) {
-			c.header("Access-Control-Allow-Origin", origin);
-			c.header("Access-Control-Allow-Credentials", "true");
-			c.header(
-				"Access-Control-Allow-Methods",
-				"GET, POST, PUT, DELETE, OPTIONS",
-			);
-			c.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
-		}
-
-		if (c.req.method === "OPTIONS") {
-			return new Response(null, { status: 204 });
-		}
-
-		await next();
-	});
+	app.use("*", corsMiddleware());
 
 	// 4. Clerk authentication
 	app.use("*", clerkMiddleware());
