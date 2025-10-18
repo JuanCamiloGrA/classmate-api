@@ -128,7 +128,7 @@ function validateTermIdQuery(query: Record<string, string>): string {
 				.join("; "),
 		);
 	}
-	return result.data.termId;
+	return result.data.term_id;
 }
 
 async function listSubjects(c: SubjectContext) {

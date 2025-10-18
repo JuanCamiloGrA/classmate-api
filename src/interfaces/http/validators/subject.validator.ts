@@ -40,8 +40,8 @@ export const UpdateSubjectSchema = z
 
 /**
  * Validation schema for listing subjects by term.
- * - termId: required, non-empty string (UUID)
+ * - term_id: required, non-empty string (UUID) - snake_case for query parameters
  */
 export const ListSubjectsByTermSchema = z.object({
-	termId: z.string().min(1, "Term ID is required"),
+	term_id: z.string().min(1, "Term ID is required"),
 });

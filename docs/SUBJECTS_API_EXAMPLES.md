@@ -22,12 +22,12 @@ Authorization: Bearer <clerk-token>
 
 ### 1. List Subjects for a Term
 
-**GET** `/subjects?termId={termId}`
+**GET** `/subjects?term_id={term_id}`
 
 List all non-deleted subjects for a specific term.
 
 #### Query Parameters
-- `termId` (required): The term ID to list subjects for
+- `term_id` (required): The term ID to list subjects for
 
 #### Response (200)
 ```json
@@ -242,7 +242,7 @@ Cause: Unexpected server error. Check logs for details.
 
 ```bash
 # List subjects for a term
-curl -X GET "https://api.example.com/subjects?termId=term-123" \
+curl -X GET "https://api.example.com/subjects?term_id=term-123" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Create a subject
@@ -278,7 +278,7 @@ const headers = {
 };
 
 // List subjects
-const subjects = await fetch(`${apiBase}/subjects?termId=term-123`, {
+const subjects = await fetch(`${apiBase}/subjects?term_id=term-123`, {
   headers
 }).then(res => res.json());
 
