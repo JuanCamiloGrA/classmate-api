@@ -14,6 +14,14 @@ import {
 	UpdateSubjectEndpoint,
 } from "./interfaces/http/routes/subjects";
 import {
+	CreateTaskEndpoint,
+	GetTaskEndpoint,
+	HardDeleteTaskEndpoint,
+	ListTasksEndpoint,
+	SoftDeleteTaskEndpoint,
+	UpdateTaskEndpoint,
+} from "./interfaces/http/routes/tasks";
+import {
 	CreateTermEndpoint,
 	HardDeleteTermEndpoint,
 	ListTermsEndpoint,
@@ -62,6 +70,14 @@ export default {
 		apiApp.put("/subjects/:id", UpdateSubjectEndpoint);
 		apiApp.delete("/subjects/:id", SoftDeleteSubjectEndpoint);
 		apiApp.delete("/subjects/:id/hard", HardDeleteSubjectEndpoint);
+
+		// Task endpoints
+		apiApp.get("/tasks", ListTasksEndpoint);
+		apiApp.get("/tasks/:id", GetTaskEndpoint);
+		apiApp.post("/tasks", CreateTaskEndpoint);
+		apiApp.put("/tasks/:id", UpdateTaskEndpoint);
+		apiApp.delete("/tasks/:id", SoftDeleteTaskEndpoint);
+		apiApp.delete("/tasks/:id/hard", HardDeleteTaskEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},
