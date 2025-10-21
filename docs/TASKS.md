@@ -640,4 +640,4 @@ Currently no rate limiting is enforced, but it's recommended to implement it for
 
 ## Version History
 
-- **v1.0.0** (2024-10-19): Initial release with full CRUD and cascade delete operations
+- **v1.0.0** (2025-10-19): Initial release with full CRUD and cascade delete operations
