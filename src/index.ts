@@ -3,6 +3,14 @@ import { fromHono } from "chanfana";
 import type { Bindings } from "./config/bindings";
 import { createApp } from "./interfaces";
 import {
+	CreateClassEndpoint,
+	GetClassEndpoint,
+	HardDeleteClassEndpoint,
+	ListClassesEndpoint,
+	SoftDeleteClassEndpoint,
+	UpdateClassEndpoint,
+} from "./interfaces/http/routes/classes";
+import {
 	CreateProfileEndpoint,
 	GetProfileEndpoint,
 } from "./interfaces/http/routes/profiles";
@@ -78,6 +86,14 @@ export default {
 		apiApp.put("/tasks/:id", UpdateTaskEndpoint);
 		apiApp.delete("/tasks/:id", SoftDeleteTaskEndpoint);
 		apiApp.delete("/tasks/:id/hard", HardDeleteTaskEndpoint);
+
+		// Class endpoints
+		apiApp.get("/classes", ListClassesEndpoint);
+		apiApp.get("/classes/:id", GetClassEndpoint);
+		apiApp.post("/classes", CreateClassEndpoint);
+		apiApp.put("/classes/:id", UpdateClassEndpoint);
+		apiApp.delete("/classes/:id", SoftDeleteClassEndpoint);
+		apiApp.delete("/classes/:id/hard", HardDeleteClassEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},
