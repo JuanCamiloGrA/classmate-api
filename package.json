@@ -16,6 +16,7 @@
 		"prepare": "husky"
 	},
 	"dependencies": {
+		"@aws-sdk/client-s3": "^3.918.0",
 		"@clerk/backend": "^2.18.1",
 		"chanfana": "^2.8.3",
 		"drizzle-orm": "^0.44.6",

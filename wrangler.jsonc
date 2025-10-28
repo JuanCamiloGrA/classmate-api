@@ -14,13 +14,14 @@
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement
 	 */
-	"placement": { "mode": "smart" },
+	"placement": {
+		"mode": "smart"
+	},
 	/**
 	 * Static Assets
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
 	// "assets": { "directory": "./public/", "binding": "ASSETS" }
-
 	/**
 	 * Secrets - Set via: wrangler secret put CLERK_WEBHOOK_SECRET
 	 * In development, create .dev.vars file with:
@@ -49,6 +50,26 @@
 			"binding": "CLERK_PUBLISHABLE_KEY",
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
 			"secret_name": "CLERK_PUBLISHABLE_KEY"
+		},
+		{
+			"binding": "R2_S3_API_ENDPOINT", // The full URL provided by Cloudflare (e.g., https://5a8xxx.r2.cloudflarestorage.com).
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_ACCOUNT_ID"
+		},
+		{
+			"binding": "R2_ACCESS_KEY_ID",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_ACCESS_KEY_ID"
+		},
+		{
+			"binding": "R2_SECRET_ACCESS_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_SECRET_ACCESS_KEY"
+		},
+		{
+			"binding": "R2_TEMPORAL_BUCKET_NAME",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_TEMPORAL_BUCKET_NAME"
 		}
 	],
 	"d1_databases": [
