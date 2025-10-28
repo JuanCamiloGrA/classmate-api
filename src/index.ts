@@ -11,6 +11,7 @@ import {
 	UpdateClassEndpoint,
 } from "./interfaces/http/routes/classes";
 import { GenerateClassAudioUploadUrlEndpoint } from "./interfaces/http/routes/classes-generate-upload-url";
+import { ProcessClassAudioEndpoint } from "./interfaces/http/routes/classes-process-audio";
 import {
 	CreateProfileEndpoint,
 	GetProfileEndpoint,
@@ -37,6 +38,7 @@ import {
 	SoftDeleteTermEndpoint,
 	UpdateTermEndpoint,
 } from "./interfaces/http/routes/terms";
+import { SummarizeClassWorkflow } from "./workflows/summarize-class";
 
 export default {
 	async fetch(request: Request, env: Bindings, ctx: ExecutionContext) {
@@ -99,7 +101,11 @@ export default {
 			"/classes/:classId/generate-upload-url",
 			GenerateClassAudioUploadUrlEndpoint,
 		);
+		apiApp.post("/classes/:classId/process-audio", ProcessClassAudioEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},
 };
+
+// Export workflow for Cloudflare Workers
+export { SummarizeClassWorkflow };

@@ -1,4 +1,4 @@
-import type { D1Database } from "@cloudflare/workers-types";
+import type { D1Database, Workflow } from "@cloudflare/workers-types";
 import type { Database } from "../infrastructure/database/client";
 
 type SecretsStoreBinding =
@@ -19,6 +19,9 @@ export type Bindings = {
 	R2_SECRET_ACCESS_KEY: SecretsStoreBinding;
 	R2_TEMPORAL_BUCKET_NAME: SecretsStoreBinding;
 	R2_PRESIGNED_URL_EXPIRATION_SECONDS?: string;
+	GEMINI_API_KEY: SecretsStoreBinding;
+	SUMMARIZE_CLASS_WORKFLOW: Workflow;
+	ASSETS: Fetcher;
 };
 
 export type Variables = {

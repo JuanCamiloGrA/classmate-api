@@ -21,7 +21,7 @@
 	 * Static Assets
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
-	// "assets": { "directory": "./public/", "binding": "ASSETS" }
+	"assets": { "directory": "./assets/", "binding": "ASSETS" },
 	/**
 	 * Secrets - Set via: wrangler secret put CLERK_WEBHOOK_SECRET
 	 * In development, create .dev.vars file with:
@@ -71,6 +71,11 @@
 			"binding": "R2_TEMPORAL_BUCKET_NAME",
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
 			"secret_name": "R2_TEMPORAL_BUCKET_NAME"
+		},
+		{
+			"binding": "GEMINI_API_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "GEMINI_API_KEY"
 		}
 	],
 	"d1_databases": [
@@ -80,6 +85,13 @@
 			"database_id": "852a3bb7-6a97-4f30-810d-4b0a1d618890",
 			"preview_database_id": "classmate-local",
 			"migrations_dir": "drizzle/migrations"
+		}
+	],
+	"workflows": [
+		{
+			"name": "summarize-class",
+			"binding": "SUMMARIZE_CLASS_WORKFLOW",
+			"class_name": "SummarizeClassWorkflow"
 		}
 	]
 }
