@@ -69,3 +69,19 @@ export const UpdateClassSchema = z
 export const ListClassesBySubjectSchema = z.object({
 	subject_id: z.string().min(1, "Subject ID is required"),
 });
+
+/**
+ * Validation schema for generating presigned upload URL.
+ * - file_name: required, non-empty string
+ * - content_type: required, must be a valid MIME type for audio
+ */
+export const GenerateUploadUrlSchema = z.object({
+	file_name: z.string().min(1, "File name is required"),
+	content_type: z
+		.string()
+		.min(1, "Content type is required")
+		.refine(
+			(val) => val.startsWith("audio/"),
+			"Content type must be an audio MIME type",
+		),
+});
