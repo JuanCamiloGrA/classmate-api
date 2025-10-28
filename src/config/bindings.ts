@@ -14,6 +14,11 @@ export type Bindings = {
 	CLERK_SECRET_KEY: SecretsStoreBinding;
 	CLERK_PUBLISHABLE_KEY: SecretsStoreBinding;
 	ALLOWED_ORIGIN: SecretsStoreBinding;
+	R2_S3_API_ENDPOINT: SecretsStoreBinding;
+	R2_ACCESS_KEY_ID: SecretsStoreBinding;
+	R2_SECRET_ACCESS_KEY: SecretsStoreBinding;
+	R2_TEMPORAL_BUCKET_NAME: SecretsStoreBinding;
+	R2_PRESIGNED_URL_EXPIRATION_SECONDS?: string;
 };
 
 export type Variables = {
