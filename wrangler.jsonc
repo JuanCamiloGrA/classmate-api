@@ -29,7 +29,8 @@
 	 * ENVIRONMENT=development|production
 	 */
 	"vars": {
-		"ENVIRONMENT": "production"
+		"ENVIRONMENT": "production",
+		"R2_PRESIGNED_URL_EXPIRATION_SECONDS": "300"
 	},
 	/**
 	 * Secrets Store Bindings

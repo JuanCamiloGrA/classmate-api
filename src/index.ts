@@ -10,6 +10,7 @@ import {
 	SoftDeleteClassEndpoint,
 	UpdateClassEndpoint,
 } from "./interfaces/http/routes/classes";
+import { GenerateClassAudioUploadUrlEndpoint } from "./interfaces/http/routes/classes-generate-upload-url";
 import {
 	CreateProfileEndpoint,
 	GetProfileEndpoint,
@@ -94,6 +95,10 @@ export default {
 		apiApp.put("/classes/:id", UpdateClassEndpoint);
 		apiApp.delete("/classes/:id", SoftDeleteClassEndpoint);
 		apiApp.delete("/classes/:id/hard", HardDeleteClassEndpoint);
+		apiApp.post(
+			"/classes/:classId/generate-upload-url",
+			GenerateClassAudioUploadUrlEndpoint,
+		);
 
 		return apiApp.fetch(request, env, ctx);
 	},
