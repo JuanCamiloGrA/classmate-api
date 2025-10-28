@@ -17,11 +17,11 @@
 	},
 	"dependencies": {
 		"@aws-sdk/client-s3": "^3.918.0",
-		"@clerk/backend": "^2.18.1",
+		"@clerk/backend": "^2.19.0",
 		"chanfana": "^2.8.3",
-		"drizzle-orm": "^0.44.6",
+		"drizzle-orm": "^0.44.7",
 		"drizzle-zod": "^0.8.3",
-		"hono": "^4.9.12",
+		"hono": "^4.10.3",
 		"zod": "^3.25.76"
 	},
 	"devDependencies": {
@@ -29,9 +29,9 @@
 		"@types/node": "24.7.0",
 		"@types/service-worker-mock": "^2.0.4",
 		"@vitest/ui": "^3.2.4",
-		"drizzle-kit": "^0.31.5",
+		"drizzle-kit": "^0.31.6",
 		"husky": "^9.1.7",
 		"vitest": "^3.2.4",
-		"wrangler": "^4.43.0"
+		"wrangler": "^4.45.1"
 	}
 }
