@@ -16,4 +16,8 @@ CLERK_WEBHOOK_SECRET=whsec_your_secret_here
 # CLERK_SECRET_KEY=sk_test_your_secret_key_here
 # CLERK_PUBLISHABLE_KEY=pk_test_your_publishable_key_here
 # ALLOWED_ORIGIN=http://localhost:3000
+# R2_S3_API_ENDPOINT=https://YOUR_ACCOUNT_ID.r2.cloudflarestorage.com
+# R2_ACCESS_KEY_ID=your_r2_access_key_id
+# R2_SECRET_ACCESS_KEY=your_r2_secret_access_key
+# R2_TEMPORAL_BUCKET_NAME=temporal
 
