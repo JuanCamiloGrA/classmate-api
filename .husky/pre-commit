@@ -39,7 +39,7 @@ echo ""
 
 # 3. Run tests
 echo "🧪 Running tests..."
-if ! bun run test; then
+if ! bun run test | tail -n 4; then
   echo "❌ Tests failed. Please fix the errors above."
   exit 1
 fi
