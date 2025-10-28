@@ -85,3 +85,15 @@ export const GenerateUploadUrlSchema = z.object({
 			"Content type must be an audio MIME type",
 		),
 });
+
+/**
+ * Validation schema for processing audio files.
+ * - r2_key: required, R2 object key for the uploaded file
+ * - file_name: required, original filename
+ * - mime_type: required, MIME type of the file
+ */
+export const ProcessAudioSchema = z.object({
+	r2_key: z.string().min(1, "R2 key is required"),
+	file_name: z.string().min(1, "File name is required"),
+	mime_type: z.string().min(1, "MIME type is required"),
+});
