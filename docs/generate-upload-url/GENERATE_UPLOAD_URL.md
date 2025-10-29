@@ -35,7 +35,7 @@ Requires Clerk authentication. The user must own the class.
 ### Example Request
 
 ```bash
-curl -X POST https://api.example.com/classes/cls_123/generate-upload-url \
+curl -X POST https://api.ascendclassmate.workers.dev/classes/cls_123/generate-upload-url \
   -H "Authorization: Bearer YOUR_CLERK_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{

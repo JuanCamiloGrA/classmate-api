@@ -242,34 +242,34 @@ Cause: Unexpected server error. Check logs for details.
 
 ```bash
 # List subjects for a term
-curl -X GET "https://api.example.com/subjects?term_id=term-123" \
+curl -X GET "https://api.ascendclassmate.workers.dev/subjects?term_id=term-123" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Create a subject
-curl -X POST "https://api.example.com/subjects" \
+curl -X POST "https://api.ascendclassmate.workers.dev/subjects" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Biology", "termId": "term-123"}'
 
 # Update a subject
-curl -X PUT "https://api.example.com/subjects/550e8400-e29b-41d4-a716-446655440002" \
+curl -X PUT "https://api.ascendclassmate.workers.dev/subjects/550e8400-e29b-41d4-a716-446655440002" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Advanced Biology"}'
 
 # Soft delete a subject
-curl -X DELETE "https://api.example.com/subjects/550e8400-e29b-41d4-a716-446655440002" \
+curl -X DELETE "https://api.ascendclassmate.workers.dev/subjects/550e8400-e29b-41d4-a716-446655440002" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Hard delete a subject
-curl -X DELETE "https://api.example.com/subjects/550e8400-e29b-41d4-a716-446655440002/hard" \
+curl -X DELETE "https://api.ascendclassmate.workers.dev/subjects/550e8400-e29b-41d4-a716-446655440002/hard" \
   -H "Authorization: Bearer <clerk-token>"
 ```
 
 ### JavaScript/TypeScript
 
 ```typescript
-const apiBase = "https://api.example.com";
+const apiBase = "https://api.ascendclassmate.workers.dev";
 const token = "your-clerk-token";
 
 const headers = {

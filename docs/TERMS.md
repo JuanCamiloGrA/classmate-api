@@ -3,7 +3,7 @@
 ## Setup
 
 ```typescript
-const BASE_URL = "https://your-api.com";
+const BASE_URL = "https://api.ascendclassmate.workers.dev";
 const token = "your_clerk_token";
 
 const headers = {

@@ -558,21 +558,21 @@ Refer to the status codes in each endpoint section for specific error scenarios.
 ### List all classes for a subject
 
 ```bash
-curl -X GET "https://api.classmate.com/classes?subject_id=subject-123" \
+curl -X GET "https://api.ascendclassmate.workers.dev/classes?subject_id=subject-123" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Get class details with resources
 
 ```bash
-curl -X GET "https://api.classmate.com/classes/class-550e8400-e29b-41d4-a716-446655440000" \
+curl -X GET "https://api.ascendclassmate.workers.dev/classes/class-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Create a new class
 
 ```bash
-curl -X POST "https://api.classmate.com/classes" \
+curl -X POST "https://api.ascendclassmate.workers.dev/classes" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -586,7 +586,7 @@ curl -X POST "https://api.classmate.com/classes" \
 ### Update a class
 
 ```bash
-curl -X PUT "https://api.classmate.com/classes/class-550e8400-e29b-41d4-a716-446655440000" \
+curl -X PUT "https://api.ascendclassmate.workers.dev/classes/class-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -598,14 +598,14 @@ curl -X PUT "https://api.classmate.com/classes/class-550e8400-e29b-41d4-a716-446
 ### Soft delete a class
 
 ```bash
-curl -X DELETE "https://api.classmate.com/classes/class-550e8400-e29b-41d4-a716-446655440000" \
+curl -X DELETE "https://api.ascendclassmate.workers.dev/classes/class-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
 ### Hard delete a class
 
 ```bash
-curl -X DELETE "https://api.classmate.com/classes/class-550e8400-e29b-41d4-a716-446655440000/hard" \
+curl -X DELETE "https://api.ascendclassmate.workers.dev/classes/class-550e8400-e29b-41d4-a716-446655440000/hard" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 

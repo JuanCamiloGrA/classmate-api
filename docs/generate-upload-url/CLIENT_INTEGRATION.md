@@ -18,7 +18,7 @@ async function uploadClassAudio(
 ): Promise<{ key: string }> {
   // Step 1: Request presigned URL
   const urlResponse = await fetch(
-    `https://api.example.com/classes/${classId}/generate-upload-url`,
+    `https://api.ascendclassmate.workers.dev/classes/${classId}/generate-upload-url`,
     {
       method: 'POST',
       headers: {
@@ -91,10 +91,10 @@ export function ClassAudioUploader({ classId }: { classId: string }) {
 
       const { key } = await uploadClassAudio(classId, file, token);
       setUploadedKey(key);
-      
+
       // TODO: Save the key to your database via another API call
       // await saveAudioReferenceToClass(classId, key);
-      
+
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Upload failed');
     } finally {
@@ -207,7 +207,7 @@ async function handleFileUpload(event: Event) {
 
     const { key } = await uploadClassAudio(props.classId, file, token);
     uploadedKey.value = key;
-    
+
   } catch (err) {
     error.value = err instanceof Error ? err.message : 'Upload failed';
   } finally {
@@ -270,7 +270,7 @@ AUDIO_FILE="recording.mp3"
 
 # Step 1: Get presigned URL
 RESPONSE=$(curl -s -X POST \
-  "https://api.example.com/classes/$CLASS_ID/generate-upload-url" \
+  "https://api.ascendclassmate.workers.dev/classes/$CLASS_ID/generate-upload-url" \
   -H "Authorization: Bearer $AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"file_name\": \"$AUDIO_FILE\", \"content_type\": \"audio/mpeg\"}")

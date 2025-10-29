@@ -64,7 +64,7 @@ async function uploadAndProcessFile(
 ): Promise<UploadAndProcessResult> {
   // Step 1: Request presigned URL
   const urlResponse = await fetch(
-    `https://api.classmate.com/classes/${classId}/generate-upload-url`,
+    `https://api.ascendclassmate.workers.dev/classes/${classId}/generate-upload-url`,
     {
       method: 'POST',
       headers: {
@@ -101,7 +101,7 @@ async function uploadAndProcessFile(
 
   // Step 3: Trigger AI processing workflow
   const processResponse = await fetch(
-    `https://api.classmate.com/classes/${classId}/process-audio`,
+    `https://api.ascendclassmate.workers.dev/classes/${classId}/process-audio`,
     {
       method: 'POST',
       headers: {
@@ -155,7 +155,7 @@ async function pollForSummary(
 ): Promise<ClassSummary> {
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const response = await fetch(
-      `https://api.classmate.com/classes/${classId}`,
+      `https://api.ascendclassmate.workers.dev/classes/${classId}`,
       {
         headers: {
           'Authorization': `Bearer ${authToken}`,
@@ -457,7 +457,7 @@ async function uploadAndProcessWithProgress(
   onProgress({ phase: 'uploading', percent: 0, message: 'Requesting upload URL...' });
 
   const urlResponse = await fetch(
-    `https://api.classmate.com/classes/${classId}/generate-upload-url`,
+    `https://api.ascendclassmate.workers.dev/classes/${classId}/generate-upload-url`,
     {
       method: 'POST',
       headers: {
@@ -513,7 +513,7 @@ async function uploadAndProcessWithProgress(
   onProgress({ phase: 'processing', percent: 50, message: 'Starting AI processing...' });
 
   const processResponse = await fetch(
-    `https://api.classmate.com/classes/${classId}/process-audio`,
+    `https://api.ascendclassmate.workers.dev/classes/${classId}/process-audio`,
     {
       method: 'POST',
       headers: {
@@ -547,7 +547,7 @@ async function uploadAndProcessWithProgress(
     });
 
     const response = await fetch(
-      `https://api.classmate.com/classes/${classId}`,
+      `https://api.ascendclassmate.workers.dev/classes/${classId}`,
       {
         headers: {
           'Authorization': `Bearer ${authToken}`,

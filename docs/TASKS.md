@@ -418,15 +418,15 @@ interface TaskResource {
 
 ```bash
 # List tasks for a subject
-curl -X GET "https://api.example.com/tasks?subject_id=subject-123" \
+curl -X GET "https://api.ascendclassmate.workers.dev/tasks?subject_id=subject-123" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Get task details with files
-curl -X GET "https://api.example.com/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
+curl -X GET "https://api.ascendclassmate.workers.dev/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Create a task
-curl -X POST "https://api.example.com/tasks" \
+curl -X POST "https://api.ascendclassmate.workers.dev/tasks" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -437,7 +437,7 @@ curl -X POST "https://api.example.com/tasks" \
   }'
 
 # Update task status and grade
-curl -X PUT "https://api.example.com/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
+curl -X PUT "https://api.ascendclassmate.workers.dev/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
   -d '{
@@ -446,18 +446,18 @@ curl -X PUT "https://api.example.com/tasks/task-550e8400-e29b-41d4-a716-44665544
   }'
 
 # Soft delete a task
-curl -X DELETE "https://api.example.com/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
+curl -X DELETE "https://api.ascendclassmate.workers.dev/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Hard delete a task
-curl -X DELETE "https://api.example.com/tasks/task-550e8400-e29b-41d4-a716-446655440000/hard" \
+curl -X DELETE "https://api.ascendclassmate.workers.dev/tasks/task-550e8400-e29b-41d4-a716-446655440000/hard" \
   -H "Authorization: Bearer <clerk-token>"
 ```
 
 ### JavaScript/TypeScript
 
 ```typescript
-const apiBase = "https://api.example.com";
+const apiBase = "https://api.ascendclassmate.workers.dev";
 const token = "your-clerk-token";
 
 const headers = {
@@ -547,7 +547,7 @@ export function useTasks(subjectId: string) {
     setLoading(true);
     try {
       const res = await fetch(
-        `https://api.example.com/tasks?subject_id=${subjectId}`,
+        `https://api.ascendclassmate.workers.dev/tasks?subject_id=${subjectId}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
@@ -561,7 +561,7 @@ export function useTasks(subjectId: string) {
 
   const createTask = async (title: string, content?: string) => {
     try {
-      const res = await fetch('https://api.example.com/tasks', {
+      const res = await fetch('https://api.ascendclassmate.workers.dev/tasks', {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -579,7 +579,7 @@ export function useTasks(subjectId: string) {
 
   const updateTaskStatus = async (taskId: string, status: string, grade?: number) => {
     try {
-      const res = await fetch(`https://api.example.com/tasks/${taskId}`, {
+      const res = await fetch(`https://api.ascendclassmate.workers.dev/tasks/${taskId}`, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
