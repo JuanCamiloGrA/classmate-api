@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
 import type { MarkdownService } from "../../domain/services/markdown.service";
+import type { ProcessingService } from "../../domain/services/processing.service";
 import type { PromptService } from "../../domain/services/prompt.service";
 import type { StorageService } from "../../domain/services/storage.service";
 import { SummarizeClassWorkflowHandler } from "./handler";
@@ -10,6 +11,7 @@ import type { WorkflowRequestBody } from "./types";
 
 describe("SummarizeClassWorkflowHandler", () => {
 	let handler: SummarizeClassWorkflowHandler;
+	let mockProcessingService: ProcessingService;
 	let mockAIService: AIService;
 	let mockStorageService: StorageService;
 	let mockSummaryRepository: SummaryRepository;
@@ -19,6 +21,10 @@ describe("SummarizeClassWorkflowHandler", () => {
 
 	beforeEach(() => {
 		// Create mocks
+		mockProcessingService = {
+			processUrl: vi.fn(),
+		};
+
 		mockAIService = {
 			generateContent: vi.fn(),
 		};
@@ -51,6 +57,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 
 		// Create handler instance
 		handler = new SummarizeClassWorkflowHandler(
+			mockProcessingService,
 			mockAIService,
 			mockStorageService,
 			mockSummaryRepository,
@@ -65,7 +72,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 			const mockPayload: WorkflowRequestBody = {
 				classId: "class-123",
 				userId: "user-456",
-				file: {
+				input: {
 					r2Key: "temp/user-456/audio.mp3",
 					mimeType: "audio/mpeg",
 					filename: "audio.mp3",
@@ -127,7 +134,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 			const mockPayload: WorkflowRequestBody = {
 				classId: "class-123",
 				userId: "user-456",
-				file: {
+				input: {
 					r2Key: "temp/user-456/notes.txt",
 					mimeType: "text/plain",
 					filename: "notes.txt",
@@ -174,7 +181,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 			const mockPayload: WorkflowRequestBody = {
 				classId: "class-123",
 				userId: "user-456",
-				file: {
+				input: {
 					r2Key: "temp/user-456/audio.mp3",
 					mimeType: "audio/mpeg",
 					filename: "audio.mp3",
@@ -202,12 +209,12 @@ describe("SummarizeClassWorkflowHandler", () => {
 			);
 		});
 
-		it("should execute all three workflow steps", async () => {
+		it("should execute all four workflow steps", async () => {
 			// Arrange
 			const mockPayload: WorkflowRequestBody = {
 				classId: "class-123",
 				userId: "user-456",
-				file: {
+				input: {
 					r2Key: "temp/user-456/audio.mp3",
 					mimeType: "audio/mpeg",
 					filename: "audio.mp3",
@@ -236,21 +243,27 @@ describe("SummarizeClassWorkflowHandler", () => {
 			await handler.run(mockEvent, mockStep);
 
 			// Assert
-			expect(mockStep.do).toHaveBeenCalledTimes(3);
+			expect(mockStep.do).toHaveBeenCalledTimes(4);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				1,
-				"generate-summary",
+				"prepare-file-input",
 				expect.any(Object),
 				expect.any(Function),
 			);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				2,
-				"save-summary",
+				"generate-summary",
 				expect.any(Object),
 				expect.any(Function),
 			);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				3,
+				"save-summary",
+				expect.any(Object),
+				expect.any(Function),
+			);
+			expect(mockStep.do).toHaveBeenNthCalledWith(
+				4,
 				"cleanup-temp-file",
 				expect.any(Object),
 				expect.any(Function),
