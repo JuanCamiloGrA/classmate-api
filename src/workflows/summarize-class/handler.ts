@@ -2,10 +2,13 @@ import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
 import type { MarkdownService } from "../../domain/services/markdown.service";
+import type { ProcessingService } from "../../domain/services/processing.service";
 import type { PromptService } from "../../domain/services/prompt.service";
 import type { StorageService } from "../../domain/services/storage.service";
 import { FileValidator } from "./file-validator";
 import {
+	type FileInput,
+	PREPARE_FILE_INPUT_CONFIG,
 	SAVE_SUMMARY_CONFIG,
 	WORKFLOW_CONFIG,
 	type WorkflowRequestBody,
@@ -19,6 +22,7 @@ export class SummarizeClassWorkflowHandler {
 	private fileValidator: FileValidator;
 
 	constructor(
+		private processingService: ProcessingService,
 		private aiService: AIService,
 		private storageService: StorageService,
 		private summaryRepository: SummaryRepository,
@@ -34,12 +38,21 @@ export class SummarizeClassWorkflowHandler {
 	): Promise<void> {
 		const payload = event.payload;
 
+		// Step 0: Prepare file input - convert URL to R2 file if needed
+		const fileInput = await step.do(
+			"prepare-file-input",
+			PREPARE_FILE_INPUT_CONFIG,
+			async () => {
+				return await this.prepareFileInput(payload);
+			},
+		);
+
 		// Step 1: Generate summary from file content
 		const summaryMarkdown = await step.do(
 			"generate-summary",
 			WORKFLOW_CONFIG,
 			async () => {
-				return await this.generateSummary(payload);
+				return await this.generateSummary(payload.classId, fileInput);
 			},
 		);
 
@@ -50,12 +63,51 @@ export class SummarizeClassWorkflowHandler {
 
 		// Step 3: Cleanup - delete temporary file from R2
 		await step.do("cleanup-temp-file", { timeout: "5 minutes" }, async () => {
-			await this.cleanupTempFile(payload);
+			await this.cleanupTempFile(fileInput);
 		});
 	}
 
-	private async generateSummary(payload: WorkflowRequestBody): Promise<string> {
-		const { file, classId } = payload;
+	private async prepareFileInput(
+		payload: WorkflowRequestBody,
+	): Promise<FileInput> {
+		const { input, userId, classId } = payload;
+
+		// Check if input is a URL (needs processing) or already an R2 file
+		if ("sourceUrl" in input) {
+			console.log("🔄 [WORKFLOW] Processing URL input", {
+				classId,
+				sourceUrl: input.sourceUrl,
+				timestamp: new Date().toISOString(),
+			});
+
+			// Delegate heavy processing to Cloud Run service
+			const fileInput = await this.processingService.processUrl(
+				input.sourceUrl,
+				userId,
+				classId,
+			);
+
+			console.log("✅ [WORKFLOW] URL processed successfully", {
+				classId,
+				r2Key: fileInput.r2Key,
+			});
+
+			return fileInput;
+		}
+
+		// Input is already an R2 file, pass through
+		console.log("✅ [WORKFLOW] Using pre-uploaded R2 file", {
+			classId,
+			r2Key: input.r2Key,
+		});
+
+		return input;
+	}
+
+	private async generateSummary(
+		classId: string,
+		file: FileInput,
+	): Promise<string> {
 		const { mimeType, filename, r2Key } = file;
 
 		const isAudioFile = this.fileValidator.isAudioFile(mimeType, filename);
@@ -119,18 +171,14 @@ export class SummarizeClassWorkflowHandler {
 		console.log("✅ [WORKFLOW] Summary saved to database", { classId });
 	}
 
-	private async cleanupTempFile(payload: WorkflowRequestBody): Promise<void> {
-		const { file, classId } = payload;
-
+	private async cleanupTempFile(file: FileInput): Promise<void> {
 		console.log("🗑️ [WORKFLOW] Cleaning up temporary file", {
-			classId,
 			r2Key: file.r2Key,
 		});
 
 		await this.storageService.deleteFile(file.r2Key);
 
 		console.log("✅ [WORKFLOW] Temporary file deleted", {
-			classId,
 			r2Key: file.r2Key,
 		});
 	}

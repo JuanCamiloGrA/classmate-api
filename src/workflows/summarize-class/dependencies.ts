@@ -4,6 +4,7 @@ import { GoogleAIService } from "../../infrastructure/ai/google.ai.service";
 import { DatabaseFactory } from "../../infrastructure/database/client";
 import { D1SummaryRepository } from "../../infrastructure/database/repositories/summary.repository";
 import { MiniGFMMarkdownService } from "../../infrastructure/markdown/minigfm.markdown.service";
+import { CloudRunProcessingService } from "../../infrastructure/processing/cloud-run.processing.service";
 import { AssetsPromptService } from "../../infrastructure/prompt/assets.prompt.service";
 import { R2StorageService } from "../../infrastructure/storage/r2.storage.service";
 import { SummarizeClassWorkflowHandler } from "./handler";
@@ -38,6 +39,7 @@ export async function createSummarizeClassWorkflowHandler(
 	);
 
 	// Create infrastructure services
+	const processingService = new CloudRunProcessingService(env);
 	const aiService = new GoogleAIService(geminiApiKey);
 	const promptService = new AssetsPromptService(env.ASSETS);
 	const storageService = new R2StorageService({
@@ -54,6 +56,7 @@ export async function createSummarizeClassWorkflowHandler(
 
 	// Wire up and return handler
 	return new SummarizeClassWorkflowHandler(
+		processingService,
 		aiService,
 		storageService,
 		summaryRepository,
