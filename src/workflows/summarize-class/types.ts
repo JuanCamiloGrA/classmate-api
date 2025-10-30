@@ -8,15 +8,24 @@ export interface FileInput {
 	filename: string;
 }
 
+export interface UrlInput {
+	sourceUrl: string;
+}
+
 export interface WorkflowRequestBody {
 	classId: string;
 	userId: string;
-	file: FileInput;
+	input: FileInput | UrlInput;
 }
 
 /**
  * Workflow Configuration
  */
+export const PREPARE_FILE_INPUT_CONFIG = {
+	retries: { limit: 3, delay: "10 seconds", backoff: "exponential" as const },
+	timeout: "15 minutes",
+} as const;
+
 export const WORKFLOW_CONFIG = {
 	retries: { limit: 3, delay: "10 seconds", backoff: "exponential" as const },
 	timeout: "30 minutes",
