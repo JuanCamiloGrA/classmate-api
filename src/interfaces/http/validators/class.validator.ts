@@ -97,3 +97,11 @@ export const ProcessAudioSchema = z.object({
 	file_name: z.string().min(1, "File name is required"),
 	mime_type: z.string().min(1, "MIME type is required"),
 });
+
+/**
+ * Validation schema for processing a class from URL.
+ * - source_url: required, must be a valid URL
+ */
+export const ProcessUrlSchema = z.object({
+	source_url: z.string().url("A valid URL is required"),
+});
