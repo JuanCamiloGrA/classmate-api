@@ -36,7 +36,13 @@ export class CloudRunProcessingService implements ProcessingService {
 			"INTERNAL_API_KEY",
 		);
 
-		const response = await fetch(processingServiceUrl, {
+		// Construct the full URL with the specific route for processing URLs
+		const processUrl = new URL(
+			"/api/v1/process-url",
+			processingServiceUrl,
+		).toString();
+
+		const response = await fetch(processUrl, {
 			method: "POST",
 			headers: {
 				"Content-Type": "application/json",
