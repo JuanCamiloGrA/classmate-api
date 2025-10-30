@@ -72,7 +72,7 @@ async function processAudio(c: ClassContext) {
 			params: {
 				classId,
 				userId: auth.userId,
-				file: {
+				input: {
 					r2Key: r2_key,
 					mimeType: mime_type,
 					filename: file_name,
