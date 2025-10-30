@@ -76,6 +76,16 @@
 			"binding": "GEMINI_API_KEY",
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
 			"secret_name": "GEMINI_API_KEY"
+		},
+		{
+			"binding": "PROCESSING_SERVICE_URL",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "PROCESSING_SERVICE_URL"
+		},
+		{
+			"binding": "INTERNAL_API_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "INTERNAL_API_KEY"
 		}
 	],
 	"d1_databases": [
