@@ -1,5 +1,6 @@
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { StorageRepository } from "../../domain/repositories/storage.repository";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
 import type { MarkdownService } from "../../domain/services/markdown.service";
@@ -14,6 +15,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 	let mockProcessingService: ProcessingService;
 	let mockAIService: AIService;
 	let mockStorageService: StorageService;
+	let mockStorageRepository: StorageRepository;
 	let mockSummaryRepository: SummaryRepository;
 	let mockMarkdownService: MarkdownService;
 	let mockPromptService: PromptService;
@@ -27,11 +29,17 @@ describe("SummarizeClassWorkflowHandler", () => {
 
 		mockAIService = {
 			generateContent: vi.fn(),
+			generateSummaryFromUrl: vi.fn(),
 		};
 
 		mockStorageService = {
 			getFileBytes: vi.fn(),
 			deleteFile: vi.fn(),
+		};
+
+		mockStorageRepository = {
+			generatePresignedPutUrl: vi.fn(),
+			generatePresignedGetUrl: vi.fn(),
 		};
 
 		mockSummaryRepository = {
@@ -60,9 +68,11 @@ describe("SummarizeClassWorkflowHandler", () => {
 			mockProcessingService,
 			mockAIService,
 			mockStorageService,
+			mockStorageRepository,
 			mockSummaryRepository,
 			mockMarkdownService,
 			mockPromptService,
+			"temporal-bucket",
 		);
 	});
 
@@ -84,19 +94,22 @@ describe("SummarizeClassWorkflowHandler", () => {
 				timestamp: new Date(),
 			} as WorkflowEvent<WorkflowRequestBody>;
 
-			const mockFileBytes = new Uint8Array([1, 2, 3]);
 			const mockPrompt = "Test prompt";
+			const mockFileUrl =
+				"https://bucket.r2.example.com/temp/user-456/audio.mp3?signed";
 			const mockSummaryMarkdown = "# Test Summary\n\nContent here";
 			const mockSummaryHtml = "<h1>Test Summary</h1><p>Content here</p>";
 
 			(
-				mockStorageService.getFileBytes as ReturnType<typeof vi.fn>
-			).mockResolvedValue(mockFileBytes);
-			(
 				mockPromptService.loadPrompt as ReturnType<typeof vi.fn>
 			).mockResolvedValue(mockPrompt);
 			(
-				mockAIService.generateContent as ReturnType<typeof vi.fn>
+				mockStorageRepository.generatePresignedGetUrl as ReturnType<
+					typeof vi.fn
+				>
+			).mockResolvedValue(mockFileUrl);
+			(
+				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue(mockSummaryMarkdown);
 			(mockMarkdownService.parse as ReturnType<typeof vi.fn>).mockReturnValue(
 				mockSummaryHtml,
@@ -106,14 +119,13 @@ describe("SummarizeClassWorkflowHandler", () => {
 			await handler.run(mockEvent, mockStep);
 
 			// Assert
-			expect(mockStorageService.getFileBytes).toHaveBeenCalledWith(
-				"temp/user-456/audio.mp3",
-			);
+			expect(
+				mockStorageRepository.generatePresignedGetUrl,
+			).toHaveBeenCalledWith("temporal-bucket", "temp/user-456/audio.mp3", 300);
 			expect(mockPromptService.loadPrompt).toHaveBeenCalled();
-			expect(mockAIService.generateContent).toHaveBeenCalledWith(
+			expect(mockAIService.generateSummaryFromUrl).toHaveBeenCalledWith(
 				mockPrompt,
-				mockFileBytes,
-				true, // isAudio
+				mockFileUrl,
 				"audio/mpeg",
 			);
 			expect(mockMarkdownService.parse).toHaveBeenCalledWith(
@@ -146,19 +158,22 @@ describe("SummarizeClassWorkflowHandler", () => {
 				timestamp: new Date(),
 			} as WorkflowEvent<WorkflowRequestBody>;
 
-			const mockFileBytes = new TextEncoder().encode("Text content");
 			const mockPrompt = "Test prompt";
+			const mockFileUrl =
+				"https://bucket.r2.example.com/temp/user-456/notes.txt?signed";
 			const mockSummaryMarkdown = "# Summary";
 			const mockSummaryHtml = "<h1>Summary</h1>";
 
 			(
-				mockStorageService.getFileBytes as ReturnType<typeof vi.fn>
-			).mockResolvedValue(mockFileBytes);
-			(
 				mockPromptService.loadPrompt as ReturnType<typeof vi.fn>
 			).mockResolvedValue(mockPrompt);
 			(
-				mockAIService.generateContent as ReturnType<typeof vi.fn>
+				mockStorageRepository.generatePresignedGetUrl as ReturnType<
+					typeof vi.fn
+				>
+			).mockResolvedValue(mockFileUrl);
+			(
+				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue(mockSummaryMarkdown);
 			(mockMarkdownService.parse as ReturnType<typeof vi.fn>).mockReturnValue(
 				mockSummaryHtml,
@@ -168,11 +183,10 @@ describe("SummarizeClassWorkflowHandler", () => {
 			await handler.run(mockEvent, mockStep);
 
 			// Assert
-			expect(mockAIService.generateContent).toHaveBeenCalledWith(
+			expect(mockAIService.generateSummaryFromUrl).toHaveBeenCalledWith(
 				mockPrompt,
-				"Text content",
-				false, // isAudio
-				undefined,
+				mockFileUrl,
+				"text/plain",
 			);
 		});
 
@@ -193,14 +207,20 @@ describe("SummarizeClassWorkflowHandler", () => {
 				timestamp: new Date(),
 			} as WorkflowEvent<WorkflowRequestBody>;
 
-			(
-				mockStorageService.getFileBytes as ReturnType<typeof vi.fn>
-			).mockResolvedValue(new Uint8Array([1, 2, 3]));
+			const mockPrompt = "Test prompt";
+			const mockFileUrl =
+				"https://bucket.r2.example.com/temp/user-456/audio.mp3?signed";
+
 			(
 				mockPromptService.loadPrompt as ReturnType<typeof vi.fn>
-			).mockResolvedValue("Test prompt");
+			).mockResolvedValue(mockPrompt);
 			(
-				mockAIService.generateContent as ReturnType<typeof vi.fn>
+				mockStorageRepository.generatePresignedGetUrl as ReturnType<
+					typeof vi.fn
+				>
+			).mockResolvedValue(mockFileUrl);
+			(
+				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue(""); // Empty response
 
 			// Act & Assert
@@ -226,14 +246,19 @@ describe("SummarizeClassWorkflowHandler", () => {
 				timestamp: new Date(),
 			} as WorkflowEvent<WorkflowRequestBody>;
 
-			(
-				mockStorageService.getFileBytes as ReturnType<typeof vi.fn>
-			).mockResolvedValue(new Uint8Array([1, 2, 3]));
+			const mockFileUrl =
+				"https://bucket.r2.example.com/temp/user-456/audio.mp3?signed";
+
 			(
 				mockPromptService.loadPrompt as ReturnType<typeof vi.fn>
 			).mockResolvedValue("Test prompt");
 			(
-				mockAIService.generateContent as ReturnType<typeof vi.fn>
+				mockStorageRepository.generatePresignedGetUrl as ReturnType<
+					typeof vi.fn
+				>
+			).mockResolvedValue(mockFileUrl);
+			(
+				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue("# Summary\n\nTest");
 			(mockMarkdownService.parse as ReturnType<typeof vi.fn>).mockReturnValue(
 				"<h1>Summary</h1>",

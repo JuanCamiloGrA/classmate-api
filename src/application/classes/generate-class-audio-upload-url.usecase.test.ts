@@ -46,6 +46,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		mockStorageRepository = {
 			generatePresignedPutUrl: vi.fn(),
+			generatePresignedGetUrl: vi.fn(),
 		};
 	});
 

@@ -1,4 +1,5 @@
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import type { StorageRepository } from "../../domain/repositories/storage.repository";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
 import type { MarkdownService } from "../../domain/services/markdown.service";
@@ -25,9 +26,11 @@ export class SummarizeClassWorkflowHandler {
 		private processingService: ProcessingService,
 		private aiService: AIService,
 		private storageService: StorageService,
+		private storageRepository: StorageRepository,
 		private summaryRepository: SummaryRepository,
 		private markdownService: MarkdownService,
 		private promptService: PromptService,
+		private r2TemporalBucketName: string,
 	) {
 		this.fileValidator = new FileValidator();
 	}
@@ -123,19 +126,27 @@ export class SummarizeClassWorkflowHandler {
 			timestamp: new Date().toISOString(),
 		});
 
-		// Download file from R2
-		const bytes = await this.storageService.getFileBytes(r2Key);
-
 		// Load prompt template
 		const prompt = await this.promptService.loadPrompt();
 
-		// Determine content type and generate summary
-		const content = isAudioFile ? bytes : new TextDecoder().decode(bytes);
-		const summary = await this.aiService.generateContent(
+		// Generate presigned GET URL for the file (5 minutes expiration)
+		const fileUrl = await this.storageRepository.generatePresignedGetUrl(
+			this.r2TemporalBucketName,
+			r2Key,
+			300, // 5 minutes
+		);
+
+		console.log("🔗 [WORKFLOW] Generated presigned URL for file", {
+			classId,
+			r2Key,
+			urlLength: fileUrl.length,
+		});
+
+		// Pass URL directly to AI service - Gemini will download the file
+		const summary = await this.aiService.generateSummaryFromUrl(
 			prompt,
-			content,
-			isAudioFile,
-			audioMimeType,
+			fileUrl,
+			isAudioFile ? audioMimeType : "text/plain",
 		);
 
 		if (!summary || typeof summary !== "string") {

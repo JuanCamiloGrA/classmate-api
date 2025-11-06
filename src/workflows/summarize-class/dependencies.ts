@@ -6,6 +6,7 @@ import { D1SummaryRepository } from "../../infrastructure/database/repositories/
 import { MiniGFMMarkdownService } from "../../infrastructure/markdown/minigfm.markdown.service";
 import { CloudRunProcessingService } from "../../infrastructure/processing/cloud-run.processing.service";
 import { AssetsPromptService } from "../../infrastructure/prompt/assets.prompt.service";
+import { R2StorageAdapter } from "../../infrastructure/storage/r2.storage";
 import { R2StorageService } from "../../infrastructure/storage/r2.storage.service";
 import { SummarizeClassWorkflowHandler } from "./handler";
 
@@ -50,6 +51,13 @@ export async function createSummarizeClassWorkflowHandler(
 	});
 	const markdownService = new MiniGFMMarkdownService();
 
+	// Create storage adapter for generating presigned URLs
+	const storageRepository = new R2StorageAdapter({
+		endpoint: r2Endpoint,
+		accessKeyId: r2AccessKeyId,
+		secretAccessKey: r2SecretAccessKey,
+	});
+
 	// Create database connection and repository
 	const db = DatabaseFactory.create(env.DB);
 	const summaryRepository = new D1SummaryRepository(db);
@@ -59,8 +67,10 @@ export async function createSummarizeClassWorkflowHandler(
 		processingService,
 		aiService,
 		storageService,
+		storageRepository,
 		summaryRepository,
 		markdownService,
 		promptService,
+		r2BucketName,
 	);
 }

@@ -94,4 +94,43 @@ export class GoogleAIService implements AIService {
 
 		return (response as any).text ?? "";
 	}
+
+	async generateSummaryFromUrl(
+		prompt: string,
+		fileUrl: string,
+		mimeType: string,
+	): Promise<string> {
+		try {
+			console.log("🔗 [AI] Processing file from URL with Gemini", {
+				fileUrl,
+				mimeType,
+			});
+
+			const response = await this.client.models.generateContent({
+				model: AI_CONFIG.model,
+				contents: createUserContent([
+					createPartFromUri(fileUrl, mimeType),
+					prompt,
+				]),
+				config: {
+					thinkingConfig: { thinkingBudget: AI_CONFIG.thinkingBudget },
+				},
+			});
+
+			const result = (response as any).text ?? "";
+
+			console.log("✅ [AI] Summary generated from URL successfully", {
+				summaryLength: result.length,
+			});
+
+			return result;
+		} catch (e) {
+			console.error("❌ [AI] Gemini request failed for URL", {
+				error: e instanceof Error ? e.message : String(e),
+				model: AI_CONFIG.model,
+				fileUrl,
+			});
+			throw e;
+		}
+	}
 }

@@ -5,4 +5,10 @@ export interface StorageRepository {
 		contentType: string,
 		expiresInSeconds: number,
 	): Promise<string>;
+
+	generatePresignedGetUrl(
+		bucket: string,
+		key: string,
+		expiresInSeconds: number,
+	): Promise<string>;
 }

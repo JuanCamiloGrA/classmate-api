@@ -9,4 +9,10 @@ export interface AIService {
 		isAudio: boolean,
 		mimeType?: string,
 	): Promise<string>;
+
+	generateSummaryFromUrl(
+		prompt: string,
+		fileUrl: string,
+		mimeType: string,
+	): Promise<string>;
 }

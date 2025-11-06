@@ -1,4 +1,8 @@
-import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import {
+	GetObjectCommand,
+	PutObjectCommand,
+	S3Client,
+} from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
 
@@ -32,6 +36,21 @@ export class R2StorageAdapter implements StorageRepository {
 			Bucket: bucket,
 			Key: key,
 			ContentType: contentType,
+		});
+
+		return getSignedUrl(this.client, command, {
+			expiresIn: expiresInSeconds,
+		});
+	}
+
+	async generatePresignedGetUrl(
+		bucket: string,
+		key: string,
+		expiresInSeconds: number,
+	): Promise<string> {
+		const command = new GetObjectCommand({
+			Bucket: bucket,
+			Key: key,
 		});
 
 		return getSignedUrl(this.client, command, {
