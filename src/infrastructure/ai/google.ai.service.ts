@@ -101,15 +101,44 @@ export class GoogleAIService implements AIService {
 		mimeType: string,
 	): Promise<string> {
 		try {
-			console.log("🔗 [AI] Processing file from URL with Gemini", {
+			console.log("🔗 [AI] Downloading file from presigned URL", {
 				fileUrl,
 				mimeType,
 			});
 
-			const response = await this.client.models.generateContent({
+			// Download file from presigned URL
+			const response = await fetch(fileUrl);
+			if (!response.ok) {
+				throw new Error(
+					`Failed to download file: ${response.status} ${response.statusText}`,
+				);
+			}
+
+			const blob = await response.blob();
+
+			console.log("📤 [AI] Uploading file to Gemini Files API", {
+				size: blob.size,
+				mimeType,
+			});
+
+			// Upload to Gemini Files API
+			const uploaded = await this.client.files.upload({
+				file: blob,
+				config: { mimeType },
+			});
+
+			console.log("✅ [AI] File uploaded to Gemini Files API", {
+				uri: (uploaded as any).uri,
+			});
+
+			// Generate content using uploaded file
+			const contentResponse = await this.client.models.generateContent({
 				model: AI_CONFIG.model,
 				contents: createUserContent([
-					createPartFromUri(fileUrl, mimeType),
+					createPartFromUri(
+						(uploaded as any).uri,
+						(uploaded as any).mimeType || mimeType,
+					),
 					prompt,
 				]),
 				config: {
@@ -117,7 +146,21 @@ export class GoogleAIService implements AIService {
 				},
 			});
 
-			const result = (response as any).text ?? "";
+			const result = (contentResponse as any).text ?? "";
+
+			// Clean up: delete file from Gemini Files API
+			try {
+				await this.client.files.delete({ name: (uploaded as any).name });
+				console.log("🗑️ [AI] Cleaned up file from Gemini Files API");
+			} catch (deleteError) {
+				console.warn("⚠️ [AI] Failed to delete file from Gemini Files API", {
+					error:
+						deleteError instanceof Error
+							? deleteError.message
+							: String(deleteError),
+				});
+				// Don't throw - file will auto-delete after 48h
+			}
 
 			console.log("✅ [AI] Summary generated from URL successfully", {
 				summaryLength: result.length,
