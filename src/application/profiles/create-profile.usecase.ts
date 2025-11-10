@@ -60,6 +60,7 @@ export class CreateProfileUseCase {
 			name: input.name,
 		};
 
+		// Repository will throw "Profile already exists" if email constraint is violated
 		const profile = await this.profileRepository.create(profileData);
 		return profile;
 	}

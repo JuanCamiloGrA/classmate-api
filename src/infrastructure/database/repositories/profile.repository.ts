@@ -18,19 +18,31 @@ export class D1ProfileRepository implements ProfileRepository {
 	}
 
 	async create(profile: ProfileData): Promise<Profile> {
-		const newProfile = await this.db
-			.insert(profiles)
-			.values({
-				id: profile.id,
-				email: profile.email,
-				name: profile.name,
-				subscriptionTier: "free",
-				storageUsedBytes: 0,
-			})
-			.returning()
-			.get();
+		try {
+			const newProfile = await this.db
+				.insert(profiles)
+				.values({
+					id: profile.id,
+					email: profile.email,
+					name: profile.name,
+					subscriptionTier: "free",
+					storageUsedBytes: 0,
+				})
+				.returning()
+				.get();
 
-		return newProfile;
+			return newProfile;
+		} catch (error) {
+			// D1/SQLite constraint violations contain "UNIQUE constraint" or "SQLITE_CONSTRAINT"
+			if (
+				error instanceof Error &&
+				(error.message.includes("UNIQUE constraint") ||
+					error.message.includes("SQLITE_CONSTRAINT"))
+			) {
+				throw new Error("Profile with this email already exists");
+			}
+			throw error;
+		}
 	}
 
 	async existsById(id: string): Promise<boolean> {
