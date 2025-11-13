@@ -157,7 +157,7 @@ Once triggered, the endpoint initiates a **durable Cloudflare Workflow** that ex
 ### 1. Generate Presigned URL
 
 ```bash
-curl -X POST "https://api.ascendclassmate.workers.dev/classes/class-123/generate-upload-url" \
+curl -X POST "https://api.classmate.studio/classes/class-123/generate-upload-url" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -188,7 +188,7 @@ curl -X PUT "https://r2.cloudflare.com/..." \
 ### 3. Trigger Processing
 
 ```bash
-curl -X POST "https://api.ascendclassmate.workers.dev/classes/class-123/process-audio" \
+curl -X POST "https://api.classmate.studio/classes/class-123/process-audio" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -215,7 +215,7 @@ curl -X POST "https://api.ascendclassmate.workers.dev/classes/class-123/process-
 After the workflow completes (typically 10-60 seconds), retrieve the class to access the generated summary:
 
 ```bash
-curl -X GET "https://api.ascendclassmate.workers.dev/classes/class-123" \
+curl -X GET "https://api.classmate.studio/classes/class-123" \
   -H "Authorization: Bearer YOUR_JWT_TOKEN"
 ```
 
@@ -319,7 +319,7 @@ async function processClassAudio(
   authToken: string
 ): Promise<{ workflowId: string }> {
   const response = await fetch(
-    `https://api.ascendclassmate.workers.dev/classes/${classId}/process-audio`,
+    `https://api.classmate.studio/classes/${classId}/process-audio`,
     {
       method: 'POST',
       headers: {

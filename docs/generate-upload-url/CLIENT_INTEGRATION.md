@@ -18,7 +18,7 @@ async function uploadClassAudio(
 ): Promise<{ key: string }> {
   // Step 1: Request presigned URL
   const urlResponse = await fetch(
-    `https://api.ascendclassmate.workers.dev/classes/${classId}/generate-upload-url`,
+    `https://api.classmate.studio/classes/${classId}/generate-upload-url`,
     {
       method: 'POST',
       headers: {
@@ -270,7 +270,7 @@ AUDIO_FILE="recording.mp3"
 
 # Step 1: Get presigned URL
 RESPONSE=$(curl -s -X POST \
-  "https://api.ascendclassmate.workers.dev/classes/$CLASS_ID/generate-upload-url" \
+  "https://api.classmate.studio/classes/$CLASS_ID/generate-upload-url" \
   -H "Authorization: Bearer $AUTH_TOKEN" \
   -H "Content-Type: application/json" \
   -d "{\"file_name\": \"$AUDIO_FILE\", \"content_type\": \"audio/mpeg\"}")

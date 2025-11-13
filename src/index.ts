@@ -13,6 +13,7 @@ import {
 import { GenerateClassAudioUploadUrlEndpoint } from "./interfaces/http/routes/classes-generate-upload-url";
 import { ProcessClassAudioEndpoint } from "./interfaces/http/routes/classes-process-audio";
 import { ProcessClassUrlEndpoint } from "./interfaces/http/routes/classes-process-url";
+import { CreateFeedbackEndpoint } from "./interfaces/http/routes/feedback";
 import {
 	CreateProfileEndpoint,
 	GetProfileEndpoint,
@@ -104,6 +105,9 @@ export default {
 		);
 		apiApp.post("/classes/:classId/process-audio", ProcessClassAudioEndpoint);
 		apiApp.post("/classes/:classId/process-url", ProcessClassUrlEndpoint);
+
+		// Feedback endpoints
+		apiApp.post("/feedback", CreateFeedbackEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},

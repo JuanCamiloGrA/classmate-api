@@ -110,8 +110,7 @@ describe("clerkMiddleware()", () => {
 			reason: "auth-reason",
 			message: "auth-message",
 			headers: new Headers({
-				location:
-					"https://api.ascendclassmate.workers.dev/v1/clients/handshake",
+				location: "https://api.classmate.studio/v1/clients/handshake",
 				"x-clerk-auth-message": "auth-message",
 				"x-clerk-auth-reason": "auth-reason",
 				"x-clerk-auth-status": "handshake",
@@ -137,7 +136,7 @@ describe("clerkMiddleware()", () => {
 
 		expect(response.status).toEqual(307);
 		expect(Object.fromEntries(response.headers.entries())).toMatchObject({
-			location: "https://api.ascendclassmate.workers.dev/v1/clients/handshake",
+			location: "https://api.classmate.studio/v1/clients/handshake",
 			"x-clerk-auth-status": "handshake",
 			"x-clerk-auth-reason": "auth-reason",
 			"x-clerk-auth-message": "auth-message",
