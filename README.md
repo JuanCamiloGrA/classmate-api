@@ -78,6 +78,19 @@ bun run test
 bun run test:ui
 ```
 
+### Exposing locally for Clerk
+
+```bash
+# Start the worker locally
+bun run dev
+
+# Keep a Cloudflare tunnel open so Clerk can reach the POST /profiles webhook
+cloudflared tunnel run classmate-api-dev
+```
+
+> This makes `http://api.dev.classmate.studio` proxy to local port 8787, allowing
+> Clerk to call `POST /profiles` during webhook testing.
+
 ### Deployment
 
 ```bash
