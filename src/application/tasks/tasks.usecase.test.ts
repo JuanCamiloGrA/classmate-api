@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	Task,
 	TaskListItem,
+	TaskPriority,
 	TaskStatus,
 	TaskWithResources,
 } from "../../domain/entities/task";
@@ -219,6 +220,7 @@ describe("Tasks Use Cases", () => {
 				subjectId: "subject-123",
 				dueDate: null,
 				status: "todo",
+				priority: "medium",
 				content: null,
 				grade: null,
 			});
@@ -235,11 +237,31 @@ describe("Tasks Use Cases", () => {
 				subjectId: "subject-123",
 				dueDate: "2024-10-25T23:59:59Z",
 				status: "todo",
+				priority: "high",
 				content: "Complete exercises 1-10 on page 42",
 				grade: null,
 			});
 
 			expect(result).toEqual(mockTask);
+		});
+
+		it("should create a task with custom priority", async () => {
+			const highPriorityTask = { ...mockTask, priority: "high" as const };
+			(mockRepository.create as ReturnType<typeof vi.fn>).mockResolvedValue(
+				highPriorityTask,
+			);
+
+			const useCase = new CreateTaskUseCase(mockRepository);
+			await useCase.execute("user-123", {
+				title: "Physics Lab Report",
+				subjectId: "subject-456",
+				priority: "high",
+			});
+
+			expect(mockRepository.create).toHaveBeenCalledWith(
+				"user-123",
+				expect.objectContaining({ priority: "high" }),
+			);
 		});
 
 		it("should throw ValidationError for empty title", async () => {
@@ -272,6 +294,18 @@ describe("Tasks Use Cases", () => {
 					title: "Math Homework",
 					subjectId: "subject-123",
 					status: "invalid" as unknown as TaskStatus,
+				}),
+			).rejects.toThrow(ValidationError);
+		});
+
+		it("should throw ValidationError for invalid priority", async () => {
+			const useCase = new CreateTaskUseCase(mockRepository);
+
+			await expect(
+				useCase.execute("user-123", {
+					title: "Math Homework",
+					subjectId: "subject-123",
+					priority: "urgent" as unknown as TaskPriority,
 				}),
 			).rejects.toThrow(ValidationError);
 		});
@@ -360,6 +394,7 @@ describe("Tasks Use Cases", () => {
 				status: "done" as const,
 				grade: 9.5,
 				content: "Updated content",
+				priority: "high" as const,
 			};
 			(mockRepository.update as ReturnType<typeof vi.fn>).mockResolvedValue(
 				updated,
@@ -370,11 +405,13 @@ describe("Tasks Use Cases", () => {
 				status: "done",
 				grade: 9.5,
 				content: "Updated content",
+				priority: "high",
 			});
 
 			expect(result.status).toBe("done");
 			expect(result.grade).toBe(9.5);
 			expect(result.content).toBe("Updated content");
+			expect(result.priority).toBe("high");
 		});
 
 		it("should throw ValidationError if no fields provided", async () => {
@@ -391,6 +428,16 @@ describe("Tasks Use Cases", () => {
 			await expect(
 				useCase.execute("user-123", mockTask.id, {
 					status: "invalid" as unknown as TaskStatus,
+				}),
+			).rejects.toThrow(ValidationError);
+		});
+
+		it("should throw ValidationError for invalid priority", async () => {
+			const useCase = new UpdateTaskUseCase(mockRepository);
+
+			await expect(
+				useCase.execute("user-123", mockTask.id, {
+					priority: "critical" as unknown as TaskPriority,
 				}),
 			).rejects.toThrow(ValidationError);
 		});

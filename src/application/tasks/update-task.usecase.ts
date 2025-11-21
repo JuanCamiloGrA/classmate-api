@@ -1,4 +1,8 @@
-import type { Task, TaskUpdateData } from "../../domain/entities/task";
+import type {
+	Task,
+	TaskPriority,
+	TaskUpdateData,
+} from "../../domain/entities/task";
 import type { TaskRepository } from "../../domain/repositories/task.repository";
 import { ValidationError } from "../../interfaces/http/middleware/error-handler";
 
@@ -13,6 +17,8 @@ export interface UpdateTaskInput {
 	dueDate?: string | null;
 	/** Task status (optional) */
 	status?: "todo" | "doing" | "ai_review" | "done";
+	/** Task priority (optional) */
+	priority?: TaskPriority;
 	/** Task content (optional) */
 	content?: string | null;
 	/** Grade/score (optional) */
@@ -75,6 +81,15 @@ export class UpdateTaskUseCase {
 			}
 		}
 
+		// Validate priority if provided
+		if (input.priority !== undefined) {
+			if (!["low", "medium", "high"].includes(input.priority)) {
+				throw new ValidationError(
+					"Invalid priority. Must be 'low', 'medium', or 'high'",
+				);
+			}
+		}
+
 		// Validate grade if provided
 		if (input.grade !== undefined && input.grade !== null) {
 			if (typeof input.grade !== "number") {
@@ -94,6 +109,9 @@ export class UpdateTaskUseCase {
 		}
 		if (input.status !== undefined) {
 			taskData.status = input.status;
+		}
+		if (input.priority !== undefined) {
+			taskData.priority = input.priority;
 		}
 		if (input.content !== undefined) {
 			taskData.content = input.content;
