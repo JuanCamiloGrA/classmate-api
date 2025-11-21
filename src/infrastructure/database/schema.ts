@@ -81,6 +81,15 @@ export const tasks = sqliteTable(
 			.default("todo"),
 		content: text("content"),
 		grade: real("grade"),
+		priority: text("priority", { enum: ["low", "medium", "high"] })
+			.notNull()
+			.default("medium"),
+		taskType: text("task_type", {
+			enum: ["reading", "exam", "essay", "presentation", "assignment"],
+		})
+			.notNull()
+			.default("assignment"),
+		draftContent: text("draft_content"),
 		isDeleted: integer("is_deleted").notNull().default(0),
 		deletedAt: text("deleted_at"),
 		createdAt: text("created_at").notNull().default(timestampDefault),
@@ -107,6 +116,9 @@ export const classes = sqliteTable(
 		link: text("link"),
 		content: text("content"),
 		summary: text("summary"),
+		transcriptionText: text("transcription_text"),
+		roomLocation: text("room_location"),
+		isProcessed: integer("is_processed").notNull().default(0),
 		isDeleted: integer("is_deleted").notNull().default(0),
 		deletedAt: text("deleted_at"),
 		createdAt: text("created_at").notNull().default(timestampDefault),
@@ -114,6 +126,35 @@ export const classes = sqliteTable(
 	},
 	(table) => [
 		index("idx_classes_user_id_subject_id").on(table.userId, table.subjectId),
+	],
+);
+
+export const flashcards = sqliteTable(
+	"flashcards",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => profiles.id, { onDelete: "cascade" }),
+		subjectId: text("subject_id")
+			.notNull()
+			.references(() => subjects.id, { onDelete: "cascade" }),
+		front: text("front").notNull(),
+		back: text("back").notNull(),
+		difficultyRating: integer("difficulty_rating").notNull().default(0),
+		createdFromClassId: text("created_from_class_id").references(
+			() => classes.id,
+			{ onDelete: "set null" },
+		),
+		createdAt: text("created_at").notNull().default(timestampDefault),
+		updatedAt: text("updated_at").notNull().default(timestampDefault),
+	},
+	(table) => [
+		index("idx_flashcards_user_id_subject_id").on(
+			table.userId,
+			table.subjectId,
+		),
+		index("idx_flashcards_created_from_class_id").on(table.createdFromClassId),
 	],
 );
 
@@ -190,6 +231,10 @@ export const chats = sqliteTable(
 		isArchived: integer("is_archived").notNull().default(0),
 		model: text("model"),
 		temperature: real("temperature"),
+		contextType: text("context_type", {
+			enum: ["global", "subject", "task", "pdf"],
+		}),
+		contextId: text("context_id"),
 		isDeleted: integer("is_deleted").notNull().default(0),
 		deletedAt: text("deleted_at"),
 		createdAt: text("created_at").notNull().default(timestampDefault),
@@ -256,6 +301,11 @@ export type Class = typeof classes.$inferSelect;
 export type NewClass = typeof classes.$inferInsert;
 export const classSchema = createSelectSchema(classes);
 export const newClassSchema = createInsertSchema(classes);
+
+export type Flashcard = typeof flashcards.$inferSelect;
+export type NewFlashcard = typeof flashcards.$inferInsert;
+export const flashcardSchema = createSelectSchema(flashcards);
+export const newFlashcardSchema = createInsertSchema(flashcards);
 
 export type UserFile = typeof userFiles.$inferSelect;
 export type NewUserFile = typeof userFiles.$inferInsert;

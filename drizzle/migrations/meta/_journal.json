@@ -8,6 +8,13 @@
 			"when": 1760479464743,
 			"tag": "0000_peaceful_scorpion",
 			"breakpoints": true
+		},
+		{
+			"idx": 1,
+			"version": "6",
+			"when": 1763739023748,
+			"tag": "0001_public_ulik",
+			"breakpoints": true
 		}
 	]
 }
