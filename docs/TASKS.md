@@ -4,7 +4,7 @@
 
 The Tasks API provides endpoints for managing academic tasks/assignments within subjects. All endpoints require Clerk authentication via the `Authorization` header.
 
-Each task belongs to a specific subject and can have associated files (resources). Tasks support status tracking, due dates, grades, and long-form content.
+Each task belongs to a specific subject and can have associated files (resources). Tasks support status tracking, priority levels, due dates, grades, and long-form content.
 
 ---
 
@@ -20,48 +20,85 @@ Authorization: Bearer <clerk-token>
 
 ## Endpoints
 
-### 1. List Tasks for a Subject
+### 1. List Tasks (Advanced Filtering, Sorting & Pagination)
 
-**GET** `/tasks?subject_id={subject_id}`
+**GET** `/tasks`
 
-List all non-deleted tasks for a specific subject with optimized fields for list view.
+List tasks with advanced filtering, sorting, and pagination. Clients can request exactly what they need without receiving unnecessary data.
 
 #### Query Parameters
-- `subject_id` (required): The subject ID to list tasks for
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `subject_id` | string | No | Filter by subject ID |
+| `status` | string | No | Comma-separated statuses: `todo,doing,done` |
+| `priority` | string | No | Comma-separated priorities: `low,medium,high` |
+| `search` | string | No | Search in task titles (text contains) |
+| `due_date_from` | ISO 8601 | No | Filter tasks due on or after this date |
+| `due_date_to` | ISO 8601 | No | Filter tasks due on or before this date |
+| `sort_by` | string | No | Sort field: `dueDate`, `createdAt`, or `priority` (default: `createdAt`) |
+| `sort_order` | string | No | Sort direction: `asc` or `desc` (default: `desc`) |
+| `limit` | number | No | Results per page (1-100, default: 20) |
+| `offset` | number | No | Skip N results (default: 0) |
 
 #### Response (200)
 ```json
 {
   "success": true,
-  "result": [
-    {
-      "id": "task-550e8400-e29b-41d4-a716-446655440000",
-      "subject_id": "subject-123",
-      "title": "Math Homework Chapter 5",
-      "due_date": "2024-10-25T23:59:59Z",
-      "status": "todo",
-      "grade": null,
-      "created_at": "2024-10-16T10:00:00.000Z",
-      "updated_at": "2024-10-16T10:00:00.000Z"
-    },
-    {
-      "id": "task-550e8400-e29b-41d4-a716-446655440001",
-      "subject_id": "subject-123",
-      "title": "Physics Lab Report",
-      "due_date": "2024-10-30T23:59:59Z",
-      "status": "doing",
-      "grade": 8.5,
-      "created_at": "2024-10-18T09:30:00.000Z",
-      "updated_at": "2024-10-19T14:20:00.000Z"
+  "result": {
+    "data": [
+      {
+        "id": "task-550e8400-e29b-41d4-a716-446655440000",
+        "subject_id": "subject-123",
+        "title": "Math Homework Chapter 5",
+        "due_date": "2024-10-25T23:59:59Z",
+        "status": "todo",
+        "priority": "high",
+        "grade": null,
+        "created_at": "2024-10-16T10:00:00.000Z",
+        "updated_at": "2024-10-16T10:00:00.000Z"
+      },
+      {
+        "id": "task-550e8400-e29b-41d4-a716-446655440001",
+        "subject_id": "subject-123",
+        "title": "Physics Lab Report",
+        "due_date": "2024-10-30T23:59:59Z",
+        "status": "doing",
+        "priority": "medium",
+        "grade": 8.5,
+        "created_at": "2024-10-18T09:30:00.000Z",
+        "updated_at": "2024-10-19T14:20:00.000Z"
+      }
+    ],
+    "meta": {
+      "total": 150,
+      "limit": 20,
+      "offset": 0
     }
-  ]
+  }
 }
+```
+
+#### Example Requests
+
+```bash
+# List high-priority tasks due this month
+GET /tasks?priority=high&due_date_from=2024-10-01T00:00:00Z&due_date_to=2024-10-31T23:59:59Z
+
+# Search for tasks and sort by due date
+GET /tasks?search=essay&sort_by=dueDate&sort_order=asc
+
+# List todo and doing tasks with pagination
+GET /tasks?status=todo,doing&limit=10&offset=20
+
+# Filter by subject and priority
+GET /tasks?subject_id=subject-123&priority=high,medium&limit=50
 ```
 
 #### Error Response (400)
 ```json
 {
-  "error": "Subject ID is required"
+  "error": "Invalid sort_by value. Must be 'dueDate', 'createdAt', or 'priority'"
 }
 ```
 
@@ -93,6 +130,7 @@ Retrieve a single task with all details and associated files.
     "title": "Math Homework Chapter 5",
     "due_date": "2024-10-25T23:59:59Z",
     "status": "doing",
+    "priority": "high",
     "content": "Complete exercises 1-10 on page 42. Show all work.",
     "grade": 9.5,
     "is_deleted": 0,
@@ -148,6 +186,7 @@ Create a new task within a subject.
   "subject_id": "subject-123",
   "due_date": "2024-11-05T23:59:59Z",
   "status": "todo",
+  "priority": "high",
   "content": "Write a 5-page essay covering ecosystem types and biodiversity.",
   "grade": null
 }
@@ -172,6 +211,7 @@ Only `title` and `subject_id` are required:
     "title": "Biology Essay on Ecosystems",
     "due_date": "2024-11-05T23:59:59Z",
     "status": "todo",
+    "priority": "high",
     "content": "Write a 5-page essay covering ecosystem types and biodiversity.",
     "grade": null,
     "created_at": "2024-10-19T16:00:00.000Z",
@@ -187,17 +227,17 @@ Only `title` and `subject_id` are required:
 }
 ```
 
-#### Error Response (400 - Invalid Status)
+#### Error Response (400 - Invalid Priority)
 ```json
 {
-  "error": "Invalid status. Must be 'todo', 'doing', or 'done'"
+  "error": "priority: Invalid enum value"
 }
 ```
 
 #### Error Response (400 - Negative Grade)
 ```json
 {
-  "error": "Grade cannot be negative"
+  "error": "grade: Grade cannot be negative"
 }
 ```
 
@@ -212,10 +252,11 @@ Update an existing task. All fields are optional, but at least one must be provi
 #### Path Parameters
 - `id`: The task ID to update
 
-#### Request Body (Update Status)
+#### Request Body (Update Status & Priority)
 ```json
 {
   "status": "done",
+  "priority": "low",
   "grade": 9.5
 }
 ```
@@ -233,6 +274,7 @@ Update an existing task. All fields are optional, but at least one must be provi
 {
   "title": "Advanced Biology Essay",
   "status": "doing",
+  "priority": "medium",
   "grade": 8.75,
   "due_date": "2024-11-08T23:59:59Z"
 }
@@ -248,6 +290,7 @@ Update an existing task. All fields are optional, but at least one must be provi
     "title": "Advanced Biology Essay",
     "due_date": "2024-11-08T23:59:59Z",
     "status": "doing",
+    "priority": "medium",
     "grade": 8.75,
     "updated_at": "2024-10-19T17:00:00.000Z"
   }
@@ -257,7 +300,7 @@ Update an existing task. All fields are optional, but at least one must be provi
 #### Error Response (400 - Empty Title)
 ```json
 {
-  "error": "Title cannot be empty"
+  "error": "title: Title cannot be empty"
 }
 ```
 
@@ -298,7 +341,7 @@ Soft delete a task without permanently removing data. The task is marked as dele
 }
 ```
 
-**Note**: Soft-deleted tasks can be recovered by hard-deleting and re-creating, or by using an admin restore function (if implemented).
+**Note**: Soft-deleted tasks can be recovered by querying the database with soft delete flag, or by implementing an admin restore function.
 
 #### Error Response (404)
 ```json
@@ -328,7 +371,7 @@ Permanently delete a task and all related files. This operation is irreversible.
 }
 ```
 
-**Warning ⚠️**: This operation is permanent and cannot be undone. All associated files will also be permanently deleted.
+**⚠️ Warning**: This operation is permanent and cannot be undone. All associated files will also be permanently deleted.
 
 #### Error Response (404)
 ```json
@@ -385,6 +428,7 @@ interface Task {
   title: string;                 // Task title (required)
   due_date: string | null;       // ISO 8601 timestamp
   status: "todo" | "doing" | "done"; // Task status (default: "todo")
+  priority: "low" | "medium" | "high"; // Task priority (default: "medium")
   content: string | null;        // Long-form content (editor content)
   grade: number | null;          // Decimal grade (e.g., 8.5)
   is_deleted: number;            // 0 = active, 1 = soft deleted
@@ -410,6 +454,11 @@ interface TaskResource {
 - `"doing"` - Task in progress
 - `"done"` - Task completed
 
+### Priority Values
+- `"low"` - Low priority
+- `"medium"` - Medium priority (default)
+- `"high"` - High priority
+
 ---
 
 ## Usage Examples
@@ -417,15 +466,23 @@ interface TaskResource {
 ### cURL
 
 ```bash
-# List tasks for a subject
-curl -X GET "https://api.classmate.studio/tasks?subject_id=subject-123" \
+# List all high-priority tasks for a subject
+curl -X GET "https://api.classmate.studio/tasks?subject_id=subject-123&priority=high&sort_by=dueDate" \
+  -H "Authorization: Bearer <clerk-token>"
+
+# Search and filter with pagination
+curl -X GET "https://api.classmate.studio/tasks?search=essay&status=todo,doing&limit=10&offset=0" \
+  -H "Authorization: Bearer <clerk-token>"
+
+# Filter by due date range
+curl -X GET "https://api.classmate.studio/tasks?due_date_from=2024-10-01T00:00:00Z&due_date_to=2024-10-31T23:59:59Z" \
   -H "Authorization: Bearer <clerk-token>"
 
 # Get task details with files
 curl -X GET "https://api.classmate.studio/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <clerk-token>"
 
-# Create a task
+# Create a task with priority
 curl -X POST "https://api.classmate.studio/tasks" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
@@ -433,15 +490,17 @@ curl -X POST "https://api.classmate.studio/tasks" \
     "title": "Calculus Homework",
     "subject_id": "subject-123",
     "due_date": "2024-10-25T23:59:59Z",
+    "priority": "high",
     "status": "todo"
   }'
 
-# Update task status and grade
+# Update task priority and status
 curl -X PUT "https://api.classmate.studio/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
   -d '{
     "status": "done",
+    "priority": "low",
     "grade": 9.5
   }'
 
@@ -449,7 +508,7 @@ curl -X PUT "https://api.classmate.studio/tasks/task-550e8400-e29b-41d4-a716-446
 curl -X DELETE "https://api.classmate.studio/tasks/task-550e8400-e29b-41d4-a716-446655440000" \
   -H "Authorization: Bearer <clerk-token>"
 
-# Hard delete a task
+# Hard delete a task (permanent)
 curl -X DELETE "https://api.classmate.studio/tasks/task-550e8400-e29b-41d4-a716-446655440000/hard" \
   -H "Authorization: Bearer <clerk-token>"
 ```
@@ -465,47 +524,56 @@ const headers = {
   "Content-Type": "application/json"
 };
 
-// List tasks for a subject
-const tasks = await fetch(`${apiBase}/tasks?subject_id=subject-123`, {
-  headers
-}).then(res => res.json());
-console.log(tasks.result); // Array of tasks
-
-// Get task details with resources
-const taskDetail = await fetch(
-  `${apiBase}/tasks/task-550e8400-e29b-41d4-a716-446655440000`,
+// List tasks with advanced filters
+const tasks = await fetch(
+  `${apiBase}/tasks?priority=high&status=todo,doing&sort_by=dueDate&limit=20`,
   { headers }
 ).then(res => res.json());
-console.log(taskDetail.result.resources); // Associated files
 
-// Create a task
+console.log(tasks.result.data); // Array of filtered tasks
+console.log(tasks.result.meta); // { total: 150, limit: 20, offset: 0 }
+
+// Search tasks
+const searchResults = await fetch(
+  `${apiBase}/tasks?search=essay&limit=10`,
+  { headers }
+).then(res => res.json());
+
+// Filter by due date
+const dueSoon = await fetch(
+  `${apiBase}/tasks?due_date_from=2024-10-20T00:00:00Z&due_date_to=2024-10-31T23:59:59Z`,
+  { headers }
+).then(res => res.json());
+
+// Create a task with priority
 const newTask = await fetch(`${apiBase}/tasks`, {
   method: "POST",
   headers,
   body: JSON.stringify({
-    title: "Literature Essay",
+    title: "Advanced Biology Essay",
     subject_id: "subject-456",
     due_date: "2024-11-01T23:59:59Z",
-    content: "Write about symbolism in modern literature"
+    priority: "high",
+    content: "Write about cellular biology"
   })
 }).then(res => res.json());
+
 console.log(newTask.result.id); // New task ID
 
-// Update task
+// Update task priority
 const updated = await fetch(
   `${apiBase}/tasks/${newTask.result.id}`,
   {
     method: "PUT",
     headers,
     body: JSON.stringify({
-      status: "doing",
-      content: "Updated analysis section"
+      priority: "medium",
+      status: "doing"
     })
   }
 ).then(res => res.json());
-console.log(updated.result.updated_at);
 
-// Mark task as done
+// Mark task as done with grade
 const completed = await fetch(
   `${apiBase}/tasks/${newTask.result.id}`,
   {
@@ -513,7 +581,8 @@ const completed = await fetch(
     headers,
     body: JSON.stringify({
       status: "done",
-      grade: 9.0
+      grade: 9.0,
+      priority: "low"
     })
   }
 ).then(res => res.json());
@@ -536,22 +605,41 @@ await fetch(`${apiBase}/tasks/${newTask.result.id}/hard`, {
 ```typescript
 import { useState } from 'react';
 
-export function useTasks(subjectId: string) {
+export function useTasks(subjectId?: string) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  const [total, setTotal] = useState(0);
 
   const token = useAuth().token; // Your auth hook
 
-  const listTasks = async () => {
+  const listTasks = async (filters?: {
+    status?: string[];
+    priority?: string[];
+    search?: string;
+    sortBy?: 'dueDate' | 'createdAt' | 'priority';
+    limit?: number;
+    offset?: number;
+  }) => {
     setLoading(true);
     try {
+      const params = new URLSearchParams();
+      
+      if (subjectId) params.set('subject_id', subjectId);
+      if (filters?.status?.length) params.set('status', filters.status.join(','));
+      if (filters?.priority?.length) params.set('priority', filters.priority.join(','));
+      if (filters?.search) params.set('search', filters.search);
+      if (filters?.sortBy) params.set('sort_by', filters.sortBy);
+      params.set('limit', String(filters?.limit ?? 20));
+      params.set('offset', String(filters?.offset ?? 0));
+
       const res = await fetch(
-        `https://api.classmate.studio/tasks?subject_id=${subjectId}`,
+        `https://api.classmate.studio/tasks?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await res.json();
-      setTasks(data.result);
+      setTasks(data.result.data);
+      setTotal(data.result.meta.total);
     } catch (err) {
       setError(err);
     } finally {
@@ -559,7 +647,12 @@ export function useTasks(subjectId: string) {
     }
   };
 
-  const createTask = async (title: string, content?: string) => {
+  const createTask = async (
+    title: string,
+    priority: 'low' | 'medium' | 'high' = 'medium',
+    content?: string,
+    dueDate?: string
+  ) => {
     try {
       const res = await fetch('https://api.classmate.studio/tasks', {
         method: 'POST',
@@ -567,7 +660,13 @@ export function useTasks(subjectId: string) {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ title, subject_id: subjectId, content })
+        body: JSON.stringify({
+          title,
+          subject_id: subjectId,
+          priority,
+          content,
+          due_date: dueDate
+        })
       });
       const data = await res.json();
       setTasks([...tasks, data.result]);
@@ -577,7 +676,16 @@ export function useTasks(subjectId: string) {
     }
   };
 
-  const updateTaskStatus = async (taskId: string, status: string, grade?: number) => {
+  const updateTask = async (
+    taskId: string,
+    updates: {
+      status?: 'todo' | 'doing' | 'done';
+      priority?: 'low' | 'medium' | 'high';
+      grade?: number;
+      title?: string;
+      content?: string;
+    }
+  ) => {
     try {
       const res = await fetch(`https://api.classmate.studio/tasks/${taskId}`, {
         method: 'PUT',
@@ -585,7 +693,7 @@ export function useTasks(subjectId: string) {
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'
         },
-        body: JSON.stringify({ status, ...(grade !== undefined && { grade }) })
+        body: JSON.stringify(updates)
       });
       const data = await res.json();
       setTasks(tasks.map(t => t.id === taskId ? data.result : t));
@@ -594,9 +702,19 @@ export function useTasks(subjectId: string) {
     }
   };
 
-  return { tasks, loading, error, listTasks, createTask, updateTaskStatus };
+  return { tasks, total, loading, error, listTasks, createTask, updateTask };
 }
 ```
+
+---
+
+## Query Performance Notes
+
+- **Filtering** reduces query time dramatically—use `status`, `priority`, and `search` liberally
+- **Pagination** is required—always include `limit` to avoid timeouts
+- **Sorting** defaults to `createdAt` descending—specify `sort_by` for custom order
+- **Due date filters** are efficient with proper database indexes
+- **Search** is case-insensitive and searches task titles only
 
 ---
 
@@ -605,6 +723,7 @@ export function useTasks(subjectId: string) {
 - Users can only access, modify, and delete tasks they own
 - Attempting to access another user's task returns a 404 error
 - All operations are scoped to the authenticated user's ID
+- The backend enforces ownership checks for security
 
 ---
 
@@ -624,11 +743,12 @@ When a subject is hard deleted:
 ## Best Practices
 
 1. **Always require authentication** - Provide valid Clerk token
-2. **Handle null values** - `due_date`, `content`, and `grade` can be null
-3. **Validate status** - Only use "todo", "doing", or "done"
-4. **Use soft delete first** - Soft delete before hard delete to allow recovery
-5. **Use query parameters correctly** - Include `subject_id` when listing tasks
-6. **Handle errors gracefully** - Check response status and error messages
+2. **Use filtering** - Don't request all tasks; filter by status, priority, or date
+3. **Paginate results** - Always include `limit` and `offset` parameters
+4. **Handle null values** - `due_date`, `content`, and `grade` can be null
+5. **Validate priority** - Only use "low", "medium", or "high"
+6. **Use soft delete first** - Soft delete before hard delete to allow recovery
+7. **Sort efficiently** - Default sort is by creation date; specify `sort_by` for others
 
 ---
 
@@ -640,4 +760,6 @@ Currently no rate limiting is enforced, but it's recommended to implement it for
 
 ## Version History
 
-- **v1.0.0** (2025-10-19): Initial release with full CRUD and cascade delete operations
+- **v2.0.0** (2025-11-21): Added advanced filtering, sorting, pagination, and priority support
+- **v1.0.0** (2025-10-19): Initial release with basic CRUD and cascade delete operations
+
