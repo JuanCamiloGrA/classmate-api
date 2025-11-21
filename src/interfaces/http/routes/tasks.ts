@@ -12,6 +12,8 @@ import {
 } from "../../../application/tasks/task.dto";
 import { UpdateTaskUseCase } from "../../../application/tasks/update-task.usecase";
 import type { Bindings, Variables } from "../../../config/bindings";
+import type { TaskPriority, TaskStatus } from "../../../domain/entities/task";
+import type { TaskFilters } from "../../../domain/repositories/task.repository";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1TaskRepository } from "../../../infrastructure/database/repositories/task.repository";
@@ -23,7 +25,7 @@ import {
 import {
 	type CreateTaskInput,
 	CreateTaskSchema,
-	ListTasksBySubjectSchema,
+	ListTasksSchema,
 	type UpdateTaskInput,
 	UpdateTaskSchema,
 } from "../validators/task.validator";
@@ -39,6 +41,7 @@ const TaskListItemSchema = z.object({
 	title: z.string(),
 	due_date: z.string().nullable(),
 	status: z.enum(["todo", "doing", "done"]),
+	priority: z.enum(["low", "medium", "high"]),
 	grade: z.number().nullable(),
 	created_at: z.string(),
 	updated_at: z.string(),
@@ -58,6 +61,7 @@ const TaskDetailSchema = z.object({
 	title: z.string(),
 	due_date: z.string().nullable(),
 	status: z.enum(["todo", "doing", "done"]),
+	priority: z.enum(["low", "medium", "high"]),
 	content: z.string().nullable(),
 	grade: z.number().nullable(),
 	is_deleted: z.number(),
@@ -73,6 +77,7 @@ const TaskCreateResponseSchema = z.object({
 	title: z.string(),
 	due_date: z.string().nullable(),
 	status: z.enum(["todo", "doing", "done"]),
+	priority: z.enum(["low", "medium", "high"]),
 	content: z.string().nullable(),
 	grade: z.number().nullable(),
 	created_at: z.string(),
@@ -85,6 +90,7 @@ const TaskUpdateResponseSchema = z.object({
 	title: z.string(),
 	due_date: z.string().nullable(),
 	status: z.enum(["todo", "doing", "done"]),
+	priority: z.enum(["low", "medium", "high"]),
 	grade: z.number().nullable(),
 	updated_at: z.string(),
 });
@@ -97,7 +103,14 @@ const TaskSoftDeleteSchema = z.object({
 
 const SuccessListResponse = z.object({
 	success: z.literal(true),
-	result: z.array(TaskListItemSchema),
+	result: z.object({
+		data: z.array(TaskListItemSchema),
+		meta: z.object({
+			total: z.number(),
+			limit: z.number(),
+			offset: z.number(),
+		}),
+	}),
 });
 
 const SuccessDetailResponse = z.object({
@@ -152,6 +165,7 @@ function validateCreatePayload(body: unknown): CreateTaskInput {
 		subjectId: result.data.subject_id,
 		dueDate: result.data.due_date ?? null,
 		status: result.data.status,
+		priority: result.data.priority,
 		content: result.data.content ?? null,
 		grade: result.data.grade ?? null,
 	};
@@ -170,6 +184,7 @@ function validateUpdatePayload(body: unknown): UpdateTaskInput {
 		title: result.data.title,
 		dueDate: result.data.due_date,
 		status: result.data.status,
+		priority: result.data.priority,
 		content: result.data.content,
 		grade: result.data.grade,
 	};
@@ -183,8 +198,8 @@ function extractTaskId(c: TaskContext): string {
 	return taskId;
 }
 
-function validateSubjectIdQuery(query: Record<string, string>): string {
-	const result = ListTasksBySubjectSchema.safeParse(query);
+function validateListQuery(query: Record<string, string>): TaskFilters {
+	const result = ListTasksSchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
 			result.error.errors
@@ -192,22 +207,50 @@ function validateSubjectIdQuery(query: Record<string, string>): string {
 				.join("; "),
 		);
 	}
-	return result.data.subject_id;
+
+	const data = result.data;
+	const filters: TaskFilters = {
+		subjectId: data.subject_id,
+		search: data.search,
+		dueDateFrom: data.due_date_from,
+		dueDateTo: data.due_date_to,
+		limit: data.limit,
+		offset: data.offset,
+		sortBy: data.sort_by,
+		sortOrder: data.sort_order,
+	};
+
+	if (data.status) {
+		filters.status = data.status.split(",") as TaskStatus[];
+	}
+
+	if (data.priority) {
+		filters.priority = data.priority.split(",") as TaskPriority[];
+	}
+
+	return filters;
 }
 
 async function listTasks(c: TaskContext) {
 	try {
 		const userId = ensureAuthenticatedUser(c);
 		const query = c.req.query();
-		const subjectId = validateSubjectIdQuery(query);
+		const filters = validateListQuery(query);
 		const taskRepository = getTaskRepository(c);
 		const listTasksUseCase = new ListTasksUseCase(taskRepository);
-		const tasks = await listTasksUseCase.execute(userId, subjectId);
+		const { data, total } = await listTasksUseCase.execute(userId, filters);
 
 		return c.json(
 			{
 				success: true,
-				result: tasks.map((task) => toTaskListDTO(task)),
+				result: {
+					data: data.map((task) => toTaskListDTO(task)),
+					meta: {
+						total,
+						limit: filters.limit ?? 20,
+						offset: filters.offset ?? 0,
+					},
+				},
 			},
 			200,
 		);
@@ -344,11 +387,10 @@ async function hardDeleteTask(c: TaskContext) {
 export class ListTasksEndpoint extends OpenAPIRoute {
 	schema = {
 		tags: ["Tasks"],
-		summary: "List tasks for a subject",
-		description:
-			"List all non-deleted tasks for a specific subject. Requires subject_id query parameter.",
+		summary: "List tasks",
+		description: "List tasks with advanced filtering, sorting, and pagination.",
 		request: {
-			query: ListTasksBySubjectSchema,
+			query: ListTasksSchema,
 		},
 		responses: {
 			"200": {

@@ -1,4 +1,14 @@
-import { and, eq } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	like,
+	lte,
+} from "drizzle-orm";
 import type {
 	Task,
 	TaskData,
@@ -7,7 +17,11 @@ import type {
 	TaskUpdateData,
 	TaskWithResources,
 } from "../../../domain/entities/task";
-import type { TaskRepository } from "../../../domain/repositories/task.repository";
+import type {
+	TaskFilters,
+	TaskListResult,
+	TaskRepository,
+} from "../../../domain/repositories/task.repository";
 import { NotFoundError } from "../../../interfaces/http/middleware/error-handler";
 import type { Database } from "../client";
 import { taskResources, tasks, userFiles } from "../schema";
@@ -20,6 +34,87 @@ import { taskResources, tasks, userFiles } from "../schema";
 export class D1TaskRepository implements TaskRepository {
 	constructor(private db: Database) {}
 
+	async findAll(userId: string, filters: TaskFilters): Promise<TaskListResult> {
+		const conditions = [eq(tasks.userId, userId), eq(tasks.isDeleted, 0)];
+
+		if (filters.subjectId) {
+			conditions.push(eq(tasks.subjectId, filters.subjectId));
+		}
+
+		if (filters.status && filters.status.length > 0) {
+			conditions.push(inArray(tasks.status, filters.status));
+		}
+
+		if (filters.priority && filters.priority.length > 0) {
+			conditions.push(inArray(tasks.priority, filters.priority));
+		}
+
+		if (filters.search) {
+			conditions.push(like(tasks.title, `%${filters.search}%`));
+		}
+
+		if (filters.dueDateFrom) {
+			conditions.push(gte(tasks.dueDate, filters.dueDateFrom));
+		}
+
+		if (filters.dueDateTo) {
+			conditions.push(lte(tasks.dueDate, filters.dueDateTo));
+		}
+
+		const whereClause = and(...conditions);
+
+		// Get total count
+		const totalResult = await this.db
+			.select({ count: count() })
+			.from(tasks)
+			.where(whereClause)
+			.get();
+
+		const total = totalResult?.count ?? 0;
+
+		// Get data
+		let query = this.db
+			.select({
+				id: tasks.id,
+				subjectId: tasks.subjectId,
+				title: tasks.title,
+				dueDate: tasks.dueDate,
+				status: tasks.status,
+				priority: tasks.priority,
+				grade: tasks.grade,
+				createdAt: tasks.createdAt,
+				updatedAt: tasks.updatedAt,
+			})
+			.from(tasks)
+			.where(whereClause)
+			.$dynamic();
+
+		// Sorting
+		if (filters.sortBy) {
+			const sortColumn = tasks[filters.sortBy];
+			if (filters.sortOrder === "desc") {
+				query = query.orderBy(desc(sortColumn));
+			} else {
+				query = query.orderBy(asc(sortColumn));
+			}
+		} else {
+			// Default sort
+			query = query.orderBy(desc(tasks.createdAt));
+		}
+
+		// Pagination
+		if (filters.limit) {
+			query = query.limit(filters.limit);
+		}
+		if (filters.offset) {
+			query = query.offset(filters.offset);
+		}
+
+		const data = await query;
+
+		return { data, total };
+	}
+
 	async findBySubjectIdAndUserId(
 		userId: string,
 		subjectId: string,
@@ -31,6 +126,7 @@ export class D1TaskRepository implements TaskRepository {
 				title: tasks.title,
 				dueDate: tasks.dueDate,
 				status: tasks.status,
+				priority: tasks.priority,
 				grade: tasks.grade,
 				createdAt: tasks.createdAt,
 				updatedAt: tasks.updatedAt,
@@ -108,6 +204,7 @@ export class D1TaskRepository implements TaskRepository {
 				title: data.title,
 				dueDate: data.dueDate ?? null,
 				status: data.status ?? "todo",
+				priority: data.priority ?? "medium",
 				content: data.content ?? null,
 				grade: data.grade ?? null,
 				isDeleted: 0,
@@ -154,6 +251,9 @@ export class D1TaskRepository implements TaskRepository {
 		}
 		if (data.status !== undefined) {
 			updatePayload.status = data.status;
+		}
+		if (data.priority !== undefined) {
+			updatePayload.priority = data.priority;
 		}
 		if (data.content !== undefined) {
 			updatePayload.content = data.content;

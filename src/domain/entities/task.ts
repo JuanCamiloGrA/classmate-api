@@ -7,6 +7,14 @@
 export type TaskStatus = "todo" | "doing" | "done";
 
 /**
+ * Task priority enumeration
+ * - 'low': Low priority
+ * - 'medium': Medium priority
+ * - 'high': High priority
+ */
+export type TaskPriority = "low" | "medium" | "high";
+
+/**
  * Represents an academic task/assignment in the system.
  * @interface Task
  */
@@ -23,6 +31,8 @@ export interface Task {
 	dueDate: string | null;
 	/** Task status */
 	status: TaskStatus;
+	/** Task priority */
+	priority: TaskPriority;
 	/** Long-form content/description of the task (e.g., editor content) */
 	content: string | null;
 	/** Grade/score for this task (allows decimals e.g., 8.5) */
@@ -51,6 +61,8 @@ export interface TaskData {
 	dueDate?: string | null;
 	/** Task status */
 	status?: TaskStatus;
+	/** Task priority */
+	priority?: TaskPriority;
 	/** Task content/description */
 	content?: string | null;
 	/** Grade/score */
@@ -69,6 +81,8 @@ export interface TaskUpdateData {
 	dueDate?: string | null;
 	/** Task status (optional) */
 	status?: TaskStatus;
+	/** Task priority (optional) */
+	priority?: TaskPriority;
 	/** Task content (optional) */
 	content?: string | null;
 	/** Grade/score (optional) */
@@ -116,6 +130,8 @@ export interface TaskListItem {
 	dueDate: string | null;
 	/** Task status */
 	status: TaskStatus;
+	/** Task priority */
+	priority: TaskPriority;
 	/** Grade/score */
 	grade: number | null;
 	/** Creation timestamp */

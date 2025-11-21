@@ -2,9 +2,29 @@ import type {
 	Task,
 	TaskData,
 	TaskListItem,
+	TaskPriority,
+	TaskStatus,
 	TaskUpdateData,
 	TaskWithResources,
 } from "../entities/task";
+
+export interface TaskFilters {
+	subjectId?: string;
+	status?: TaskStatus[];
+	priority?: TaskPriority[];
+	search?: string;
+	dueDateFrom?: string;
+	dueDateTo?: string;
+	limit?: number;
+	offset?: number;
+	sortBy?: "dueDate" | "createdAt" | "priority";
+	sortOrder?: "asc" | "desc";
+}
+
+export interface TaskListResult {
+	data: TaskListItem[];
+	total: number;
+}
 
 /**
  * Repository interface for task persistence operations.
@@ -14,11 +34,20 @@ import type {
  */
 export interface TaskRepository {
 	/**
+	 * List tasks with advanced filtering, sorting and pagination.
+	 * @param userId - The user ID (ownership check)
+	 * @param filters - Filter options
+	 * @returns Object containing data array and total count
+	 */
+	findAll(userId: string, filters: TaskFilters): Promise<TaskListResult>;
+
+	/**
 	 * List all non-deleted tasks for a subject.
 	 * Optimized to return only essential fields.
 	 * @param userId - The user ID (ownership check)
 	 * @param subjectId - The subject ID to fetch tasks for
 	 * @returns Array of non-deleted tasks (optimized fields)
+	 * @deprecated Use findAll instead
 	 */
 	findBySubjectIdAndUserId(
 		userId: string,

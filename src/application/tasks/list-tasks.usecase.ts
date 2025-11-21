@@ -1,15 +1,17 @@
-import type { TaskListItem } from "../../domain/entities/task";
-import type { TaskRepository } from "../../domain/repositories/task.repository";
+import type {
+	TaskFilters,
+	TaskListResult,
+	TaskRepository,
+} from "../../domain/repositories/task.repository";
 
 /**
- * Use case for listing all tasks for a specific subject.
- * Returns optimized task list with only essential fields.
+ * Use case for listing tasks with advanced filtering, sorting and pagination.
  *
  * @class ListTasksUseCase
  * @example
  * ```typescript
  * const useCase = new ListTasksUseCase(taskRepository);
- * const tasks = await useCase.execute(userId, subjectId);
+ * const result = await useCase.execute(userId, { status: ['todo'], limit: 10 });
  * ```
  */
 export class ListTasksUseCase {
@@ -21,10 +23,10 @@ export class ListTasksUseCase {
 	/**
 	 * Execute task listing.
 	 * @param userId - The authenticated user ID
-	 * @param subjectId - The subject ID to list tasks for
-	 * @returns Array of non-deleted tasks (optimized fields)
+	 * @param filters - Filter options
+	 * @returns Object containing data array and total count
 	 */
-	async execute(userId: string, subjectId: string): Promise<TaskListItem[]> {
-		return this.taskRepository.findBySubjectIdAndUserId(userId, subjectId);
+	async execute(userId: string, filters: TaskFilters): Promise<TaskListResult> {
+		return this.taskRepository.findAll(userId, filters);
 	}
 }

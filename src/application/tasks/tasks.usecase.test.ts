@@ -21,6 +21,7 @@ const mockTask: Task = {
 	title: "Math Homework Chapter 5",
 	dueDate: "2024-10-25T23:59:59Z",
 	status: "todo",
+	priority: "medium",
 	content: "Complete exercises 1-10 on page 42",
 	grade: null,
 	isDeleted: 0,
@@ -35,6 +36,7 @@ const mockTaskListItem: TaskListItem = {
 	title: "Math Homework Chapter 5",
 	dueDate: "2024-10-25T23:59:59Z",
 	status: "todo",
+	priority: "medium",
 	grade: null,
 	createdAt: "2024-10-16T10:00:00.000Z",
 	updatedAt: "2024-10-16T10:00:00.000Z",
@@ -65,6 +67,7 @@ describe("Tasks Use Cases", () => {
 
 	beforeEach(() => {
 		mockRepository = {
+			findAll: vi.fn(),
 			findBySubjectIdAndUserId: vi.fn(),
 			findByIdAndUserId: vi.fn(),
 			create: vi.fn(),
@@ -77,29 +80,34 @@ describe("Tasks Use Cases", () => {
 	describe("ListTasksUseCase", () => {
 		it("should list all non-deleted tasks for a subject", async () => {
 			const tasks = [mockTaskListItem];
-			(
-				mockRepository.findBySubjectIdAndUserId as ReturnType<typeof vi.fn>
-			).mockResolvedValue(tasks);
+			(mockRepository.findAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+				data: tasks,
+				total: 1,
+			});
 
 			const useCase = new ListTasksUseCase(mockRepository);
-			const result = await useCase.execute("user-123", "subject-123");
+			const result = await useCase.execute("user-123", {
+				subjectId: "subject-123",
+			});
 
-			expect(result).toEqual(tasks);
-			expect(mockRepository.findBySubjectIdAndUserId).toHaveBeenCalledWith(
-				"user-123",
-				"subject-123",
-			);
+			expect(result.data).toEqual(tasks);
+			expect(mockRepository.findAll).toHaveBeenCalledWith("user-123", {
+				subjectId: "subject-123",
+			});
 		});
 
 		it("should return empty array if subject has no tasks", async () => {
-			(
-				mockRepository.findBySubjectIdAndUserId as ReturnType<typeof vi.fn>
-			).mockResolvedValue([]);
+			(mockRepository.findAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+				data: [],
+				total: 0,
+			});
 
 			const useCase = new ListTasksUseCase(mockRepository);
-			const result = await useCase.execute("user-123", "subject-456");
+			const result = await useCase.execute("user-123", {
+				subjectId: "subject-456",
+			});
 
-			expect(result).toEqual([]);
+			expect(result.data).toEqual([]);
 		});
 
 		it("should return multiple tasks for a subject", async () => {
@@ -112,16 +120,19 @@ describe("Tasks Use Cases", () => {
 					status: "doing" as const,
 				},
 			];
-			(
-				mockRepository.findBySubjectIdAndUserId as ReturnType<typeof vi.fn>
-			).mockResolvedValue(tasks);
+			(mockRepository.findAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+				data: tasks,
+				total: 2,
+			});
 
 			const useCase = new ListTasksUseCase(mockRepository);
-			const result = await useCase.execute("user-123", "subject-123");
+			const result = await useCase.execute("user-123", {
+				subjectId: "subject-123",
+			});
 
-			expect(result).toHaveLength(2);
-			expect(result[0].title).toBe("Math Homework Chapter 5");
-			expect(result[1].title).toBe("Physics Project");
+			expect(result.data).toHaveLength(2);
+			expect(result.data[0].title).toBe("Math Homework Chapter 5");
+			expect(result.data[1].title).toBe("Physics Project");
 		});
 	});
 

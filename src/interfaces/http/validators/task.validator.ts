@@ -8,6 +8,7 @@ export interface CreateTaskInput {
 	subjectId: string;
 	dueDate?: string | null;
 	status?: "todo" | "doing" | "done";
+	priority?: "low" | "medium" | "high";
 	content?: string | null;
 	grade?: number | null;
 }
@@ -19,6 +20,7 @@ export interface UpdateTaskInput {
 	title?: string;
 	dueDate?: string | null;
 	status?: "todo" | "doing" | "done";
+	priority?: "low" | "medium" | "high";
 	content?: string | null;
 	grade?: number | null;
 }
@@ -29,6 +31,7 @@ export interface UpdateTaskInput {
  * - subjectId: required, non-empty string (UUID)
  * - dueDate: optional, ISO 8601 string
  * - status: optional, must be 'todo', 'doing', or 'done'
+ * - priority: optional, must be 'low', 'medium', or 'high'
  * - content: optional, string
  * - grade: optional, number >= 0
  */
@@ -37,6 +40,7 @@ export const CreateTaskSchema = z.object({
 	subject_id: z.string().min(1, "Subject ID is required"),
 	due_date: z.string().datetime().nullable().optional(),
 	status: z.enum(["todo", "doing", "done"]).optional(),
+	priority: z.enum(["low", "medium", "high"]).optional(),
 	content: z.string().nullable().optional(),
 	grade: z.number().min(0, "Grade cannot be negative").nullable().optional(),
 });
@@ -50,6 +54,7 @@ export const UpdateTaskSchema = z
 		title: z.string().min(1, "Title is required").optional(),
 		due_date: z.string().datetime().nullable().optional(),
 		status: z.enum(["todo", "doing", "done"]).optional(),
+		priority: z.enum(["low", "medium", "high"]).optional(),
 		content: z.string().nullable().optional(),
 		grade: z.number().min(0, "Grade cannot be negative").nullable().optional(),
 	})
@@ -58,8 +63,25 @@ export const UpdateTaskSchema = z
 	});
 
 /**
+ * Validation schema for listing tasks.
+ */
+export const ListTasksSchema = z.object({
+	subject_id: z.string().optional(),
+	status: z.string().optional(), // comma separated
+	priority: z.string().optional(), // comma separated
+	search: z.string().optional(),
+	due_date_from: z.string().datetime().optional(),
+	due_date_to: z.string().datetime().optional(),
+	limit: z.coerce.number().min(1).max(100).default(20),
+	offset: z.coerce.number().min(0).default(0),
+	sort_by: z.enum(["dueDate", "createdAt", "priority"]).optional(),
+	sort_order: z.enum(["asc", "desc"]).optional(),
+});
+
+/**
  * Validation schema for listing tasks by subject.
  * - subject_id: required, non-empty string (UUID) - snake_case for query parameters
+ * @deprecated Use ListTasksSchema instead
  */
 export const ListTasksBySubjectSchema = z.object({
 	subject_id: z.string().min(1, "Subject ID is required"),

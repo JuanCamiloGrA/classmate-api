@@ -1,5 +1,6 @@
 import type {
 	TaskListItem,
+	TaskPriority,
 	TaskStatus,
 	TaskWithResources,
 } from "../../domain/entities/task";
@@ -13,6 +14,7 @@ export interface TaskListDTO {
 	title: string;
 	due_date: string | null;
 	status: TaskStatus;
+	priority: TaskPriority;
 	grade: number | null;
 	created_at: string;
 	updated_at: string;
@@ -27,6 +29,7 @@ export interface TaskDetailDTO {
 	title: string;
 	due_date: string | null;
 	status: TaskStatus;
+	priority: TaskPriority;
 	content: string | null;
 	grade: number | null;
 	is_deleted: number;
@@ -52,6 +55,7 @@ export function toTaskListDTO(task: TaskListItem): TaskListDTO {
 		title: task.title,
 		due_date: task.dueDate,
 		status: task.status,
+		priority: task.priority,
 		grade: task.grade,
 		created_at: task.createdAt,
 		updated_at: task.updatedAt,
@@ -68,6 +72,7 @@ export function toTaskDetailDTO(task: TaskWithResources): TaskDetailDTO {
 		title: task.title,
 		due_date: task.dueDate,
 		status: task.status,
+		priority: task.priority,
 		content: task.content,
 		grade: task.grade,
 		is_deleted: task.isDeleted,
