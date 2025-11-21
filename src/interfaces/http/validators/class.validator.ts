@@ -1,5 +1,19 @@
 import { z } from "zod";
 
+const optionalLinkSchema = z.preprocess((value) => {
+	if (value === undefined) {
+		return undefined;
+	}
+	if (value === null) {
+		return null;
+	}
+	if (typeof value === "string") {
+		const trimmed = value.trim();
+		return trimmed === "" ? null : trimmed;
+	}
+	return value;
+}, z.string().url("Link must be a valid URL").nullable().optional());
+
 /**
  * Input data for creating a class.
  */
@@ -40,7 +54,7 @@ export const CreateClassSchema = z.object({
 	title: z.string().nullable().optional(),
 	start_date: z.string().datetime().nullable().optional(),
 	end_date: z.string().datetime().nullable().optional(),
-	link: z.string().url("Link must be a valid URL").nullable().optional(),
+	link: optionalLinkSchema,
 	content: z.string().nullable().optional(),
 	summary: z.string().nullable().optional(),
 });
@@ -54,7 +68,7 @@ export const UpdateClassSchema = z
 		title: z.string().nullable().optional(),
 		start_date: z.string().datetime().nullable().optional(),
 		end_date: z.string().datetime().nullable().optional(),
-		link: z.string().url("Link must be a valid URL").nullable().optional(),
+		link: optionalLinkSchema,
 		content: z.string().nullable().optional(),
 		summary: z.string().nullable().optional(),
 	})
