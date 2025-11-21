@@ -7,7 +7,7 @@ export interface CreateTaskInput {
 	title: string;
 	subjectId: string;
 	dueDate?: string | null;
-	status?: "todo" | "doing" | "done";
+	status?: "todo" | "doing" | "ai_review" | "done";
 	priority?: "low" | "medium" | "high";
 	content?: string | null;
 	grade?: number | null;
@@ -19,7 +19,7 @@ export interface CreateTaskInput {
 export interface UpdateTaskInput {
 	title?: string;
 	dueDate?: string | null;
-	status?: "todo" | "doing" | "done";
+	status?: "todo" | "doing" | "ai_review" | "done";
 	priority?: "low" | "medium" | "high";
 	content?: string | null;
 	grade?: number | null;
@@ -30,7 +30,7 @@ export interface UpdateTaskInput {
  * - title: required, non-empty string
  * - subjectId: required, non-empty string (UUID)
  * - dueDate: optional, ISO 8601 string
- * - status: optional, must be 'todo', 'doing', or 'done'
+ * - status: optional, must be 'todo', 'doing', 'ai_review', or 'done'
  * - priority: optional, must be 'low', 'medium', or 'high'
  * - content: optional, string
  * - grade: optional, number >= 0
@@ -39,7 +39,7 @@ export const CreateTaskSchema = z.object({
 	title: z.string().min(1, "Title is required"),
 	subject_id: z.string().min(1, "Subject ID is required"),
 	due_date: z.string().datetime().nullable().optional(),
-	status: z.enum(["todo", "doing", "done"]).optional(),
+	status: z.enum(["todo", "doing", "ai_review", "done"]).optional(),
 	priority: z.enum(["low", "medium", "high"]).optional(),
 	content: z.string().nullable().optional(),
 	grade: z.number().min(0, "Grade cannot be negative").nullable().optional(),
@@ -53,7 +53,7 @@ export const UpdateTaskSchema = z
 	.object({
 		title: z.string().min(1, "Title is required").optional(),
 		due_date: z.string().datetime().nullable().optional(),
-		status: z.enum(["todo", "doing", "done"]).optional(),
+		status: z.enum(["todo", "doing", "ai_review", "done"]).optional(),
 		priority: z.enum(["low", "medium", "high"]).optional(),
 		content: z.string().nullable().optional(),
 		grade: z.number().min(0, "Grade cannot be negative").nullable().optional(),

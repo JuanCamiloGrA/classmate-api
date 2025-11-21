@@ -2,9 +2,10 @@
  * Task status enumeration
  * - 'todo': Task not started
  * - 'doing': Task in progress
+ * - 'ai_review': Awaiting AI-generated feedback/review
  * - 'done': Task completed
  */
-export type TaskStatus = "todo" | "doing" | "done";
+export type TaskStatus = "todo" | "doing" | "ai_review" | "done";
 
 /**
  * Task priority enumeration

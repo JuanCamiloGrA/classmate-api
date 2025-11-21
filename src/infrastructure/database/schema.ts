@@ -76,7 +76,7 @@ export const tasks = sqliteTable(
 			.references(() => subjects.id, { onDelete: "cascade" }),
 		title: text("title").notNull(),
 		dueDate: text("due_date"),
-		status: text("status", { enum: ["todo", "doing", "done"] })
+		status: text("status", { enum: ["todo", "doing", "ai_review", "done"] })
 			.notNull()
 			.default("todo"),
 		content: text("content"),
@@ -166,6 +166,7 @@ export const userFiles = sqliteTable(
 			.notNull()
 			.references(() => profiles.id, { onDelete: "cascade" }),
 		r2Key: text("r2_key").notNull().unique(),
+		docType: text("doc_type"),
 		originalFilename: text("original_filename").notNull(),
 		mimeType: text("mime_type").notNull(),
 		sizeBytes: integer("size_bytes").notNull(),

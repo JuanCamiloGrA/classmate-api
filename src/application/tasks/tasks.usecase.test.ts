@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	Task,
 	TaskListItem,
+	TaskStatus,
 	TaskWithResources,
 } from "../../domain/entities/task";
 import type { TaskRepository } from "../../domain/repositories/task.repository";
@@ -270,7 +271,7 @@ describe("Tasks Use Cases", () => {
 				useCase.execute("user-123", {
 					title: "Math Homework",
 					subjectId: "subject-123",
-					status: "invalid" as unknown as "todo" | "doing" | "done",
+					status: "invalid" as unknown as TaskStatus,
 				}),
 			).rejects.toThrow(ValidationError);
 		});
@@ -389,7 +390,7 @@ describe("Tasks Use Cases", () => {
 
 			await expect(
 				useCase.execute("user-123", mockTask.id, {
-					status: "invalid" as unknown as "todo" | "doing" | "done",
+					status: "invalid" as unknown as TaskStatus,
 				}),
 			).rejects.toThrow(ValidationError);
 		});

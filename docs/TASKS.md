@@ -31,7 +31,7 @@ List tasks with advanced filtering, sorting, and pagination. Clients can request
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `subject_id` | string | No | Filter by subject ID |
-| `status` | string | No | Comma-separated statuses: `todo,doing,done` |
+| `status` | string | No | Comma-separated statuses: `todo,doing,ai_review,done` |
 | `priority` | string | No | Comma-separated priorities: `low,medium,high` |
 | `search` | string | No | Search in task titles (text contains) |
 | `due_date_from` | ISO 8601 | No | Filter tasks due on or after this date |
@@ -63,7 +63,7 @@ List tasks with advanced filtering, sorting, and pagination. Clients can request
         "subject_id": "subject-123",
         "title": "Physics Lab Report",
         "due_date": "2024-10-30T23:59:59Z",
-        "status": "doing",
+        "status": "ai_review",
         "priority": "medium",
         "grade": 8.5,
         "created_at": "2024-10-18T09:30:00.000Z",
@@ -427,7 +427,7 @@ interface Task {
   subject_id: string;            // Parent subject UUID
   title: string;                 // Task title (required)
   due_date: string | null;       // ISO 8601 timestamp
-  status: "todo" | "doing" | "done"; // Task status (default: "todo")
+  status: "todo" | "doing" | "ai_review" | "done"; // Task status (default: "todo")
   priority: "low" | "medium" | "high"; // Task priority (default: "medium")
   content: string | null;        // Long-form content (editor content)
   grade: number | null;          // Decimal grade (e.g., 8.5)
@@ -452,7 +452,8 @@ interface TaskResource {
 ### Status Values
 - `"todo"` - Task not started
 - `"doing"` - Task in progress
-- `"done"` - Task completed
+- `"ai_review"` - Task completed and awaiting AI review/feedback
+- `"done"` - Task finalized after AI review or manual completion
 
 ### Priority Values
 - `"low"` - Low priority

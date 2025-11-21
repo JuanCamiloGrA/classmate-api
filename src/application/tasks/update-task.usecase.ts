@@ -12,7 +12,7 @@ export interface UpdateTaskInput {
 	/** Due date (optional) */
 	dueDate?: string | null;
 	/** Task status (optional) */
-	status?: "todo" | "doing" | "done";
+	status?: "todo" | "doing" | "ai_review" | "done";
 	/** Task content (optional) */
 	content?: string | null;
 	/** Grade/score (optional) */
@@ -68,9 +68,9 @@ export class UpdateTaskUseCase {
 
 		// Validate status if provided
 		if (input.status !== undefined) {
-			if (!["todo", "doing", "done"].includes(input.status)) {
+			if (!["todo", "doing", "ai_review", "done"].includes(input.status)) {
 				throw new ValidationError(
-					"Invalid status. Must be 'todo', 'doing', or 'done'",
+					"Invalid status. Must be 'todo', 'doing', 'ai_review', or 'done'",
 				);
 			}
 		}
