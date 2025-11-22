@@ -1,5 +1,8 @@
-import type { ClassListItem } from "../../domain/entities/class";
-import type { ClassRepository } from "../../domain/repositories/class.repository";
+import type {
+	ClassFilters,
+	ClassListResult,
+	ClassRepository,
+} from "../../domain/repositories/class.repository";
 
 /**
  * Use case for listing all classes for a specific subject.
@@ -16,10 +19,13 @@ export class ListClassesUseCase {
 	/**
 	 * Execute class listing.
 	 * @param userId - The authenticated user ID
-	 * @param subjectId - The subject ID to list classes for
-	 * @returns Array of non-deleted classes (optimized fields)
+	 * @param filters - Filter options to refine the query
+	 * @returns Object containing data array and total count
 	 */
-	async execute(userId: string, subjectId: string): Promise<ClassListItem[]> {
-		return this.classRepository.findBySubjectIdAndUserId(userId, subjectId);
+	async execute(
+		userId: string,
+		filters: ClassFilters,
+	): Promise<ClassListResult> {
+		return this.classRepository.findAll(userId, filters);
 	}
 }

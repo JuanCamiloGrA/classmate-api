@@ -12,7 +12,7 @@ The Classes API provides endpoints for managing class sessions and lectures with
 
 **Endpoint:** `GET /classes`
 
-**Purpose:** Retrieve all non-deleted classes for a specific subject.
+**Purpose:** Retrieve classes with flexible, pagination-aware filters. Filters are optional so the frontend can request only the slice it needs (subject_id is no longer required).
 
 **Headers (Required):**
 
@@ -20,43 +20,75 @@ The Classes API provides endpoints for managing class sessions and lectures with
 |--------|-------|-------------|
 | `Authorization` | `Bearer <jwt-token>` | Clerk JWT token for authentication |
 
-**Query Parameters (Required):**
+**Query Parameters (Optional):**
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `subject_id` | `string` | UUID of the subject to list classes for |
+| `subject_id` | `string` | UUID of the subject to limit the list (omit to span all subjects). |
+| `status` | `string` | Comma-separated lifecycle statuses (`scheduled`, `live`, `completed`). |
+| `meeting_link` | `string (URL) \| null` | Alternate meeting URL |
+| `status` | `string` | Lifecycle status (`scheduled`, `live`, `completed`).
+| `ai_status` | `string` | AI processing state (`none`, `processing`, `done`, `failed`).
+| `topics` | `string \| null` | Comma/JSON list of topics |
+| `duration_seconds` | `number` | Session duration in seconds |
+| `ai_status` | `string` | Comma-separated AI processing states (`none`, `processing`, `done`, `failed`). |
+| `is_processed` | `string` | `true`/`false` or `1`/`0` to filter by processing flag. |
+| `transcription_text` | `string \| null` | Full transcription text |
+| `room_location` | `string \| null` | Physical location where the class was held |
+| `is_processed` | `number` | Flag (0/1) indicating if AI processing already ran |
+| `search` | `string` | Free-text match against titles. |
+| `start_date_from` | `string (ISO 8601)` | Start date lower bound.
+| `start_date_to` | `string (ISO 8601)` | Start date upper bound.
+| `end_date_from` | `string (ISO 8601)` | End date lower bound.
+| `end_date_to` | `string (ISO 8601)` | End date upper bound.
+| `limit` | `number` | Page size (default 20, max 100).
+| `offset` | `number` | Pagination offset (default 0).
+| `sort_by` | `string` | Sort column (`startDate`, `createdAt`, `status`).
+| `sort_order` | `string` | Sort direction (`asc` or `desc`).
 
 **Request Body:** None
 
 **Response:**
 
-**Status: 200 OK**
-
-```json
+    "meeting_link": "https://example.com/meeting/123",
+    "link": "https://example.com/class/123",
+    "status": "live",
+    "ai_status": "processing",
+    "topics": "[\"Advanced\", \"Review\"]",
+    "duration_seconds": 5400,
+    "content": "Updated content with more details...",
+    "summary": "Updated summary...",
+    "transcription_text": "Updated transcription...",
+    "room_location": "Room 101",
+    "is_processed": 1,
 {
   "success": true,
-  "result": [
-    {
-      "id": "class-550e8400-e29b-41d4-a716-446655440000",
-      "subject_id": "subject-123",
-      "title": "Chapter 5 Introduction",
-      "start_date": "2024-10-20T09:00:00Z",
-      "end_date": "2024-10-20T10:30:00Z",
-      "link": "https://example.com/class/123",
-      "created_at": "2024-10-16T10:00:00.000Z",
-      "updated_at": "2024-10-16T10:00:00.000Z"
-    },
-    {
-      "id": "class-660e8400-e29b-41d4-a716-446655440001",
-      "subject_id": "subject-123",
-      "title": "Advanced Topics",
-      "start_date": "2024-10-21T09:00:00Z",
-      "end_date": "2024-10-21T10:30:00Z",
-      "link": "https://example.com/class/124",
-      "created_at": "2024-10-17T10:00:00.000Z",
-      "updated_at": "2024-10-17T10:00:00.000Z"
+  "result": {
+    "data": [
+      {
+        "id": "class-550e8400-e29b-41d4-a716-446655440000",
+        "subject_id": "subject-123",
+        "title": "Chapter 5 Introduction",
+        "start_date": "2024-10-20T09:00:00Z",
+        "end_date": "2024-10-20T10:30:00Z",
+        "status": "completed",
+        "ai_status": "none",
+        "meeting_link": "https://example.com/meeting/123",
+        "topics": "[\"Derivatives\", \"Integrals\"]",
+        "duration_seconds": 5400,
+        "room_location": "Room 101",
+        "is_processed": 0,
+        "link": "https://example.com/class/123",
+        "created_at": "2024-10-16T10:00:00.000Z",
+        "updated_at": "2024-10-16T10:00:00.000Z"
+      }
+    ],
+    "meta": {
+      "total": 1,
+      "limit": 20,
+      "offset": 0
     }
-  ]
+  }
 }
 ```
 
@@ -119,9 +151,17 @@ The Classes API provides endpoints for managing class sessions and lectures with
     "title": "Chapter 5 Introduction",
     "start_date": "2024-10-20T09:00:00Z",
     "end_date": "2024-10-20T10:30:00Z",
+    "meeting_link": "https://example.com/meeting/123",
     "link": "https://example.com/class/123",
+    "status": "completed",
+    "ai_status": "none",
+    "topics": "[\"Derivatives\", \"Integrals\"]",
+    "duration_seconds": 5400,
     "content": "Introduction to advanced concepts in mathematics. We covered derivatives, integrals, and their applications...",
     "summary": "Covered chapter 5 topics including derivatives and integrals. Students learned how to apply calculus to real-world problems.",
+    "transcription_text": "Full transcription text...",
+    "room_location": "Room 101",
+    "is_processed": 1,
     "is_deleted": 0,
     "deleted_at": null,
     "created_at": "2024-10-16T10:00:00.000Z",
@@ -194,8 +234,16 @@ The Classes API provides endpoints for managing class sessions and lectures with
   "start_date": "2024-10-20T09:00:00Z",
   "end_date": "2024-10-20T10:30:00Z",
   "link": "https://example.com/class/123",
+  "meeting_link": "https://example.com/meeting/123",
+  "status": "scheduled",
+  "ai_status": "none",
+  "topics": "[\"Derivatives\", \"Integrals\"]",
+  "duration_seconds": 5400,
   "content": "Introduction to advanced concepts in mathematics...",
-  "summary": "Covered chapter 5 topics..."
+  "summary": "Covered chapter 5 topics...",
+  "transcription_text": "Full transcription text...",
+  "room_location": "Room 101",
+  "is_processed": 0
 }
 ```
 
@@ -208,8 +256,16 @@ The Classes API provides endpoints for managing class sessions and lectures with
 | `start_date` | `string (ISO 8601) \| null` | No | Class start datetime |
 | `end_date` | `string (ISO 8601) \| null` | No | Class end datetime |
 | `link` | `string (URL) \| null` | No | Class meeting link or recording link |
+| `meeting_link` | `string (URL) \| null` | No | Dedicated meeting URL when it differs from the recording link |
+| `status` | `string` | No | Lifecycle status (`scheduled`, `live`, `completed`). Defaults to `completed`.
+| `ai_status` | `string` | No | AI processing state (`none`, `processing`, `done`, `failed`). Defaults to `none`.
+| `topics` | `string \| null` | No | Comma/JSON list of topics covered in the session.
+| `duration_seconds` | `number` | No | Recorded duration of the session in seconds.
 | `content` | `string \| null` | No | Class content/transcription/notes |
 | `summary` | `string \| null` | No | AI-generated summary |
+| `transcription_text` | `string \| null` | No | Full transcription text from processing.
+| `room_location` | `string \| null` | No | Physical location where the class was held.
+| `is_processed` | `number` | No | Flag (0/1) indicating if AI processing already ran. Defaults to `0`.
 
 **Response:**
 
@@ -224,9 +280,17 @@ The Classes API provides endpoints for managing class sessions and lectures with
     "title": "Chapter 5 Introduction",
     "start_date": "2024-10-20T09:00:00Z",
     "end_date": "2024-10-20T10:30:00Z",
+    "meeting_link": "https://example.com/meeting/123",
     "link": "https://example.com/class/123",
+    "status": "completed",
+    "ai_status": "none",
+    "topics": "[\"Derivatives\", \"Integrals\"]",
+    "duration_seconds": 5400,
     "content": "Introduction to advanced concepts in mathematics...",
     "summary": "Covered chapter 5 topics...",
+    "transcription_text": "Full transcription text...",
+    "room_location": "Room 101",
+    "is_processed": 0,
     "created_at": "2024-10-16T10:00:00.000Z",
     "updated_at": "2024-10-16T10:00:00.000Z"
   }
@@ -534,8 +598,16 @@ Refer to the status codes in each endpoint section for specific error scenarios.
 | `start_date` | `string (ISO 8601) \| null` | Start datetime |
 | `end_date` | `string (ISO 8601) \| null` | End datetime |
 | `link` | `string (URL) \| null` | Class link |
+| `meeting_link` | `string (URL) \| null` | Dedicated meeting link when it differs from the recording link |
+| `status` | `string` | Lifecycle status (`scheduled`, `live`, `completed`). |
+| `ai_status` | `string` | AI processing status (`none`, `processing`, `done`, `failed`). |
+| `topics` | `string \| null` | Serialized list of topics covered in the session. |
+| `duration_seconds` | `number` | Duration of the class in seconds |
 | `content` | `string \| null` | Class content/transcription |
 | `summary` | `string \| null` | AI-generated summary |
+| `transcription_text` | `string \| null` | Full transcription text |
+| `room_location` | `string \| null` | Physical room or location |
+| `is_processed` | `number` | Flag (0/1) indicating AI processing completed |
 | `is_deleted` | `number` | Deletion status (0 = active, 1 = deleted) |
 | `deleted_at` | `string (ISO 8601) \| null` | Soft delete timestamp |
 | `created_at` | `string (ISO 8601)` | Creation timestamp |

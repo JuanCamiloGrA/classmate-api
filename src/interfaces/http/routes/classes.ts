@@ -12,6 +12,11 @@ import { ListClassesUseCase } from "../../../application/classes/list-classes.us
 import { SoftDeleteClassUseCase } from "../../../application/classes/soft-delete-class.usecase";
 import { UpdateClassUseCase } from "../../../application/classes/update-class.usecase";
 import type { Bindings, Variables } from "../../../config/bindings";
+import type {
+	ClassAIStatus,
+	ClassStatus,
+} from "../../../domain/entities/class";
+import type { ClassFilters } from "../../../domain/repositories/class.repository";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ClassRepository } from "../../../infrastructure/database/repositories/class.repository";
@@ -23,7 +28,7 @@ import {
 import {
 	type CreateClassInput,
 	CreateClassSchema,
-	ListClassesBySubjectSchema,
+	ListClassesSchema,
 	type UpdateClassInput,
 	UpdateClassSchema,
 } from "../validators/class.validator";
@@ -40,6 +45,13 @@ const ClassListItemSchema = z.object({
 	start_date: z.string().nullable(),
 	end_date: z.string().nullable(),
 	link: z.string().nullable(),
+	meeting_link: z.string().nullable(),
+	status: z.enum(["scheduled", "live", "completed"]),
+	ai_status: z.enum(["none", "processing", "done", "failed"]),
+	topics: z.string().nullable(),
+	duration_seconds: z.number(),
+	room_location: z.string().nullable(),
+	is_processed: z.number(),
 	created_at: z.string(),
 	updated_at: z.string(),
 });
@@ -59,8 +71,16 @@ const ClassDetailSchema = z.object({
 	start_date: z.string().nullable(),
 	end_date: z.string().nullable(),
 	link: z.string().nullable(),
+	meeting_link: z.string().nullable(),
+	status: z.enum(["scheduled", "live", "completed"]),
+	ai_status: z.enum(["none", "processing", "done", "failed"]),
+	topics: z.string().nullable(),
+	duration_seconds: z.number(),
 	content: z.string().nullable(),
 	summary: z.string().nullable(),
+	transcription_text: z.string().nullable(),
+	room_location: z.string().nullable(),
+	is_processed: z.number(),
 	is_deleted: z.number(),
 	deleted_at: z.string().nullable(),
 	created_at: z.string(),
@@ -75,8 +95,16 @@ const ClassCreateResponseSchema = z.object({
 	start_date: z.string().nullable(),
 	end_date: z.string().nullable(),
 	link: z.string().nullable(),
+	meeting_link: z.string().nullable(),
+	status: z.enum(["scheduled", "live", "completed"]),
+	ai_status: z.enum(["none", "processing", "done", "failed"]),
+	topics: z.string().nullable(),
+	duration_seconds: z.number(),
 	content: z.string().nullable(),
 	summary: z.string().nullable(),
+	transcription_text: z.string().nullable(),
+	room_location: z.string().nullable(),
+	is_processed: z.number(),
 	created_at: z.string(),
 	updated_at: z.string(),
 });
@@ -88,8 +116,16 @@ const ClassUpdateResponseSchema = z.object({
 	start_date: z.string().nullable(),
 	end_date: z.string().nullable(),
 	link: z.string().nullable(),
+	meeting_link: z.string().nullable(),
+	status: z.enum(["scheduled", "live", "completed"]),
+	ai_status: z.enum(["none", "processing", "done", "failed"]),
+	topics: z.string().nullable(),
+	duration_seconds: z.number(),
 	content: z.string().nullable(),
 	summary: z.string().nullable(),
+	transcription_text: z.string().nullable(),
+	room_location: z.string().nullable(),
+	is_processed: z.number(),
 	updated_at: z.string(),
 });
 
@@ -101,7 +137,14 @@ const ClassSoftDeleteSchema = z.object({
 
 const SuccessListResponse = z.object({
 	success: z.literal(true),
-	result: z.array(ClassListItemSchema),
+	result: z.object({
+		data: z.array(ClassListItemSchema),
+		meta: z.object({
+			total: z.number(),
+			limit: z.number(),
+			offset: z.number(),
+		}),
+	}),
 });
 
 const SuccessDetailResponse = z.object({
@@ -128,6 +171,56 @@ const SuccessHardDeleteResponse = z.object({
 	success: z.literal(true),
 	result: z.object({ id: z.string() }),
 });
+
+const CLASS_STATUS_VALUES = ["scheduled", "live", "completed"] as const;
+const CLASS_AI_STATUS_VALUES = [
+	"none",
+	"processing",
+	"done",
+	"failed",
+] as const;
+
+function parseEnumList<T extends string>(
+	raw: string | undefined,
+	allowed: readonly T[],
+	fieldName: string,
+): T[] | undefined {
+	if (!raw) {
+		return undefined;
+	}
+	const values = raw
+		.split(",")
+		.map((value) => value.trim())
+		.filter((value) => value.length > 0)
+		.map((value) => value.toLowerCase()) as T[];
+	if (values.length === 0) {
+		throw new ValidationError(`${fieldName} cannot be empty`);
+	}
+	const invalid = values.filter((value) => !allowed.includes(value));
+	if (invalid.length > 0) {
+		throw new ValidationError(
+			`${fieldName} contains invalid values: ${invalid.join(", ")}`,
+		);
+	}
+	return values;
+}
+
+function parseBooleanFlag(
+	value: string | undefined,
+	fieldName: string,
+): boolean | undefined {
+	if (value === undefined) {
+		return undefined;
+	}
+	const normalized = value.toLowerCase();
+	if (normalized === "true" || normalized === "1") {
+		return true;
+	}
+	if (normalized === "false" || normalized === "0") {
+		return false;
+	}
+	throw new ValidationError(`${fieldName} must be one of true,false,1,0`);
+}
 
 function ensureAuthenticatedUser(c: ClassContext): string {
 	const auth = getAuth(c);
@@ -157,8 +250,16 @@ function validateCreatePayload(body: unknown): CreateClassInput {
 		startDate: result.data.start_date ?? null,
 		endDate: result.data.end_date ?? null,
 		link: result.data.link ?? null,
+		meetingLink: result.data.meeting_link ?? null,
+		status: result.data.status,
+		aiStatus: result.data.ai_status,
+		topics: result.data.topics ?? null,
+		durationSeconds: result.data.duration_seconds,
 		content: result.data.content ?? null,
 		summary: result.data.summary ?? null,
+		transcriptionText: result.data.transcription_text ?? null,
+		roomLocation: result.data.room_location ?? null,
+		isProcessed: result.data.is_processed,
 	};
 }
 
@@ -176,8 +277,16 @@ function validateUpdatePayload(body: unknown): UpdateClassInput {
 		startDate: result.data.start_date,
 		endDate: result.data.end_date,
 		link: result.data.link,
+		meetingLink: result.data.meeting_link,
+		status: result.data.status,
+		aiStatus: result.data.ai_status,
+		topics: result.data.topics,
+		durationSeconds: result.data.duration_seconds,
 		content: result.data.content,
 		summary: result.data.summary,
+		transcriptionText: result.data.transcription_text,
+		roomLocation: result.data.room_location,
+		isProcessed: result.data.is_processed,
 	};
 }
 
@@ -189,8 +298,8 @@ function extractClassId(c: ClassContext): string {
 	return classId;
 }
 
-function validateSubjectIdQuery(query: Record<string, string>): string {
-	const result = ListClassesBySubjectSchema.safeParse(query);
+function validateListQuery(query: Record<string, string>): ClassFilters {
+	const result = ListClassesSchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
 			result.error.errors
@@ -198,22 +307,67 @@ function validateSubjectIdQuery(query: Record<string, string>): string {
 				.join("; "),
 		);
 	}
-	return result.data.subject_id;
+
+	const data = result.data;
+	const filters: ClassFilters = {
+		subjectId: data.subject_id,
+		search: data.search,
+		startDateFrom: data.start_date_from,
+		startDateTo: data.start_date_to,
+		endDateFrom: data.end_date_from,
+		endDateTo: data.end_date_to,
+		limit: data.limit,
+		offset: data.offset,
+		sortBy: data.sort_by,
+		sortOrder: data.sort_order,
+	};
+
+	const statusFilter = parseEnumList<ClassStatus>(
+		data.status,
+		CLASS_STATUS_VALUES,
+		"status",
+	);
+	if (statusFilter && statusFilter.length > 0) {
+		filters.status = statusFilter;
+	}
+
+	const aiStatusFilter = parseEnumList<ClassAIStatus>(
+		data.ai_status,
+		CLASS_AI_STATUS_VALUES,
+		"ai_status",
+	);
+	if (aiStatusFilter && aiStatusFilter.length > 0) {
+		filters.aiStatus = aiStatusFilter;
+	}
+
+	const isProcessed = parseBooleanFlag(data.is_processed, "is_processed");
+	if (isProcessed !== undefined) {
+		filters.isProcessed = isProcessed;
+	}
+
+	return filters;
 }
 
 async function listClasses(c: ClassContext) {
 	try {
 		const userId = ensureAuthenticatedUser(c);
 		const query = c.req.query();
-		const subjectId = validateSubjectIdQuery(query);
+		const filters = validateListQuery(query);
 		const classRepository = getClassRepository(c);
 		const listClassesUseCase = new ListClassesUseCase(classRepository);
-		const classes = await listClassesUseCase.execute(userId, subjectId);
+		const { data, total } = await listClassesUseCase.execute(userId, filters);
 
 		return c.json(
 			{
 				success: true,
-				result: classes.map((cls) => toClassListDTO(cls)),
+				result: {
+					data: data.map((cls) => toClassListDTO(cls)),
+					meta: {
+						total,
+						limit: filters.limit ?? 20,
+						offset: filters.offset ?? 0,
+					},
+				},
 			},
 			200,
 		);
@@ -264,8 +418,16 @@ async function createClass(c: ClassContext) {
 					start_date: classItem.startDate,
 					end_date: classItem.endDate,
 					link: classItem.link,
+					meeting_link: classItem.meetingLink,
+					status: classItem.status,
+					ai_status: classItem.aiStatus,
+					topics: classItem.topics,
+					duration_seconds: classItem.durationSeconds,
 					content: classItem.content,
 					summary: classItem.summary,
+					transcription_text: classItem.transcriptionText,
+					room_location: classItem.roomLocation,
+					is_processed: classItem.isProcessed,
 					created_at: classItem.createdAt,
 					updated_at: classItem.updatedAt,
 				},
@@ -296,8 +458,16 @@ async function updateClass(c: ClassContext) {
 					start_date: classItem.startDate,
 					end_date: classItem.endDate,
 					link: classItem.link,
+					meeting_link: classItem.meetingLink,
+					status: classItem.status,
+					ai_status: classItem.aiStatus,
+					topics: classItem.topics,
+					duration_seconds: classItem.durationSeconds,
 					content: classItem.content,
 					summary: classItem.summary,
+					transcription_text: classItem.transcriptionText,
+					room_location: classItem.roomLocation,
+					is_processed: classItem.isProcessed,
 					updated_at: classItem.updatedAt,
 				},
 			},
@@ -357,11 +527,11 @@ async function hardDeleteClass(c: ClassContext) {
 export class ListClassesEndpoint extends OpenAPIRoute {
 	schema = {
 		tags: ["Classes"],
-		summary: "List classes for a subject",
+		summary: "List classes",
 		description:
-			"List all non-deleted classes for a specific subject. Requires subject_id query parameter.",
+			"List classes with advanced filtering, sorting, and pagination. Subject ID is optional.",
 		request: {
-			query: ListClassesBySubjectSchema,
+			query: ListClassesSchema,
 		},
 		responses: {
 			"200": {

@@ -1,13 +1,26 @@
-import { and, eq } from "drizzle-orm";
+import {
+	and,
+	asc,
+	count,
+	desc,
+	eq,
+	gte,
+	inArray,
+	like,
+	lte,
+} from "drizzle-orm";
 import type {
 	Class,
 	ClassData,
-	ClassListItem,
 	ClassResource,
 	ClassUpdateData,
 	ClassWithResources,
 } from "../../../domain/entities/class";
-import type { ClassRepository } from "../../../domain/repositories/class.repository";
+import type {
+	ClassFilters,
+	ClassListResult,
+	ClassRepository,
+} from "../../../domain/repositories/class.repository";
 import { NotFoundError } from "../../../interfaces/http/middleware/error-handler";
 import type { Database } from "../client";
 import { classes, classResources, userFiles } from "../schema";
@@ -20,11 +33,65 @@ import { classes, classResources, userFiles } from "../schema";
 export class D1ClassRepository implements ClassRepository {
 	constructor(private db: Database) {}
 
-	async findBySubjectIdAndUserId(
+	async findAll(
 		userId: string,
-		subjectId: string,
-	): Promise<ClassListItem[]> {
-		const results = await this.db
+		filters: ClassFilters,
+	): Promise<ClassListResult> {
+		const conditions = [eq(classes.userId, userId), eq(classes.isDeleted, 0)];
+
+		if (filters.subjectId) {
+			conditions.push(eq(classes.subjectId, filters.subjectId));
+		}
+
+		if (filters.status && filters.status.length > 0) {
+			conditions.push(inArray(classes.status, filters.status));
+		}
+
+		if (filters.aiStatus && filters.aiStatus.length > 0) {
+			conditions.push(inArray(classes.aiStatus, filters.aiStatus));
+		}
+
+		if (typeof filters.isProcessed === "boolean") {
+			conditions.push(eq(classes.isProcessed, filters.isProcessed ? 1 : 0));
+		}
+
+		if (filters.search) {
+			conditions.push(like(classes.title, `%${filters.search}%`));
+		}
+
+		if (filters.startDateFrom) {
+			conditions.push(gte(classes.startDate, filters.startDateFrom));
+		}
+
+		if (filters.startDateTo) {
+			conditions.push(lte(classes.startDate, filters.startDateTo));
+		}
+
+		if (filters.endDateFrom) {
+			conditions.push(gte(classes.endDate, filters.endDateFrom));
+		}
+
+		if (filters.endDateTo) {
+			conditions.push(lte(classes.endDate, filters.endDateTo));
+		}
+
+		const whereClause = and(...conditions);
+
+		const totalResult = await this.db
+			.select({ count: count() })
+			.from(classes)
+			.where(whereClause)
+			.get();
+
+		const total = totalResult?.count ?? 0;
+
+		const sortMap = {
+			startDate: classes.startDate,
+			createdAt: classes.createdAt,
+			status: classes.status,
+		} as const;
+
+		let query = this.db
 			.select({
 				id: classes.id,
 				subjectId: classes.subjectId,
@@ -32,20 +99,40 @@ export class D1ClassRepository implements ClassRepository {
 				startDate: classes.startDate,
 				endDate: classes.endDate,
 				link: classes.link,
+				meetingLink: classes.meetingLink,
+				status: classes.status,
+				aiStatus: classes.aiStatus,
+				topics: classes.topics,
+				durationSeconds: classes.durationSeconds,
+				roomLocation: classes.roomLocation,
+				isProcessed: classes.isProcessed,
 				createdAt: classes.createdAt,
 				updatedAt: classes.updatedAt,
 			})
 			.from(classes)
-			.where(
-				and(
-					eq(classes.userId, userId),
-					eq(classes.subjectId, subjectId),
-					eq(classes.isDeleted, 0),
-				),
-			)
-			.all();
+			.where(whereClause)
+			.$dynamic();
 
-		return results;
+		const sortColumn = filters.sortBy ? sortMap[filters.sortBy] : undefined;
+		if (sortColumn) {
+			query =
+				filters.sortOrder === "asc"
+					? query.orderBy(asc(sortColumn))
+					: query.orderBy(desc(sortColumn));
+		} else {
+			query = query.orderBy(desc(classes.createdAt));
+		}
+
+		if (filters.limit) {
+			query = query.limit(filters.limit);
+		}
+		if (filters.offset) {
+			query = query.offset(filters.offset);
+		}
+
+		const data = await query;
+
+		return { data, total };
 	}
 
 	async findByIdAndUserId(
@@ -109,8 +196,16 @@ export class D1ClassRepository implements ClassRepository {
 				startDate: data.startDate ?? null,
 				endDate: data.endDate ?? null,
 				link: data.link ?? null,
+				meetingLink: data.meetingLink ?? null,
+				status: data.status ?? "completed",
+				aiStatus: data.aiStatus ?? "none",
+				topics: data.topics ?? null,
+				durationSeconds: data.durationSeconds ?? 0,
 				content: data.content ?? null,
 				summary: data.summary ?? null,
+				transcriptionText: data.transcriptionText ?? null,
+				roomLocation: data.roomLocation ?? null,
+				isProcessed: data.isProcessed ?? 0,
 				isDeleted: 0,
 				deletedAt: null,
 				createdAt: now,
@@ -159,11 +254,35 @@ export class D1ClassRepository implements ClassRepository {
 		if (data.link !== undefined) {
 			updatePayload.link = data.link;
 		}
+		if (data.meetingLink !== undefined) {
+			updatePayload.meetingLink = data.meetingLink;
+		}
+		if (data.status !== undefined) {
+			updatePayload.status = data.status;
+		}
+		if (data.aiStatus !== undefined) {
+			updatePayload.aiStatus = data.aiStatus;
+		}
+		if (data.topics !== undefined) {
+			updatePayload.topics = data.topics;
+		}
+		if (data.durationSeconds !== undefined) {
+			updatePayload.durationSeconds = data.durationSeconds;
+		}
 		if (data.content !== undefined) {
 			updatePayload.content = data.content;
 		}
 		if (data.summary !== undefined) {
 			updatePayload.summary = data.summary;
+		}
+		if (data.transcriptionText !== undefined) {
+			updatePayload.transcriptionText = data.transcriptionText;
+		}
+		if (data.roomLocation !== undefined) {
+			updatePayload.roomLocation = data.roomLocation;
+		}
+		if (data.isProcessed !== undefined) {
+			updatePayload.isProcessed = data.isProcessed;
 		}
 
 		const updated = await this.db

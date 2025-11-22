@@ -1,5 +1,7 @@
 import type {
+	ClassAIStatus,
 	ClassListItem,
+	ClassStatus,
 	ClassWithResources,
 } from "../../domain/entities/class";
 
@@ -13,6 +15,13 @@ export interface ClassListDTO {
 	start_date: string | null;
 	end_date: string | null;
 	link: string | null;
+	meeting_link: string | null;
+	status: ClassStatus;
+	ai_status: ClassAIStatus;
+	topics: string | null;
+	duration_seconds: number;
+	room_location: string | null;
+	is_processed: number;
 	created_at: string;
 	updated_at: string;
 }
@@ -27,8 +36,16 @@ export interface ClassDetailDTO {
 	start_date: string | null;
 	end_date: string | null;
 	link: string | null;
+	meeting_link: string | null;
+	status: ClassStatus;
+	ai_status: ClassAIStatus;
+	topics: string | null;
+	duration_seconds: number;
 	content: string | null;
 	summary: string | null;
+	transcription_text: string | null;
+	room_location: string | null;
+	is_processed: number;
 	is_deleted: number;
 	deleted_at: string | null;
 	created_at: string;
@@ -53,6 +70,13 @@ export function toClassListDTO(classItem: ClassListItem): ClassListDTO {
 		start_date: classItem.startDate,
 		end_date: classItem.endDate,
 		link: classItem.link,
+		meeting_link: classItem.meetingLink,
+		status: classItem.status,
+		ai_status: classItem.aiStatus,
+		topics: classItem.topics,
+		duration_seconds: classItem.durationSeconds,
+		room_location: classItem.roomLocation,
+		is_processed: classItem.isProcessed,
 		created_at: classItem.createdAt,
 		updated_at: classItem.updatedAt,
 	};
@@ -71,8 +95,16 @@ export function toClassDetailDTO(
 		start_date: classItem.startDate,
 		end_date: classItem.endDate,
 		link: classItem.link,
+		meeting_link: classItem.meetingLink,
+		status: classItem.status,
+		ai_status: classItem.aiStatus,
+		topics: classItem.topics,
+		duration_seconds: classItem.durationSeconds,
 		content: classItem.content,
 		summary: classItem.summary,
+		transcription_text: classItem.transcriptionText,
+		room_location: classItem.roomLocation,
+		is_processed: classItem.isProcessed,
 		is_deleted: classItem.isDeleted,
 		deleted_at: classItem.deletedAt,
 		created_at: classItem.createdAt,

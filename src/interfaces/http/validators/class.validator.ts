@@ -23,8 +23,16 @@ export interface CreateClassInput {
 	startDate?: string | null;
 	endDate?: string | null;
 	link?: string | null;
+	meetingLink?: string | null;
+	status?: "scheduled" | "live" | "completed";
+	aiStatus?: "none" | "processing" | "done" | "failed";
+	topics?: string | null;
+	durationSeconds?: number;
 	content?: string | null;
 	summary?: string | null;
+	transcriptionText?: string | null;
+	roomLocation?: string | null;
+	isProcessed?: number;
 }
 
 /**
@@ -35,8 +43,16 @@ export interface UpdateClassInput {
 	startDate?: string | null;
 	endDate?: string | null;
 	link?: string | null;
+	meetingLink?: string | null;
+	status?: "scheduled" | "live" | "completed";
+	aiStatus?: "none" | "processing" | "done" | "failed";
+	topics?: string | null;
+	durationSeconds?: number;
 	content?: string | null;
 	summary?: string | null;
+	transcriptionText?: string | null;
+	roomLocation?: string | null;
+	isProcessed?: number;
 }
 
 /**
@@ -55,8 +71,16 @@ export const CreateClassSchema = z.object({
 	start_date: z.string().datetime().nullable().optional(),
 	end_date: z.string().datetime().nullable().optional(),
 	link: optionalLinkSchema,
+	meeting_link: optionalLinkSchema,
+	status: z.enum(["scheduled", "live", "completed"]).optional(),
+	ai_status: z.enum(["none", "processing", "done", "failed"]).optional(),
+	topics: z.string().nullable().optional(),
+	duration_seconds: z.coerce.number().int().min(0).optional(),
 	content: z.string().nullable().optional(),
 	summary: z.string().nullable().optional(),
+	transcription_text: z.string().nullable().optional(),
+	room_location: z.string().nullable().optional(),
+	is_processed: z.coerce.number().int().min(0).max(1).optional(),
 });
 
 /**
@@ -69,19 +93,38 @@ export const UpdateClassSchema = z
 		start_date: z.string().datetime().nullable().optional(),
 		end_date: z.string().datetime().nullable().optional(),
 		link: optionalLinkSchema,
+		meeting_link: optionalLinkSchema,
+		status: z.enum(["scheduled", "live", "completed"]).optional(),
+		ai_status: z.enum(["none", "processing", "done", "failed"]).optional(),
+		topics: z.string().nullable().optional(),
+		duration_seconds: z.coerce.number().int().min(0).optional(),
 		content: z.string().nullable().optional(),
 		summary: z.string().nullable().optional(),
+		transcription_text: z.string().nullable().optional(),
+		room_location: z.string().nullable().optional(),
+		is_processed: z.coerce.number().int().min(0).max(1).optional(),
 	})
 	.refine((data) => Object.keys(data).length > 0, {
 		message: "At least one field must be provided for update",
 	});
 
 /**
- * Validation schema for listing classes by subject.
- * - subject_id: required, non-empty string (UUID) - snake_case for query parameters
+ * Validation schema for listing classes with advanced filters.
  */
-export const ListClassesBySubjectSchema = z.object({
-	subject_id: z.string().min(1, "Subject ID is required"),
+export const ListClassesSchema = z.object({
+	subject_id: z.string().optional(),
+	status: z.string().optional(), // comma separated
+	ai_status: z.string().optional(), // comma separated
+	is_processed: z.string().optional(),
+	search: z.string().optional(),
+	start_date_from: z.string().datetime().optional(),
+	start_date_to: z.string().datetime().optional(),
+	end_date_from: z.string().datetime().optional(),
+	end_date_to: z.string().datetime().optional(),
+	limit: z.coerce.number().min(1).max(100).default(20),
+	offset: z.coerce.number().min(0).default(0),
+	sort_by: z.enum(["startDate", "createdAt", "status"]).optional(),
+	sort_order: z.enum(["asc", "desc"]).optional(),
 });
 
 /**

@@ -15,8 +15,16 @@ const mockClass: ClassWithResources = {
 	startDate: null,
 	endDate: null,
 	link: null,
+	meetingLink: null,
+	status: "scheduled",
+	aiStatus: "none",
+	topics: null,
+	durationSeconds: 0,
 	content: null,
 	summary: null,
+	transcriptionText: null,
+	roomLocation: null,
+	isProcessed: 0,
 	isDeleted: 0,
 	deletedAt: null,
 	createdAt: "2024-10-16T10:00:00.000Z",
@@ -36,8 +44,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 	beforeEach(() => {
 		mockClassRepository = {
+			findAll: vi.fn(),
 			findByIdAndUserId: vi.fn(),
-			findBySubjectIdAndUserId: vi.fn(),
 			create: vi.fn(),
 			update: vi.fn(),
 			softDelete: vi.fn(),

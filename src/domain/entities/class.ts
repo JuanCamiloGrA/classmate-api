@@ -1,3 +1,6 @@
+export type ClassStatus = "scheduled" | "live" | "completed";
+export type ClassAIStatus = "none" | "processing" | "done" | "failed";
+
 /**
  * Represents an academic class session/lecture in the system.
  * @interface Class
@@ -17,10 +20,26 @@ export interface Class {
 	endDate: string | null;
 	/** Class link (e.g., meeting URL or recording link) */
 	link: string | null;
+	/** Dedicated meeting link when different from general link */
+	meetingLink: string | null;
+	/** Lifecycle status for the class session */
+	status: ClassStatus;
+	/** AI processing workflow status */
+	aiStatus: ClassAIStatus;
+	/** Optional list of topics covered (serialized string/JSON) */
+	topics: string | null;
+	/** Duration of the class in seconds */
+	durationSeconds: number;
 	/** Class content/transcription/notes */
 	content: string | null;
 	/** AI-generated summary of the class */
 	summary: string | null;
+	/** Full transcription text */
+	transcriptionText: string | null;
+	/** Physical room or location */
+	roomLocation: string | null;
+	/** Flag indicating if processing workflow already ran */
+	isProcessed: number;
 	/** Soft delete flag (1 = deleted, 0 = active) */
 	isDeleted: number;
 	/** ISO 8601 timestamp of soft deletion, null if not deleted */
@@ -47,10 +66,26 @@ export interface ClassData {
 	endDate?: string | null;
 	/** Class link */
 	link?: string | null;
+	/** Dedicated meeting link */
+	meetingLink?: string | null;
+	/** Lifecycle status */
+	status?: ClassStatus;
+	/** AI processing status */
+	aiStatus?: ClassAIStatus;
+	/** Topics covered */
+	topics?: string | null;
+	/** Duration in seconds */
+	durationSeconds?: number;
 	/** Class content */
 	content?: string | null;
 	/** AI-generated summary */
 	summary?: string | null;
+	/** Full transcription */
+	transcriptionText?: string | null;
+	/** Physical room */
+	roomLocation?: string | null;
+	/** Processing flag */
+	isProcessed?: number;
 }
 
 /**
@@ -67,10 +102,26 @@ export interface ClassUpdateData {
 	endDate?: string | null;
 	/** Class link (optional) */
 	link?: string | null;
+	/** Dedicated meeting link (optional) */
+	meetingLink?: string | null;
+	/** Lifecycle status (optional) */
+	status?: ClassStatus;
+	/** AI processing status (optional) */
+	aiStatus?: ClassAIStatus;
+	/** Topics covered (optional) */
+	topics?: string | null;
+	/** Duration in seconds (optional) */
+	durationSeconds?: number;
 	/** Class content (optional) */
 	content?: string | null;
 	/** AI-generated summary (optional) */
 	summary?: string | null;
+	/** Full transcription (optional) */
+	transcriptionText?: string | null;
+	/** Physical room (optional) */
+	roomLocation?: string | null;
+	/** Processing flag (optional) */
+	isProcessed?: number;
 }
 
 /**
@@ -116,6 +167,20 @@ export interface ClassListItem {
 	endDate: string | null;
 	/** Class link */
 	link: string | null;
+	/** Dedicated meeting link */
+	meetingLink: string | null;
+	/** Lifecycle status */
+	status: ClassStatus;
+	/** AI processing status */
+	aiStatus: ClassAIStatus;
+	/** Topics covered */
+	topics: string | null;
+	/** Duration in seconds */
+	durationSeconds: number;
+	/** Physical room */
+	roomLocation: string | null;
+	/** Processing flag */
+	isProcessed: number;
 	/** Creation timestamp */
 	createdAt: string;
 	/** Update timestamp */

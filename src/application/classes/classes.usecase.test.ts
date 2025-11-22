@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type {
 	Class,
 	ClassListItem,
+	ClassStatus,
 	ClassWithResources,
 } from "../../domain/entities/class";
 import type { ClassRepository } from "../../domain/repositories/class.repository";
@@ -21,8 +22,16 @@ const mockClass: Class = {
 	startDate: "2024-10-20T09:00:00Z",
 	endDate: "2024-10-20T10:30:00Z",
 	link: "https://example.com/class/123",
+	meetingLink: "https://example.com/meeting/123",
+	status: "completed",
+	aiStatus: "none",
+	topics: '["Derivatives", "Integrals"]',
+	durationSeconds: 5400,
 	content: "Introduction to advanced concepts in mathematics",
 	summary: "Covered chapter 5 topics including derivatives and integrals",
+	transcriptionText: "Full transcription text",
+	roomLocation: "Room 101",
+	isProcessed: 0,
 	isDeleted: 0,
 	deletedAt: null,
 	createdAt: "2024-10-16T10:00:00.000Z",
@@ -36,6 +45,13 @@ const mockClassListItem: ClassListItem = {
 	startDate: "2024-10-20T09:00:00Z",
 	endDate: "2024-10-20T10:30:00Z",
 	link: "https://example.com/class/123",
+	meetingLink: "https://example.com/meeting/123",
+	status: "completed",
+	aiStatus: "none",
+	topics: '["Derivatives", "Integrals"]',
+	durationSeconds: 5400,
+	roomLocation: "Room 101",
+	isProcessed: 0,
 	createdAt: "2024-10-16T10:00:00.000Z",
 	updatedAt: "2024-10-16T10:00:00.000Z",
 };
@@ -72,7 +88,7 @@ describe("Classes Use Cases", () => {
 
 	beforeEach(() => {
 		mockRepository = {
-			findBySubjectIdAndUserId: vi.fn(),
+			findAll: vi.fn(),
 			findByIdAndUserId: vi.fn(),
 			create: vi.fn(),
 			update: vi.fn(),
@@ -82,34 +98,38 @@ describe("Classes Use Cases", () => {
 	});
 
 	describe("ListClassesUseCase", () => {
-		it("should list all non-deleted classes for a subject", async () => {
-			const classes = [mockClassListItem];
-			(
-				mockRepository.findBySubjectIdAndUserId as ReturnType<typeof vi.fn>
-			).mockResolvedValue(classes);
-
-			const useCase = new ListClassesUseCase(mockRepository);
-			const result = await useCase.execute("user-123", "subject-123");
-
-			expect(result).toEqual(classes);
-			expect(mockRepository.findBySubjectIdAndUserId).toHaveBeenCalledWith(
-				"user-123",
-				"subject-123",
+		it("should list classes with default filters", async () => {
+			const classesResult = { data: [mockClassListItem], total: 1 };
+			(mockRepository.findAll as ReturnType<typeof vi.fn>).mockResolvedValue(
+				classesResult,
 			);
-		});
-
-		it("should return empty array if subject has no classes", async () => {
-			(
-				mockRepository.findBySubjectIdAndUserId as ReturnType<typeof vi.fn>
-			).mockResolvedValue([]);
 
 			const useCase = new ListClassesUseCase(mockRepository);
-			const result = await useCase.execute("user-123", "subject-456");
+			const result = await useCase.execute("user-123", {
+				subjectId: "subject-123",
+			});
 
-			expect(result).toEqual([]);
+			expect(result).toEqual(classesResult);
+			expect(mockRepository.findAll).toHaveBeenCalledWith("user-123", {
+				subjectId: "subject-123",
+			});
 		});
 
-		it("should return multiple classes for a subject", async () => {
+		it("should return empty result when no classes match", async () => {
+			const emptyResult = { data: [], total: 0 };
+			(mockRepository.findAll as ReturnType<typeof vi.fn>).mockResolvedValue(
+				emptyResult,
+			);
+
+			const useCase = new ListClassesUseCase(mockRepository);
+			const result = await useCase.execute("user-123", {
+				subjectId: "subject-456",
+			});
+
+			expect(result).toEqual(emptyResult);
+		});
+
+		it("should support advanced filters", async () => {
 			const classes = [
 				mockClassListItem,
 				{
@@ -120,16 +140,23 @@ describe("Classes Use Cases", () => {
 					endDate: "2024-10-21T10:30:00Z",
 				},
 			];
-			(
-				mockRepository.findBySubjectIdAndUserId as ReturnType<typeof vi.fn>
-			).mockResolvedValue(classes);
+			const filters = {
+				subjectId: "subject-123",
+				status: ["completed" as ClassStatus],
+				startDateFrom: "2024-10-01T00:00:00Z",
+				startDateTo: "2024-10-31T23:59:59Z",
+			};
+			(mockRepository.findAll as ReturnType<typeof vi.fn>).mockResolvedValue({
+				data: classes,
+				total: classes.length,
+			});
 
 			const useCase = new ListClassesUseCase(mockRepository);
-			const result = await useCase.execute("user-123", "subject-123");
+			const result = await useCase.execute("user-123", filters);
 
-			expect(result).toHaveLength(2);
-			expect(result[0].title).toBe("Chapter 5 Introduction");
-			expect(result[1].title).toBe("Advanced Topics");
+			expect(result.data).toHaveLength(2);
+			expect(result.data[0].title).toBe("Chapter 5 Introduction");
+			expect(mockRepository.findAll).toHaveBeenCalledWith("user-123", filters);
 		});
 	});
 

@@ -1,10 +1,33 @@
 import type {
 	Class,
+	ClassAIStatus,
 	ClassData,
 	ClassListItem,
+	ClassStatus,
 	ClassUpdateData,
 	ClassWithResources,
 } from "../entities/class";
+
+export interface ClassFilters {
+	subjectId?: string;
+	status?: ClassStatus[];
+	aiStatus?: ClassAIStatus[];
+	isProcessed?: boolean;
+	search?: string;
+	startDateFrom?: string;
+	startDateTo?: string;
+	endDateFrom?: string;
+	endDateTo?: string;
+	limit?: number;
+	offset?: number;
+	sortBy?: "startDate" | "createdAt" | "status";
+	sortOrder?: "asc" | "desc";
+}
+
+export interface ClassListResult {
+	data: ClassListItem[];
+	total: number;
+}
 
 /**
  * Repository interface for class persistence operations.
@@ -14,16 +37,12 @@ import type {
  */
 export interface ClassRepository {
 	/**
-	 * List all non-deleted classes for a subject.
-	 * Optimized to return only essential fields.
+	 * List classes with advanced filtering, sorting and pagination.
 	 * @param userId - The user ID (ownership check)
-	 * @param subjectId - The subject ID to fetch classes for
-	 * @returns Array of non-deleted classes (optimized fields)
+	 * @param filters - Filter options
+	 * @returns Object containing data array and total count
 	 */
-	findBySubjectIdAndUserId(
-		userId: string,
-		subjectId: string,
-	): Promise<ClassListItem[]>;
+	findAll(userId: string, filters: ClassFilters): Promise<ClassListResult>;
 
 	/**
 	 * Retrieve a single class with all details and associated files.

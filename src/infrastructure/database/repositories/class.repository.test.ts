@@ -23,7 +23,7 @@ describe("D1ClassRepository", () => {
 		const repo = new D1ClassRepository(mockDb);
 
 		// Verify interface methods exist
-		expect(typeof repo.findBySubjectIdAndUserId).toBe("function");
+		expect(typeof repo.findAll).toBe("function");
 		expect(typeof repo.findByIdAndUserId).toBe("function");
 		expect(typeof repo.create).toBe("function");
 		expect(typeof repo.update).toBe("function");
@@ -37,7 +37,7 @@ describe("D1ClassRepository", () => {
 
 		// All methods should exist and be functions
 		const methods = [
-			"findBySubjectIdAndUserId",
+			"findAll",
 			"findByIdAndUserId",
 			"create",
 			"update",
