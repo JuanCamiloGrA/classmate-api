@@ -190,6 +190,24 @@ export const userFiles = sqliteTable(
 	(table) => [index("idx_user_files_user_id").on(table.userId)],
 );
 
+export const scribeDocuments = sqliteTable("scribe_documents", {
+	id: text("id").primaryKey(),
+	userId: text("user_id")
+		.notNull()
+		.references(() => profiles.id, { onDelete: "cascade" }),
+	taskId: text("task_id").references(() => tasks.id, { onDelete: "set null" }),
+	subjectId: text("subject_id").references(() => subjects.id, {
+		onDelete: "set null",
+	}),
+	title: text("title").notNull().default("Untitled Draft"),
+	status: text("status").default("draft"),
+	wizardData: text("wizard_data"),
+	contentMarkdown: text("content_markdown"),
+	finalPdfFileId: text("final_pdf_file_id").references(() => userFiles.id),
+	createdAt: text("created_at").notNull().default(timestampDefault),
+	updatedAt: text("updated_at").notNull().default(timestampDefault),
+});
+
 export const taskResources = sqliteTable(
 	"task_resources",
 	{
@@ -327,6 +345,11 @@ export type UserFile = typeof userFiles.$inferSelect;
 export type NewUserFile = typeof userFiles.$inferInsert;
 export const userFileSchema = createSelectSchema(userFiles);
 export const newUserFileSchema = createInsertSchema(userFiles);
+
+export type ScribeDocument = typeof scribeDocuments.$inferSelect;
+export type NewScribeDocument = typeof scribeDocuments.$inferInsert;
+export const scribeDocumentSchema = createSelectSchema(scribeDocuments);
+export const newScribeDocumentSchema = createInsertSchema(scribeDocuments);
 
 export type TaskResource = typeof taskResources.$inferSelect;
 export type NewTaskResource = typeof taskResources.$inferInsert;
