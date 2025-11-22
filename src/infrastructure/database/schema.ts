@@ -54,6 +54,12 @@ export const subjects = sqliteTable(
 			.notNull()
 			.references(() => terms.id, { onDelete: "cascade" }),
 		name: text("name").notNull(),
+		professor: text("professor"),
+		credits: integer("credits").default(3),
+		location: text("location"),
+		scheduleText: text("schedule_text"),
+		syllabusUrl: text("syllabus_url"),
+		colorTheme: text("color_theme").default("indigo"),
 		isDeleted: integer("is_deleted").notNull().default(0),
 		deletedAt: text("deleted_at"),
 		createdAt: text("created_at").notNull().default(timestampDefault),
@@ -114,6 +120,15 @@ export const classes = sqliteTable(
 		startDate: text("start_date"),
 		endDate: text("end_date"),
 		link: text("link"),
+		meetingLink: text("meeting_link"),
+		status: text("status", {
+			enum: ["scheduled", "live", "completed"],
+		}).default("completed"),
+		aiStatus: text("ai_status", {
+			enum: ["none", "processing", "done", "failed"],
+		}).default("none"),
+		topics: text("topics"),
+		durationSeconds: integer("duration_seconds").default(0),
 		content: text("content"),
 		summary: text("summary"),
 		transcriptionText: text("transcription_text"),
