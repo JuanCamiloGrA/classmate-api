@@ -4,4 +4,5 @@
  */
 export interface PromptService {
 	loadPrompt(): Promise<string>;
+	getPrompt(path: string): Promise<string>;
 }

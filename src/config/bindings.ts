@@ -19,10 +19,11 @@ export type Bindings = {
 	R2_SECRET_ACCESS_KEY: SecretsStoreBinding;
 	R2_TEMPORAL_BUCKET_NAME: SecretsStoreBinding;
 	R2_PRESIGNED_URL_EXPIRATION_SECONDS?: string;
-	GEMINI_API_KEY: SecretsStoreBinding;
+	AI_GATEWAY_API_KEY: SecretsStoreBinding;
 	PROCESSING_SERVICE_URL: SecretsStoreBinding;
 	INTERNAL_API_KEY: SecretsStoreBinding;
 	SUMMARIZE_CLASS_WORKFLOW: Workflow;
+	GENERATE_SCRIBE_PROJECT_WORKFLOW: Workflow;
 	ASSETS: Fetcher;
 };
 

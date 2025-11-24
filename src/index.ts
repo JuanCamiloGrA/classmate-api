@@ -19,6 +19,12 @@ import {
 	GetProfileEndpoint,
 } from "./interfaces/http/routes/profiles";
 import {
+	CreateScribeProjectEndpoint,
+	GetScribeProjectEndpoint,
+	ListScribeProjectsEndpoint,
+	UpdateScribeProjectEndpoint,
+} from "./interfaces/http/routes/scribe";
+import {
 	CreateSubjectEndpoint,
 	HardDeleteSubjectEndpoint,
 	ListSubjectsEndpoint,
@@ -40,6 +46,7 @@ import {
 	SoftDeleteTermEndpoint,
 	UpdateTermEndpoint,
 } from "./interfaces/http/routes/terms";
+import { GenerateScribeProjectWorkflow } from "./workflows/generate-scribe-project";
 import { SummarizeClassWorkflow } from "./workflows/summarize-class";
 
 export default {
@@ -109,9 +116,15 @@ export default {
 		// Feedback endpoints
 		apiApp.post("/feedback", CreateFeedbackEndpoint);
 
+		// Scribe endpoints
+		apiApp.post("/scribe", CreateScribeProjectEndpoint);
+		apiApp.get("/scribe", ListScribeProjectsEndpoint);
+		apiApp.get("/scribe/:id", GetScribeProjectEndpoint);
+		apiApp.put("/scribe/:id", UpdateScribeProjectEndpoint);
+
 		return apiApp.fetch(request, env, ctx);
 	},
 };
 
 // Export workflow for Cloudflare Workers
-export { SummarizeClassWorkflow };
+export { SummarizeClassWorkflow, GenerateScribeProjectWorkflow };

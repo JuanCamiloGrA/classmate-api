@@ -1,6 +1,6 @@
 import type { Bindings } from "../../config/bindings";
 import { resolveSecretBinding } from "../../config/bindings";
-import { GoogleAIService } from "../../infrastructure/ai/google.ai.service";
+import { VercelAIService } from "../../infrastructure/ai/vercel.ai.service";
 import { DatabaseFactory } from "../../infrastructure/database/client";
 import { D1SummaryRepository } from "../../infrastructure/database/repositories/summary.repository";
 import { MiniGFMMarkdownService } from "../../infrastructure/markdown/minigfm.markdown.service";
@@ -18,9 +18,9 @@ export async function createSummarizeClassWorkflowHandler(
 	env: Bindings,
 ): Promise<SummarizeClassWorkflowHandler> {
 	// Resolve secrets
-	const geminiApiKey = await resolveSecretBinding(
-		env.GEMINI_API_KEY,
-		"GEMINI_API_KEY",
+	const aiGatewayApiKey = await resolveSecretBinding(
+		env.AI_GATEWAY_API_KEY,
+		"AI_GATEWAY_API_KEY",
 	);
 	const r2Endpoint = await resolveSecretBinding(
 		env.R2_S3_API_ENDPOINT,
@@ -41,7 +41,7 @@ export async function createSummarizeClassWorkflowHandler(
 
 	// Create infrastructure services
 	const processingService = new CloudRunProcessingService(env);
-	const aiService = new GoogleAIService(geminiApiKey);
+	const aiService = new VercelAIService(aiGatewayApiKey);
 	const promptService = new AssetsPromptService(env.ASSETS);
 	const storageService = new R2StorageService({
 		endpoint: r2Endpoint,

@@ -190,24 +190,6 @@ export const userFiles = sqliteTable(
 	(table) => [index("idx_user_files_user_id").on(table.userId)],
 );
 
-export const scribeDocuments = sqliteTable("scribe_documents", {
-	id: text("id").primaryKey(),
-	userId: text("user_id")
-		.notNull()
-		.references(() => profiles.id, { onDelete: "cascade" }),
-	taskId: text("task_id").references(() => tasks.id, { onDelete: "set null" }),
-	subjectId: text("subject_id").references(() => subjects.id, {
-		onDelete: "set null",
-	}),
-	title: text("title").notNull().default("Untitled Draft"),
-	status: text("status").default("draft"),
-	wizardData: text("wizard_data"),
-	contentMarkdown: text("content_markdown"),
-	finalPdfFileId: text("final_pdf_file_id").references(() => userFiles.id),
-	createdAt: text("created_at").notNull().default(timestampDefault),
-	updatedAt: text("updated_at").notNull().default(timestampDefault),
-});
-
 export const taskResources = sqliteTable(
 	"task_resources",
 	{
@@ -311,6 +293,42 @@ export const messages = sqliteTable(
 	],
 );
 
+export const scribeProjects = sqliteTable("scribe_projects", {
+	id: text("id").primaryKey(),
+	userId: text("user_id")
+		.notNull()
+		.references(() => profiles.id, { onDelete: "cascade" }),
+	taskId: text("task_id").references(() => tasks.id, { onDelete: "set null" }),
+	subjectId: text("subject_id").references(() => subjects.id, {
+		onDelete: "set null",
+	}),
+	title: text("title").notNull().default("Untitled Draft"),
+	status: text("status", {
+		enum: [
+			"draft",
+			"collecting_answers",
+			"drafting",
+			"reviewing",
+			"needs_input",
+			"typesetting",
+			"completed",
+			"failed",
+		],
+	})
+		.notNull()
+		.default("draft"),
+	rubricContent: text("rubric_content"),
+	formQuestions: text("form_questions", { mode: "json" }),
+	userAnswers: text("user_answers", { mode: "json" }),
+	contentMarkdown: text("content_markdown"),
+	currentLatex: text("current_latex"),
+	reviewFeedback: text("review_feedback", { mode: "json" }),
+	workflowId: text("workflow_id"),
+	finalPdfFileId: text("final_pdf_file_id").references(() => userFiles.id),
+	createdAt: text("created_at").notNull().default(timestampDefault),
+	updatedAt: text("updated_at").notNull().default(timestampDefault),
+});
+
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
 export const profileSchema = createSelectSchema(profiles);
@@ -346,11 +364,6 @@ export type NewUserFile = typeof userFiles.$inferInsert;
 export const userFileSchema = createSelectSchema(userFiles);
 export const newUserFileSchema = createInsertSchema(userFiles);
 
-export type ScribeDocument = typeof scribeDocuments.$inferSelect;
-export type NewScribeDocument = typeof scribeDocuments.$inferInsert;
-export const scribeDocumentSchema = createSelectSchema(scribeDocuments);
-export const newScribeDocumentSchema = createInsertSchema(scribeDocuments);
-
 export type TaskResource = typeof taskResources.$inferSelect;
 export type NewTaskResource = typeof taskResources.$inferInsert;
 export const taskResourceSchema = createSelectSchema(taskResources);
@@ -375,3 +388,8 @@ export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export const messageSchema = createSelectSchema(messages);
 export const newMessageSchema = createInsertSchema(messages);
+
+export type ScribeProject = typeof scribeProjects.$inferSelect;
+export type NewScribeProject = typeof scribeProjects.$inferInsert;
+export const scribeProjectSchema = createSelectSchema(scribeProjects);
+export const newScribeProjectSchema = createInsertSchema(scribeProjects);

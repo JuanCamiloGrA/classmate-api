@@ -10,6 +10,10 @@ export class AssetsPromptService implements PromptService {
 	constructor(private readonly assetsFetcher?: Fetcher) {}
 
 	async loadPrompt(): Promise<string> {
+		return this.getPrompt("prompt.txt");
+	}
+
+	async getPrompt(path: string): Promise<string> {
 		if (!this.assetsFetcher) {
 			console.warn(
 				"⚠️ [PROMPT] ASSETS binding not available, using default prompt",
@@ -18,26 +22,28 @@ export class AssetsPromptService implements PromptService {
 		}
 
 		try {
-			console.log("📝 [PROMPT] Loading prompt from ASSETS");
-			const response = await this.assetsFetcher.fetch(
-				new Request("http://assets/prompt.txt"),
-			);
+			console.log(`📝 [PROMPT] Loading prompt from ASSETS: ${path}`);
+			// Ensure path doesn't start with / to avoid double slashes if we were concatenating
+			// But here we use a full URL for the fetcher
+			const url = `http://assets/${path}`;
+			const response = await this.assetsFetcher.fetch(new Request(url));
 
 			if (!response.ok) {
-				console.warn(
-					"⚠️ [PROMPT] prompt.txt not found in ASSETS, using default",
-				);
+				console.warn(`⚠️ [PROMPT] ${path} not found in ASSETS, using default`);
 				return DEFAULT_PROMPT;
 			}
 
 			const promptText = await response.text();
-			console.log("✅ [PROMPT] Prompt loaded from ASSETS successfully", {
-				length: promptText.length,
-			});
+			console.log(
+				`✅ [PROMPT] Prompt ${path} loaded from ASSETS successfully`,
+				{
+					length: promptText.length,
+				},
+			);
 			return promptText;
 		} catch (error) {
 			console.warn(
-				"⚠️ [PROMPT] Failed to load prompt from ASSETS, using default",
+				`⚠️ [PROMPT] Failed to load prompt ${path} from ASSETS, using default`,
 				error,
 			);
 			return DEFAULT_PROMPT;

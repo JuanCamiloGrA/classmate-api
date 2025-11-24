@@ -73,9 +73,14 @@
 			"secret_name": "R2_TEMPORAL_BUCKET_NAME"
 		},
 		{
-			"binding": "GEMINI_API_KEY",
+			"binding": "GEMINI_API_KEY", // DEPRECATED - to be removed once migration to Vercel AI Gateway is complete
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
 			"secret_name": "GEMINI_API_KEY"
+		},
+		{
+			"binding": "AI_GATEWAY_API_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "AI_GATEWAY_API_KEY"
 		},
 		{
 			"binding": "PROCESSING_SERVICE_URL",
@@ -102,6 +107,11 @@
 			"name": "summarize-class",
 			"binding": "SUMMARIZE_CLASS_WORKFLOW",
 			"class_name": "SummarizeClassWorkflow"
+		},
+		{
+			"name": "generate-scribe-project",
+			"binding": "GENERATE_SCRIBE_PROJECT_WORKFLOW",
+			"class_name": "GenerateScribeProjectWorkflow"
 		}
 	]
 }

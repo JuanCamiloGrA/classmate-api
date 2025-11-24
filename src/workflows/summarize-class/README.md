@@ -1,6 +1,6 @@
 # Summarize Class Workflow
 
-This workflow processes audio or text files to generate class summaries using AI (Google Gemini).
+This workflow processes audio or text files to generate class summaries using the AI SDK with provider flexibility.
 
 ## Architecture
 
@@ -51,7 +51,7 @@ The workflow executes three main steps:
   1. Download file from R2 using `r2_key`
   2. Load prompt template
   3. Determine if audio or text
-  4. Send content to Google Gemini to generate Markdown summary
+  4. Send content to AI provider (via AI Gateway) to generate Markdown summary
 
 #### Step 2: Save Summary
 - **Timeout:** 10 minutes
@@ -68,13 +68,13 @@ The workflow executes three main steps:
 ## Used Services
 
 ### Domain Services (Ports)
-- `AIService` - AI services interface
+- `AIService` - AI services interface (provider-agnostic)
 - `PromptService` - Prompt loading interface
 - `StorageService` - File storage interface
 - `MarkdownService` - Markdown→HTML conversion interface
 
 ### Infrastructure (Adapters)
-- `GoogleAIService` - Google Gemini implementation
+- `VercelAIService` - AI SDK implementation (supports multiple providers via AI Gateway)
 - `AssetsPromptService` - Prompt loading from assets
 - `R2StorageService` - Cloudflare R2 storage via S3 SDK
 - `MiniGFMMarkdownService` - Markdown→HTML conversion with sanitization
@@ -85,7 +85,7 @@ The workflow executes three main steps:
 ### Required Environment Variables
 
 Configured in Cloudflare Secrets Store:
-- `GEMINI_API_KEY` - Google Gemini API key
+- `AI_GATEWAY_API_KEY` - API key for AI Gateway (routes to configured provider)
 - `R2_S3_API_ENDPOINT` - R2 S3-compatible endpoint
 - `R2_ACCESS_KEY_ID` - R2 access key
 - `R2_SECRET_ACCESS_KEY` - R2 secret key

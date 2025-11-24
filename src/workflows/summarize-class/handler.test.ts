@@ -52,6 +52,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 
 		mockPromptService = {
 			loadPrompt: vi.fn(),
+			getPrompt: vi.fn(),
 		};
 
 		// Create mock WorkflowStep
