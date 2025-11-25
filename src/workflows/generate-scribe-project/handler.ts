@@ -74,10 +74,19 @@ export class GenerateScribeProjectWorkflowHandler {
 
 		// Update project based on Architect result
 		await step.do("update-after-architect", async () => {
-			if (result.questions && result.questions.length > 0) {
+			// Check if we have sections with questions (Architect prompt schema)
+			const hasQuestions =
+				result.sections &&
+				Array.isArray(result.sections) &&
+				result.sections.some(
+					(s: { questions?: unknown[] }) =>
+						s.questions && s.questions.length > 0,
+				);
+
+			if (hasQuestions) {
 				await this.scribeProjectRepository.update(project.userId, project.id, {
 					status: "collecting_answers",
-					formQuestions: result.questions,
+					formQuestions: result,
 				});
 			} else {
 				// No questions, proceed to drafting
@@ -137,8 +146,20 @@ export class GenerateScribeProjectWorkflowHandler {
 			prompt = prompt.replace("{{RUBRIC}}", project.rubricContent || "");
 
 			const response = await this.aiService.generateContent(prompt, "", false);
+
+			// Handle "STATUS: APPROVED"
+			if (response.includes("STATUS: APPROVED")) {
+				return { approved: true };
+			}
+
 			const jsonStr = response.replace(/```json\n?|\n?```/g, "").trim();
-			return JSON.parse(jsonStr);
+			try {
+				const parsed = JSON.parse(jsonStr);
+				return { approved: false, ...parsed };
+			} catch (e) {
+				console.error("Failed to parse Supervisor response", response);
+				throw e;
+			}
 		});
 
 		await step.do("update-after-supervisor", async () => {
@@ -148,10 +169,55 @@ export class GenerateScribeProjectWorkflowHandler {
 					reviewFeedback: review,
 				});
 			} else {
-				await this.scribeProjectRepository.update(project.userId, project.id, {
-					status: "drafting", // Back to drafting
-					reviewFeedback: review,
-				});
+				// If revision is required, we need to ask the user more questions
+				// We reuse 'collecting_answers' state but with new questions
+				if (review.questions && review.questions.length > 0) {
+					await this.scribeProjectRepository.update(
+						project.userId,
+						project.id,
+						{
+							status: "collecting_answers",
+							reviewFeedback: review,
+							// Reset user answers? Or keep them?
+							// If we keep them, we need to make sure the UI handles merging or showing new questions.
+							// For now, let's assume we just present the new questions.
+							formQuestions: {
+								form_title: "Revision Needed",
+								estimated_time: "5 minutes",
+								sections: [
+									{
+										section_title: "Clarifications",
+										questions: review.questions,
+									},
+								],
+							},
+							// We might want to clear userAnswers so the workflow waits for new ones
+							// But we should probably keep the old ones for history?
+							// The Ghostwriter uses `project.userAnswers`.
+							// If we clear it, Ghostwriter loses context.
+							// If we don't clear it, the workflow check `if (project.userAnswers)` might trigger immediately if it checks for *any* answers.
+							// But `project.userAnswers` is the *current* state.
+							// If we want to wait for *new* answers, we might need to clear it or have a flag.
+							// The `run` method:
+							// if (project.status === "collecting_answers") {
+							//    if (project.userAnswers) { ... }
+							// }
+							// If we leave `userAnswers` populated, it will loop immediately!
+							// So we MUST clear `userAnswers` (or move them to history) to wait for new input.
+							userAnswers: null,
+						},
+					);
+				} else {
+					// Fallback if no questions
+					await this.scribeProjectRepository.update(
+						project.userId,
+						project.id,
+						{
+							status: "drafting",
+							reviewFeedback: review,
+						},
+					);
+				}
 			}
 		});
 	}
