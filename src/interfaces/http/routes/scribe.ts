@@ -6,9 +6,16 @@ import { GetScribeProjectUseCase } from "../../../application/scribe/get-scribe-
 import { ListScribeProjectsUseCase } from "../../../application/scribe/list-scribe-projects.usecase";
 import { UpdateScribeProjectUseCase } from "../../../application/scribe/update-scribe-project.usecase";
 import type { Bindings, Variables } from "../../../config/bindings";
+import { resolveSecretBinding } from "../../../config/bindings";
+import { validateEnv } from "../../../config/env";
+import {
+	isSupportedRubricMimeType,
+	SUPPORTED_RUBRIC_MIME_TYPES,
+} from "../../../domain/services/scribe/agents";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ScribeProjectRepository } from "../../../infrastructure/database/repositories/d1-scribe-project.repository";
+import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
 import {
 	handleError,
 	NotFoundError,
@@ -24,7 +31,23 @@ const CreateScribeProjectSchema = z.object({
 	title: z.string().optional(),
 	taskId: z.string().optional(),
 	subjectId: z.string().optional(),
+	/** Text content of the rubric (alternative to file upload) */
 	rubricContent: z.string().optional(),
+	/** URL of the rubric file in R2 (after upload via presigned URL) */
+	rubricFileUrl: z.string().optional(),
+	/** MIME type of the rubric file */
+	rubricMimeType: z.string().optional(),
+});
+
+const GenerateRubricUploadUrlSchema = z.object({
+	/** Original filename for the rubric */
+	fileName: z.string().min(1, "File name is required"),
+	/** MIME type of the file (must be PDF, image, or text) */
+	contentType: z.enum(SUPPORTED_RUBRIC_MIME_TYPES, {
+		errorMap: () => ({
+			message: `Unsupported file type. Allowed: ${SUPPORTED_RUBRIC_MIME_TYPES.join(", ")}`,
+		}),
+	}),
 });
 
 const UpdateScribeProjectSchema = z.object({
@@ -52,6 +75,8 @@ const ScribeProjectResponseSchema = z.object({
 	title: z.string(),
 	status: z.string(),
 	rubricContent: z.string().nullable(),
+	rubricFileUrl: z.string().nullable(),
+	rubricMimeType: z.string().nullable(),
 	formQuestions: z.unknown().nullable(),
 	userAnswers: z.unknown().nullable(),
 	contentMarkdown: z.string().nullable(),
@@ -91,13 +116,36 @@ export class CreateScribeProjectEndpoint extends OpenAPIRoute {
 			const validation = CreateScribeProjectSchema.safeParse(body);
 			if (!validation.success) throw new ValidationError("Invalid input");
 
+			const { rubricContent, rubricFileUrl, rubricMimeType } = validation.data;
+
+			// Validate that at least rubricContent or rubricFileUrl is provided
+			if (!rubricContent && !rubricFileUrl) {
+				throw new ValidationError(
+					"Either rubricContent (text) or rubricFileUrl (file) must be provided",
+				);
+			}
+
+			// Validate MIME type if file URL is provided
+			if (rubricFileUrl && rubricMimeType) {
+				if (!isSupportedRubricMimeType(rubricMimeType)) {
+					throw new ValidationError(
+						`Unsupported rubric file type: ${rubricMimeType}. Allowed: ${SUPPORTED_RUBRIC_MIME_TYPES.join(", ")}`,
+					);
+				}
+			}
+
 			const db = DatabaseFactory.create(c.env.DB);
 			const repo = new D1ScribeProjectRepository(db);
 			const useCase = new CreateScribeProjectUseCase(repo);
 
 			const project = await useCase.execute({
 				userId: auth.userId,
-				...validation.data,
+				title: validation.data.title,
+				taskId: validation.data.taskId,
+				subjectId: validation.data.subjectId,
+				rubricContent: rubricContent ?? null,
+				rubricFileUrl: rubricFileUrl ?? null,
+				rubricMimeType: rubricMimeType ?? null,
 			});
 
 			// Trigger Workflow to start Architect
@@ -239,6 +287,120 @@ export class UpdateScribeProjectEndpoint extends OpenAPIRoute {
 			}
 
 			return c.json(project, 200);
+		} catch (e) {
+			return handleError(e, c);
+		}
+	}
+}
+
+// Response schemas for upload URL endpoint
+const GenerateUploadUrlResponseSchema = z.object({
+	signedUrl: z.string().url(),
+	key: z.string(),
+	publicUrl: z.string().url(),
+});
+
+/**
+ * Generate Presigned Upload URL for Scribe Rubric
+ *
+ * The client should:
+ * 1. Call this endpoint to get a presigned URL
+ * 2. Upload the file directly to R2 using the presigned URL
+ * 3. Use the returned `publicUrl` as `rubricFileUrl` when creating the project
+ */
+export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
+	schema = {
+		tags: ["Scribe"],
+		summary: "Generate presigned upload URL for rubric file",
+		description:
+			"Generate a presigned URL to upload a rubric file (PDF, image, or text) directly to R2 storage. Use the returned publicUrl as rubricFileUrl when creating the project.",
+		request: {
+			body: contentJson(GenerateRubricUploadUrlSchema),
+		},
+		responses: {
+			"200": {
+				description: "Presigned URL generated successfully",
+				...contentJson(GenerateUploadUrlResponseSchema),
+			},
+		},
+	};
+
+	async handle(c: ScribeContext) {
+		try {
+			const auth = getAuth(c);
+			if (!auth?.userId) throw new UnauthorizedError();
+
+			const body = await c.req.json();
+			const validation = GenerateRubricUploadUrlSchema.safeParse(body);
+			if (!validation.success) {
+				throw new ValidationError(
+					validation.error.errors
+						.map((e) => `${e.path.join(".")}: ${e.message}`)
+						.join("; "),
+				);
+			}
+
+			const { fileName, contentType } = validation.data;
+
+			// Resolve R2 secrets
+			const endpoint = await resolveSecretBinding(
+				c.env.R2_S3_API_ENDPOINT,
+				"R2_S3_API_ENDPOINT",
+			);
+			const accessKeyId = await resolveSecretBinding(
+				c.env.R2_ACCESS_KEY_ID,
+				"R2_ACCESS_KEY_ID",
+			);
+			const secretAccessKey = await resolveSecretBinding(
+				c.env.R2_SECRET_ACCESS_KEY,
+				"R2_SECRET_ACCESS_KEY",
+			);
+			const bucketName = await resolveSecretBinding(
+				c.env.R2_TEMPORAL_BUCKET_NAME,
+				"R2_TEMPORAL_BUCKET_NAME",
+			);
+
+			const env = validateEnv({
+				ENVIRONMENT: c.env.ENVIRONMENT,
+				R2_PRESIGNED_URL_EXPIRATION_SECONDS:
+					c.env.R2_PRESIGNED_URL_EXPIRATION_SECONDS,
+			});
+
+			const storageAdapter = new R2StorageAdapter({
+				endpoint,
+				accessKeyId,
+				secretAccessKey,
+			});
+
+			// Generate unique key for the rubric file
+			const timestamp = Date.now();
+			const sanitizedFileName = fileName.replace(/[^a-zA-Z0-9.-]/g, "_");
+			const key = `scribe/rubrics/${auth.userId}/${timestamp}-${sanitizedFileName}`;
+
+			// Generate presigned URL for upload
+			const signedUrl = await storageAdapter.generatePresignedPutUrl(
+				bucketName,
+				key,
+				contentType,
+				env.R2_PRESIGNED_URL_EXPIRATION_SECONDS,
+			);
+
+			// Generate presigned URL for reading (after upload)
+			// Use 7 days expiration for read access
+			const publicUrl = await storageAdapter.generatePresignedGetUrl(
+				bucketName,
+				key,
+				7 * 24 * 60 * 60,
+			);
+
+			return c.json(
+				{
+					signedUrl,
+					key,
+					publicUrl,
+				},
+				200,
+			);
 		} catch (e) {
 			return handleError(e, c);
 		}

@@ -20,6 +20,7 @@ import {
 } from "./interfaces/http/routes/profiles";
 import {
 	CreateScribeProjectEndpoint,
+	GenerateScribeRubricUploadUrlEndpoint,
 	GetScribeProjectEndpoint,
 	ListScribeProjectsEndpoint,
 	UpdateScribeProjectEndpoint,
@@ -117,6 +118,7 @@ export default {
 		apiApp.post("/feedback", CreateFeedbackEndpoint);
 
 		// Scribe endpoints
+		apiApp.post("/scribe/upload-url", GenerateScribeRubricUploadUrlEndpoint);
 		apiApp.post("/scribe", CreateScribeProjectEndpoint);
 		apiApp.get("/scribe", ListScribeProjectsEndpoint);
 		apiApp.get("/scribe/:id", GetScribeProjectEndpoint);

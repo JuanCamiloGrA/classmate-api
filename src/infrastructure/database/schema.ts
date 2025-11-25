@@ -318,6 +318,8 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 		.notNull()
 		.default("draft"),
 	rubricContent: text("rubric_content"),
+	rubricFileUrl: text("rubric_file_url"),
+	rubricMimeType: text("rubric_mime_type"),
 	formQuestions: text("form_questions", { mode: "json" }),
 	userAnswers: text("user_answers", { mode: "json" }),
 	contentMarkdown: text("content_markdown"),
