@@ -9,7 +9,9 @@ CLERK_WEBHOOK_SECRET=whsec_your_secret_here
 
 # The variables below are Secret Store Variables.
 # They are available for various workers around the Cloudflare account.
-# They must be set using the "wrangler secrets-store create ..." command without --remote flag.
+# They must be set using the
+# "wrangler secrets-store secret create 0c02e81d551048c5a3f672338d397a68 --name VAR --scopes workers" 
+# command without --remote flag.
 # They do not work in .dev.vars.
 # See https://developers.cloudflare.com/workers/wrangler/commands/#secrets-store-secret
 

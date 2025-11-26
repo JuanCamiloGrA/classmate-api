@@ -80,7 +80,7 @@ export interface ScribeAgentWithSchema extends ScribeAgentConfig {
  * Uses structured output (generateObject) to ensure valid JSON response.
  */
 export const ARCHITECT_AGENT: ScribeAgentWithSchema = {
-	model: "xai/grok-4.1-fast-reasoning",
+	model: "openai/gpt-5-nano",
 	promptPath: "scribe/prompt-01-architect.txt",
 	outputSchema: ArchitectOutputSchema,
 	description:
@@ -94,7 +94,7 @@ export const ARCHITECT_AGENT: ScribeAgentWithSchema = {
  * Uses text generation (generateText) for free-form Markdown output.
  */
 export const GHOSTWRITER_AGENT: ScribeAgentConfig = {
-	model: "xai/grok-4.1-fast-reasoning",
+	model: "openai/gpt-5-mini",
 	promptPath: "scribe/prompt-02-ghostwriter.txt",
 	description:
 		"Generates academic document content in Markdown from rubric and user answers",
@@ -107,7 +107,7 @@ export const GHOSTWRITER_AGENT: ScribeAgentConfig = {
  * Can approve for typesetting or request revisions with follow-up questions.
  */
 export const SUPERVISOR_AGENT: ScribeAgentConfig = {
-	model: "xai/grok-4.1-fast-reasoning",
+	model: "openai/gpt-5-nano",
 	promptPath: "scribe/prompt-03-supervisor.txt",
 	description:
 		"Reviews generated content and either approves or requests revisions",

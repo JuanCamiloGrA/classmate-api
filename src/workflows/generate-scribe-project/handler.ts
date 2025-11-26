@@ -36,7 +36,7 @@ export class GenerateScribeProjectWorkflowHandler {
 		const { projectId, userId } = event.payload;
 
 		// 1. Fetch Project
-		const project = await step.do("fetch-project", async () => {
+		let project = await step.do("fetch-project", async () => {
 			const p = await this.scribeProjectRepository.findById(userId, projectId);
 			if (!p) throw new Error(`Project ${projectId} not found`);
 			return p;
@@ -46,21 +46,92 @@ export class GenerateScribeProjectWorkflowHandler {
 			`[SCRIBE] Processing project ${projectId} in status ${project.status}`,
 		);
 
-		// State Machine
-		if (project.status === "draft") {
-			await this.runArchitectAgent(project, step);
-		} else if (project.status === "collecting_answers") {
-			if (project.userAnswers) {
-				await this.runGhostwriterAgent(project, step);
-			} else {
-				console.log("[SCRIBE] Waiting for user answers");
+		// State Machine - continues until a waiting state or completion
+		// Loop to chain agents in the same workflow invocation
+		while (true) {
+			if (project.status === "draft") {
+				await this.runArchitectAgent(project, step);
+				// After architect, status becomes collecting_answers (waiting for user)
+				// or drafting (no questions needed). We break to let user respond.
+				break;
 			}
-		} else if (project.status === "drafting") {
-			await this.runGhostwriterAgent(project, step);
-		} else if (project.status === "reviewing") {
-			await this.runSupervisorAgent(project, step);
-		} else if (project.status === "typesetting") {
-			await this.runTypesetterAgent(project, step);
+
+			if (project.status === "collecting_answers") {
+				if (project.userAnswers) {
+					await this.runGhostwriterAgent(project, step);
+					// After ghostwriter, status becomes "reviewing" - continue to supervisor
+					project = await step.do("refetch-after-ghostwriter", async () => {
+						const p = await this.scribeProjectRepository.findById(
+							userId,
+							projectId,
+						);
+						if (!p) throw new Error(`Project ${projectId} not found`);
+						return p;
+					});
+					continue; // Continue to next iteration to run supervisor
+				}
+				console.log("[SCRIBE] Waiting for user answers");
+				break;
+			}
+
+			if (project.status === "drafting") {
+				await this.runGhostwriterAgent(project, step);
+				// After ghostwriter, status becomes "reviewing" - continue to supervisor
+				project = await step.do(
+					"refetch-after-ghostwriter-drafting",
+					async () => {
+						const p = await this.scribeProjectRepository.findById(
+							userId,
+							projectId,
+						);
+						if (!p) throw new Error(`Project ${projectId} not found`);
+						return p;
+					},
+				);
+				continue; // Continue to next iteration to run supervisor
+			}
+
+			if (project.status === "reviewing") {
+				await this.runSupervisorAgent(project, step);
+				// After supervisor, status becomes:
+				// - "typesetting" if approved -> continue to typesetter
+				// - "collecting_answers" if rejected -> break to wait for user
+				project = await step.do("refetch-after-supervisor", async () => {
+					const p = await this.scribeProjectRepository.findById(
+						userId,
+						projectId,
+					);
+					if (!p) throw new Error(`Project ${projectId} not found`);
+					return p;
+				});
+
+				if (project.status === "typesetting") {
+					continue; // Continue to typesetter
+				}
+				// If collecting_answers, break to wait for user input
+				break;
+			}
+
+			if (project.status === "typesetting") {
+				await this.runTypesetterAgent(project, step);
+				// After typesetter, status becomes "completed" - done!
+				console.log(`[SCRIBE] Project ${projectId} completed successfully`);
+				break;
+			}
+
+			if (project.status === "completed") {
+				console.log(`[SCRIBE] Project ${projectId} already completed`);
+				break;
+			}
+
+			if (project.status === "failed") {
+				console.log(`[SCRIBE] Project ${projectId} is in failed state`);
+				break;
+			}
+
+			// Unknown status - break to avoid infinite loop
+			console.warn(`[SCRIBE] Unknown status: ${project.status}`);
+			break;
 		}
 	}
 
