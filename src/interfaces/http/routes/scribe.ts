@@ -157,7 +157,10 @@ export class CreateScribeProjectEndpoint extends OpenAPIRoute {
 				},
 			});
 
-			return c.json(project, 201);
+			// Exclude contentMarkdown from response - internal use only
+			const { contentMarkdown: _internal, ...publicProject } = project;
+
+			return c.json(publicProject, 201);
 		} catch (e) {
 			return handleError(e, c);
 		}
@@ -187,7 +190,12 @@ export class ListScribeProjectsEndpoint extends OpenAPIRoute {
 
 			const projects = await useCase.execute(auth.userId);
 
-			return c.json({ projects }, 200);
+			// Exclude contentMarkdown from each project - internal use only
+			const publicProjects = projects.map(
+				({ contentMarkdown: _internal, ...rest }) => rest,
+			);
+
+			return c.json({ projects: publicProjects }, 200);
 		} catch (e) {
 			return handleError(e, c);
 		}
@@ -224,7 +232,10 @@ export class GetScribeProjectEndpoint extends OpenAPIRoute {
 			const project = await useCase.execute(auth.userId, id);
 			if (!project) throw new NotFoundError("Project not found");
 
-			return c.json(project, 200);
+			// Exclude contentMarkdown from response - internal use only
+			const { contentMarkdown: _internal, ...publicProject } = project;
+
+			return c.json(publicProject, 200);
 		} catch (e) {
 			return handleError(e, c);
 		}
@@ -263,8 +274,32 @@ export class UpdateScribeProjectEndpoint extends OpenAPIRoute {
 			const repo = new D1ScribeProjectRepository(db);
 			const useCase = new UpdateScribeProjectUseCase(repo);
 
+			// Handle answer accumulation for revision rounds
+			const updateData = { ...validation.data };
+
+			if (validation.data.userAnswers) {
+				// Fetch current project to check for existing answers
+				const currentProject = await repo.findById(auth.userId, id);
+				if (!currentProject) throw new NotFoundError("Project not found");
+
+				const existingAnswers = currentProject.userAnswers as Record<
+					string,
+					unknown
+				> | null;
+				const newAnswers = validation.data.userAnswers as Record<
+					string,
+					unknown
+				>;
+
+				// Accumulate answers based on the current structure
+				updateData.userAnswers = this.accumulateAnswers(
+					existingAnswers,
+					newAnswers,
+				);
+			}
+
 			// Update logic
-			const project = await useCase.execute(auth.userId, id, validation.data);
+			const project = await useCase.execute(auth.userId, id, updateData);
 
 			// If user answers provided, trigger workflow to continue
 			if (validation.data.userAnswers) {
@@ -286,10 +321,47 @@ export class UpdateScribeProjectEndpoint extends OpenAPIRoute {
 				});
 			}
 
-			return c.json(project, 200);
+			// Exclude contentMarkdown from response - internal use only
+			const { contentMarkdown: _internal, ...publicProject } = project;
+
+			return c.json(publicProject, 200);
 		} catch (e) {
 			return handleError(e, c);
 		}
+	}
+
+	/**
+	 * Accumulates user answers across revision rounds.
+	 * First round: stores as _initialAnswers
+	 * Subsequent rounds: appends to _revisionAnswers array
+	 */
+	private accumulateAnswers(
+		existingAnswers: Record<string, unknown> | null,
+		newAnswers: Record<string, unknown>,
+	): Record<string, unknown> {
+		// No existing answers - this is the first round (from Architect form)
+		if (!existingAnswers) {
+			return newAnswers;
+		}
+
+		// Check if already in structured format
+		if (existingAnswers._initialAnswers !== undefined) {
+			// This is a revision round - append new answers
+			const revisionAnswers =
+				(existingAnswers._revisionAnswers as unknown[]) || [];
+			return {
+				_initialAnswers: existingAnswers._initialAnswers,
+				_revisionAnswers: [...revisionAnswers, newAnswers],
+			};
+		}
+
+		// Existing answers are in flat format but we have previous markdown
+		// This means supervisor rejected and we're getting revision answers
+		// The handler already converted to structured format, so merge here
+		return {
+			_initialAnswers: existingAnswers,
+			_revisionAnswers: [newAnswers],
+		};
 	}
 }
 

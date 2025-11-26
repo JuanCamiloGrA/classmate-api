@@ -96,22 +96,36 @@ export class GenerateScribeProjectWorkflowHandler {
 		project: ScribeProject,
 		step: WorkflowStep,
 	): Promise<void> {
+		// Determine if this is a revision (previous markdown exists)
+		const isRevision = !!project.contentMarkdown;
+
 		const content = await step.do("ghostwriter-agent", async () => {
+			// Build the text content based on whether this is initial or revision
+			let textContent: string;
+
+			if (isRevision) {
+				// MODE B: Revision - Include previous markdown and label new answers
+				textContent = this.buildRevisionContext(project);
+			} else {
+				// MODE A: Initial Draft
+				textContent = project.rubricContent
+					? `RUBRIC:\n${project.rubricContent}\n\nUSER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`
+					: `USER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`;
+			}
+
 			// Use ScribeAIService with text output (generateText)
-			// Template variables are replaced in the system prompt
 			const response = await this.scribeAIService.runAgentWithText(
 				GHOSTWRITER_AGENT,
 				{
 					// Pass rubric file if available
 					fileUrl: project.rubricFileUrl ?? undefined,
 					fileMimeType: project.rubricMimeType ?? undefined,
-					// Pass text content with rubric and answers
-					textContent: project.rubricContent
-						? `RUBRIC:\n${project.rubricContent}\n\nUSER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`
-						: `USER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`,
+					textContent,
 					templateVars: {
 						RUBRIC: project.rubricContent || "",
 						ANSWERS: JSON.stringify(project.userAnswers || {}),
+						PREVIOUS_MARKDOWN: project.contentMarkdown || "",
+						IS_REVISION: isRevision ? "true" : "false",
 					},
 				},
 			);
@@ -124,6 +138,63 @@ export class GenerateScribeProjectWorkflowHandler {
 				status: "reviewing",
 			});
 		});
+	}
+
+	/**
+	 * Builds the context for a revision request.
+	 * Separates initial answers from revision answers for the Ghostwriter.
+	 */
+	private buildRevisionContext(project: ScribeProject): string {
+		const parts: string[] = [];
+
+		// 1. Rubric (always include if available)
+		if (project.rubricContent) {
+			parts.push(`RUBRIC:\n${project.rubricContent}`);
+		}
+
+		// 2. Previous Markdown Draft (the one that needs improvement)
+		parts.push(
+			`PREVIOUS MARKDOWN DRAFT (needs revision):\n${project.contentMarkdown}`,
+		);
+
+		// 3. User answers - parse to separate initial from revision answers
+		const userAnswers = project.userAnswers as Record<string, unknown> | null;
+		if (userAnswers) {
+			// Check if answers are already structured with rounds
+			if (userAnswers._initialAnswers || userAnswers._revisionAnswers) {
+				// Structured format
+				if (userAnswers._initialAnswers) {
+					parts.push(
+						`INITIAL ANSWERS (from first form):\n${JSON.stringify(userAnswers._initialAnswers, null, 2)}`,
+					);
+				}
+				if (
+					userAnswers._revisionAnswers &&
+					Array.isArray(userAnswers._revisionAnswers)
+				) {
+					for (let i = 0; i < userAnswers._revisionAnswers.length; i++) {
+						parts.push(
+							`REVISION ANSWERS (round ${i + 1}):\n${JSON.stringify(userAnswers._revisionAnswers[i], null, 2)}`,
+						);
+					}
+				}
+			} else {
+				// Legacy flat format - treat all as initial
+				parts.push(`INITIAL ANSWERS:\n${JSON.stringify(userAnswers, null, 2)}`);
+			}
+		}
+
+		// 4. Feedback from supervisor (why it was rejected)
+		if (project.reviewFeedback) {
+			const feedback = project.reviewFeedback as { feedback_summary?: string };
+			if (feedback.feedback_summary) {
+				parts.push(
+					`SUPERVISOR FEEDBACK (reason for revision):\n${feedback.feedback_summary}`,
+				);
+			}
+		}
+
+		return parts.join("\n\n---\n\n");
 	}
 
 	private async runSupervisorAgent(
@@ -171,6 +242,14 @@ export class GenerateScribeProjectWorkflowHandler {
 			} else {
 				// If revision is required, ask the user more questions
 				if (review.questions && review.questions.length > 0) {
+					// Preserve existing answers in a structured format for context accumulation
+					const existingAnswers = project.userAnswers as Record<
+						string,
+						unknown
+					> | null;
+					const structuredAnswers =
+						this.structureAnswersForRevision(existingAnswers);
+
 					await this.scribeProjectRepository.update(
 						project.userId,
 						project.id,
@@ -178,7 +257,7 @@ export class GenerateScribeProjectWorkflowHandler {
 							status: "collecting_answers",
 							reviewFeedback: review,
 							formQuestions: {
-								form_title: "Revision Needed",
+								form_title: "Additional Information Needed",
 								estimated_time: "5 minutes",
 								sections: [
 									{
@@ -187,12 +266,13 @@ export class GenerateScribeProjectWorkflowHandler {
 									},
 								],
 							},
-							// Clear userAnswers to wait for new input
-							userAnswers: null,
+							// Preserve structured answers - new answers will be merged in update endpoint
+							userAnswers: structuredAnswers,
 						},
 					);
 				} else {
-					// Fallback if no questions
+					// Fallback if no questions - this shouldn't happen with the new prompt
+					// but we keep it for safety
 					await this.scribeProjectRepository.update(
 						project.userId,
 						project.id,
@@ -204,6 +284,30 @@ export class GenerateScribeProjectWorkflowHandler {
 				}
 			}
 		});
+	}
+
+	/**
+	 * Structures existing answers to preserve them during revision rounds.
+	 * Converts flat answers to structured format with _initialAnswers and _revisionAnswers.
+	 */
+	private structureAnswersForRevision(
+		existingAnswers: Record<string, unknown> | null,
+	): Record<string, unknown> {
+		if (!existingAnswers) {
+			return {};
+		}
+
+		// Already structured format - return as-is
+		if (existingAnswers._initialAnswers !== undefined) {
+			return existingAnswers;
+		}
+
+		// Convert flat format to structured
+		// All current answers become initial answers
+		return {
+			_initialAnswers: existingAnswers,
+			_revisionAnswers: [],
+		};
 	}
 
 	private async runTypesetterAgent(
