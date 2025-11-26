@@ -52,6 +52,36 @@ export const ArchitectOutputSchema = z.object({
 export type ArchitectOutput = z.infer<typeof ArchitectOutputSchema>;
 
 // ============================================================================
+// Typesetter Output Schema
+// ============================================================================
+
+/**
+ * Output schema for the Typesetter Agent
+ * Contains metadata for PDF cover page and LaTeX body content
+ */
+export const TypesetterOutputSchema = z.object({
+	title: z
+		.string()
+		.describe("Document title extracted from the heading or metadata"),
+	course: z
+		.string()
+		.describe("Course name if mentioned, otherwise 'Academic Document'"),
+	student: z
+		.string()
+		.describe("Student name if mentioned, otherwise 'Student'"),
+	date: z
+		.string()
+		.describe("Date in format 'DD of Month, YYYY' (e.g., 'November 25, 2025')"),
+	latex_content: z
+		.string()
+		.describe(
+			"LaTeX body content starting with \\section{} - NO preamble or document wrapper",
+		),
+});
+
+export type TypesetterOutput = z.infer<typeof TypesetterOutputSchema>;
+
+// ============================================================================
 // Agent Configurations
 // ============================================================================
 
@@ -116,12 +146,15 @@ export const SUPERVISOR_AGENT: ScribeAgentConfig = {
 /**
  * Typesetter Agent Configuration
  *
- * Converts final Markdown content to LaTeX format.
+ * Converts final Markdown content to LaTeX format with extracted metadata.
+ * Uses structured output (generateObject) to ensure valid JSON response.
  */
-export const TYPESETTER_AGENT: ScribeAgentConfig = {
+export const TYPESETTER_AGENT: ScribeAgentWithSchema = {
 	model: "groq/gpt-oss-120b",
 	promptPath: "scribe/prompt-04-typesetter.txt",
-	description: "Converts approved Markdown content to LaTeX format",
+	outputSchema: TypesetterOutputSchema,
+	description:
+		"Converts approved Markdown content to structured JSON with metadata and LaTeX body",
 };
 
 // ============================================================================

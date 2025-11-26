@@ -10,6 +10,7 @@ import {
 	GHOSTWRITER_AGENT,
 	SUPERVISOR_AGENT,
 	TYPESETTER_AGENT,
+	type TypesetterOutput,
 } from "../../domain/services/scribe/agents";
 import type { ScribeAIService } from "../../infrastructure/ai/scribe.ai.service";
 import type { ScribePdfService } from "../../infrastructure/pdf/scribe-pdf.service";
@@ -397,62 +398,66 @@ export class GenerateScribeProjectWorkflowHandler {
 		project: ScribeProject,
 		step: WorkflowStep,
 	): Promise<void> {
-		// Step 1: Generate LaTeX content using Typesetter Agent
-		const latex = await step.do("typesetter-agent", async () => {
-			// Use ScribeAIService with text output (generateText)
-			const response = await this.scribeAIService.runAgentWithText(
-				TYPESETTER_AGENT,
-				{
-					textContent: project.contentMarkdown || "",
-					templateVars: {
-						CONTENT: project.contentMarkdown || "",
+		// Step 1: Generate structured output using Typesetter Agent
+		// The AI extracts metadata (title, course, student, date) from the Markdown
+		// and converts the content to LaTeX body
+		const typesetterResult: TypesetterOutput = await step.do(
+			"typesetter-agent",
+			async () => {
+				// Use ScribeAIService with structured output (generateObject)
+				const output = await this.scribeAIService.runAgentWithSchema(
+					TYPESETTER_AGENT,
+					{
+						textContent: project.contentMarkdown || "",
 					},
-				},
-			);
-			return response;
-		});
+				);
+				return output;
+			},
+		);
 
-		// Step 2: Fetch user profile and subject info for PDF metadata
-		const pdfMetadata = await step.do("fetch-pdf-metadata", async () => {
-			// Get user profile for student name
-			const profile = await this.profileRepository.findById(project.userId);
-			const studentName = profile?.name || "Estudiante";
+		// Step 2: Enrich metadata with fallbacks from repositories
+		// If AI returned default values, use data from user profile and subject
+		const enrichedMetadata = await step.do("enrich-metadata", async () => {
+			let student = typesetterResult.student;
+			let course = typesetterResult.course;
 
-			// Get subject name if available
-			let courseName = "Documento Académico";
-			if (project.subjectId) {
+			// Fallback: If AI returned default "Student", try to get from profile
+			if (student === "Student") {
+				const profile = await this.profileRepository.findById(project.userId);
+				if (profile?.name) {
+					student = profile.name;
+				}
+			}
+
+			// Fallback: If AI returned default "Academic Document", try to get from subject
+			if (course === "Academic Document" && project.subjectId) {
 				const subject = await this.subjectRepository.findByIdAndUserId(
 					project.userId,
 					project.subjectId,
 				);
-				if (subject) {
-					courseName = subject.name;
+				if (subject?.name) {
+					course = subject.name;
 				}
 			}
 
-			// Format date in Spanish
-			const fecha = new Date().toLocaleDateString("es-ES", {
-				year: "numeric",
-				month: "long",
-				day: "numeric",
-			});
-
 			return {
-				studentName,
-				courseName,
-				fecha,
+				title: typesetterResult.title || project.title || "Untitled Document",
+				course,
+				student,
+				date: typesetterResult.date,
+				latex_content: typesetterResult.latex_content,
 			};
 		});
 
-		// Step 3: Call PDF generation service
+		// Step 3: Call PDF generation service with enriched metadata
 		const pdfResult = await step.do("generate-pdf", async () => {
 			const result = await this.pdfService.generatePdf({
 				user_id: project.userId,
-				titulo: project.title || "Documento Sin Título",
-				curso: pdfMetadata.courseName,
-				estudiante: pdfMetadata.studentName,
-				fecha: pdfMetadata.fecha,
-				contenido_latex: latex,
+				titulo: enrichedMetadata.title,
+				curso: enrichedMetadata.course,
+				estudiante: enrichedMetadata.student,
+				fecha: enrichedMetadata.date,
+				contenido_latex: enrichedMetadata.latex_content,
 			});
 			return result;
 		});
@@ -470,7 +475,7 @@ export class GenerateScribeProjectWorkflowHandler {
 		// Step 5: Update project with PDF info
 		await step.do("update-after-typesetter", async () => {
 			await this.scribeProjectRepository.update(project.userId, project.id, {
-				currentLatex: latex,
+				currentLatex: enrichedMetadata.latex_content,
 				finalPdfFileId: pdfResult.r2Key,
 				finalPdfUrl: presignedUrl,
 				status: "completed",
