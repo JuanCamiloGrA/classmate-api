@@ -80,7 +80,7 @@ export interface ScribeAgentWithSchema extends ScribeAgentConfig {
  * Uses structured output (generateObject) to ensure valid JSON response.
  */
 export const ARCHITECT_AGENT: ScribeAgentWithSchema = {
-	model: "google/gemini-2.5-flash-lite",
+	model: "xai/grok-4.1-fast-reasoning",
 	promptPath: "scribe/prompt-01-architect.txt",
 	outputSchema: ArchitectOutputSchema,
 	description:
@@ -94,7 +94,7 @@ export const ARCHITECT_AGENT: ScribeAgentWithSchema = {
  * Uses text generation (generateText) for free-form Markdown output.
  */
 export const GHOSTWRITER_AGENT: ScribeAgentConfig = {
-	model: "google/gemini-2.5-flash-lite",
+	model: "xai/grok-4.1-fast-reasoning",
 	promptPath: "scribe/prompt-02-ghostwriter.txt",
 	description:
 		"Generates academic document content in Markdown from rubric and user answers",
@@ -107,7 +107,7 @@ export const GHOSTWRITER_AGENT: ScribeAgentConfig = {
  * Can approve for typesetting or request revisions with follow-up questions.
  */
 export const SUPERVISOR_AGENT: ScribeAgentConfig = {
-	model: "google/gemini-2.5-flash-lite",
+	model: "xai/grok-4.1-fast-reasoning",
 	promptPath: "scribe/prompt-03-supervisor.txt",
 	description:
 		"Reviews generated content and either approves or requests revisions",
@@ -119,7 +119,7 @@ export const SUPERVISOR_AGENT: ScribeAgentConfig = {
  * Converts final Markdown content to LaTeX format.
  */
 export const TYPESETTER_AGENT: ScribeAgentConfig = {
-	model: "google/gemini-2.5-flash-lite",
+	model: "groq/gpt-oss-120b",
 	promptPath: "scribe/prompt-04-typesetter.txt",
 	description: "Converts approved Markdown content to LaTeX format",
 };
