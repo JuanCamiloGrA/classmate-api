@@ -328,6 +328,8 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	workflowId: text("workflow_id"),
 	finalPdfFileId: text("final_pdf_file_id").references(() => userFiles.id),
 	finalPdfUrl: text("final_pdf_url"),
+	isDeleted: integer("is_deleted").notNull().default(0),
+	deletedAt: text("deleted_at"),
 	createdAt: text("created_at").notNull().default(timestampDefault),
 	updatedAt: text("updated_at").notNull().default(timestampDefault),
 });

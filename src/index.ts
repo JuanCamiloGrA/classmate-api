@@ -15,6 +15,13 @@ import { ProcessClassAudioEndpoint } from "./interfaces/http/routes/classes-proc
 import { ProcessClassUrlEndpoint } from "./interfaces/http/routes/classes-process-url";
 import { CreateFeedbackEndpoint } from "./interfaces/http/routes/feedback";
 import {
+	ConfirmUploadEndpoint,
+	DeleteLibraryItemEndpoint,
+	GenerateUploadUrlEndpoint,
+	GetStorageUsageEndpoint,
+	ListLibraryEndpoint,
+} from "./interfaces/http/routes/library";
+import {
 	CreateProfileEndpoint,
 	GetProfileEndpoint,
 } from "./interfaces/http/routes/profiles";
@@ -123,6 +130,13 @@ export default {
 		apiApp.get("/scribe", ListScribeProjectsEndpoint);
 		apiApp.get("/scribe/:id", GetScribeProjectEndpoint);
 		apiApp.put("/scribe/:id", UpdateScribeProjectEndpoint);
+
+		// Library endpoints
+		apiApp.get("/library", ListLibraryEndpoint);
+		apiApp.get("/library/storage", GetStorageUsageEndpoint);
+		apiApp.post("/library/upload/presigned", GenerateUploadUrlEndpoint);
+		apiApp.post("/library/upload/confirm", ConfirmUploadEndpoint);
+		apiApp.delete("/library/:id", DeleteLibraryItemEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},

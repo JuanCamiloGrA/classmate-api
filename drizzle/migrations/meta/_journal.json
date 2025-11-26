@@ -57,6 +57,13 @@
 			"when": 1764134295473,
 			"tag": "0007_jazzy_chameleon",
 			"breakpoints": true
+		},
+		{
+			"idx": 8,
+			"version": "6",
+			"when": 1764186928331,
+			"tag": "0008_keen_santa_claus",
+			"breakpoints": true
 		}
 	]
 }
