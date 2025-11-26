@@ -453,11 +453,11 @@ export class GenerateScribeProjectWorkflowHandler {
 		const pdfResult = await step.do("generate-pdf", async () => {
 			const result = await this.pdfService.generatePdf({
 				user_id: project.userId,
-				titulo: enrichedMetadata.title,
-				curso: enrichedMetadata.course,
-				estudiante: enrichedMetadata.student,
-				fecha: enrichedMetadata.date,
-				contenido_latex: enrichedMetadata.latex_content,
+				title: enrichedMetadata.title,
+				course: enrichedMetadata.course,
+				student: enrichedMetadata.student,
+				date: enrichedMetadata.date,
+				latex_content: enrichedMetadata.latex_content,
 			});
 			return result;
 		});

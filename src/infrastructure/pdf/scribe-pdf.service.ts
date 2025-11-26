@@ -1,29 +1,31 @@
 /**
  * Scribe PDF Generation Service
  * Calls the external SCRIBE_HEAVY_API_URL to compile LaTeX to PDF
+ *
+ * Request fields match TypesetterOutput schema from the AI typesetter agent
  */
 
 export interface ScribePdfRequest {
-	/** User ID for path organization */
+	/** User ID for path organization (required) */
 	user_id: string;
-	/** Document title (1-500 chars) */
-	titulo: string;
-	/** Course name (1-200 chars) */
-	curso: string;
-	/** Student name (1-200 chars) */
-	estudiante: string;
-	/** Date string (1-100 chars) */
-	fecha: string;
-	/** LaTeX body content (10-500000 chars) */
-	contenido_latex: string;
+	/** Document title extracted from the heading or metadata */
+	title: string;
+	/** Course name if mentioned, otherwise 'Academic Document' */
+	course: string;
+	/** Student name if mentioned, otherwise 'Student' */
+	student: string;
+	/** Date in format 'DD of Month, YYYY' (e.g., 'November 25, 2025') */
+	date: string;
+	/** LaTeX body content starting with \section{} - NO preamble or document wrapper */
+	latex_content: string;
 }
 
 export interface ScribePdfSuccessResponse {
-	/** R2 object key where PDF is stored */
+	/** R2 object key where PDF is stored (camelCase) */
 	r2Key: string;
 	/** Generated filename */
 	filename: string;
-	/** Always "application/pdf" */
+	/** Always "application/pdf" (camelCase) */
 	mimeType: string;
 }
 
@@ -51,7 +53,7 @@ export class ScribePdfService {
 
 	/**
 	 * Generates a PDF from LaTeX content
-	 * @param request - The PDF generation request
+	 * @param request - The PDF generation request matching Client Integration Guide spec
 	 * @returns The R2 key and filename of the generated PDF
 	 * @throws Error if PDF generation fails
 	 */
@@ -60,8 +62,8 @@ export class ScribePdfService {
 	): Promise<ScribePdfSuccessResponse> {
 		console.log("🔄 [SCRIBE_PDF] Generating PDF", {
 			userId: request.user_id,
-			titulo: request.titulo,
-			contentLength: request.contenido_latex.length,
+			title: request.title,
+			contentLength: request.latex_content.length,
 		});
 
 		const response = await fetch(`${this.apiUrl}/v1/generate`, {
