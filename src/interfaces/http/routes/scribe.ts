@@ -79,9 +79,8 @@ const ScribeProjectResponseSchema = z.object({
 	rubricMimeType: z.string().nullable(),
 	formQuestions: z.unknown().nullable(),
 	userAnswers: z.unknown().nullable(),
-	contentMarkdown: z.string().nullable(),
-	currentLatex: z.string().nullable(),
 	reviewFeedback: z.unknown().nullable(),
+	finalPdfUrl: z.string().nullable(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 });
@@ -157,8 +156,13 @@ export class CreateScribeProjectEndpoint extends OpenAPIRoute {
 				},
 			});
 
-			// Exclude contentMarkdown from response - internal use only
-			const { contentMarkdown: _internal, ...publicProject } = project;
+			// Exclude internal fields from response
+			const {
+				contentMarkdown: _internal,
+				currentLatex: _latex,
+				finalPdfFileId: _pdfKey,
+				...publicProject
+			} = project;
 
 			return c.json(publicProject, 201);
 		} catch (e) {
@@ -190,9 +194,14 @@ export class ListScribeProjectsEndpoint extends OpenAPIRoute {
 
 			const projects = await useCase.execute(auth.userId);
 
-			// Exclude contentMarkdown from each project - internal use only
+			// Exclude internal fields from each project
 			const publicProjects = projects.map(
-				({ contentMarkdown: _internal, ...rest }) => rest,
+				({
+					contentMarkdown: _internal,
+					currentLatex: _latex,
+					finalPdfFileId: _pdfKey,
+					...rest
+				}) => rest,
 			);
 
 			return c.json({ projects: publicProjects }, 200);
@@ -232,8 +241,13 @@ export class GetScribeProjectEndpoint extends OpenAPIRoute {
 			const project = await useCase.execute(auth.userId, id);
 			if (!project) throw new NotFoundError("Project not found");
 
-			// Exclude contentMarkdown from response - internal use only
-			const { contentMarkdown: _internal, ...publicProject } = project;
+			// Exclude internal fields from response
+			const {
+				contentMarkdown: _internal,
+				currentLatex: _latex,
+				finalPdfFileId: _pdfKey,
+				...publicProject
+			} = project;
 
 			return c.json(publicProject, 200);
 		} catch (e) {
@@ -321,8 +335,13 @@ export class UpdateScribeProjectEndpoint extends OpenAPIRoute {
 				});
 			}
 
-			// Exclude contentMarkdown from response - internal use only
-			const { contentMarkdown: _internal, ...publicProject } = project;
+			// Exclude internal fields from response
+			const {
+				contentMarkdown: _internal,
+				currentLatex: _latex,
+				finalPdfFileId: _pdfKey,
+				...publicProject
+			} = project;
 
 			return c.json(publicProject, 200);
 		} catch (e) {

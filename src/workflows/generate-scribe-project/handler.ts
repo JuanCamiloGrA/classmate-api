@@ -1,6 +1,9 @@
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
 import type { ScribeProject } from "../../domain/entities/scribe-project";
+import type { ProfileRepository } from "../../domain/repositories/profile.repository";
 import type { ScribeProjectRepository } from "../../domain/repositories/scribe-project.repository";
+import type { StorageRepository } from "../../domain/repositories/storage.repository";
+import type { SubjectRepository } from "../../domain/repositories/subject.repository";
 import {
 	ARCHITECT_AGENT,
 	type ArchitectOutput,
@@ -9,12 +12,21 @@ import {
 	TYPESETTER_AGENT,
 } from "../../domain/services/scribe/agents";
 import type { ScribeAIService } from "../../infrastructure/ai/scribe.ai.service";
+import type { ScribePdfService } from "../../infrastructure/pdf/scribe-pdf.service";
 import type { WorkflowRequestBody } from "./types";
+
+/** Expiration time for presigned PDF URLs (7 days in seconds) */
+const PDF_PRESIGNED_URL_EXPIRATION_SECONDS = 7 * 24 * 60 * 60;
 
 export class GenerateScribeProjectWorkflowHandler {
 	constructor(
 		private scribeAIService: ScribeAIService,
 		private scribeProjectRepository: ScribeProjectRepository,
+		private profileRepository: ProfileRepository,
+		private subjectRepository: SubjectRepository,
+		private pdfService: ScribePdfService,
+		private storageAdapter: StorageRepository,
+		private r2BucketName: string,
 	) {}
 
 	async run(
@@ -314,6 +326,7 @@ export class GenerateScribeProjectWorkflowHandler {
 		project: ScribeProject,
 		step: WorkflowStep,
 	): Promise<void> {
+		// Step 1: Generate LaTeX content using Typesetter Agent
 		const latex = await step.do("typesetter-agent", async () => {
 			// Use ScribeAIService with text output (generateText)
 			const response = await this.scribeAIService.runAgentWithText(
@@ -328,9 +341,67 @@ export class GenerateScribeProjectWorkflowHandler {
 			return response;
 		});
 
+		// Step 2: Fetch user profile and subject info for PDF metadata
+		const pdfMetadata = await step.do("fetch-pdf-metadata", async () => {
+			// Get user profile for student name
+			const profile = await this.profileRepository.findById(project.userId);
+			const studentName = profile?.name || "Estudiante";
+
+			// Get subject name if available
+			let courseName = "Documento Académico";
+			if (project.subjectId) {
+				const subject = await this.subjectRepository.findByIdAndUserId(
+					project.userId,
+					project.subjectId,
+				);
+				if (subject) {
+					courseName = subject.name;
+				}
+			}
+
+			// Format date in Spanish
+			const fecha = new Date().toLocaleDateString("es-ES", {
+				year: "numeric",
+				month: "long",
+				day: "numeric",
+			});
+
+			return {
+				studentName,
+				courseName,
+				fecha,
+			};
+		});
+
+		// Step 3: Call PDF generation service
+		const pdfResult = await step.do("generate-pdf", async () => {
+			const result = await this.pdfService.generatePdf({
+				user_id: project.userId,
+				titulo: project.title || "Documento Sin Título",
+				curso: pdfMetadata.courseName,
+				estudiante: pdfMetadata.studentName,
+				fecha: pdfMetadata.fecha,
+				contenido_latex: latex,
+			});
+			return result;
+		});
+
+		// Step 4: Generate presigned URL for the PDF
+		const presignedUrl = await step.do("generate-presigned-url", async () => {
+			const url = await this.storageAdapter.generatePresignedGetUrl(
+				this.r2BucketName,
+				pdfResult.r2Key,
+				PDF_PRESIGNED_URL_EXPIRATION_SECONDS,
+			);
+			return url;
+		});
+
+		// Step 5: Update project with PDF info
 		await step.do("update-after-typesetter", async () => {
 			await this.scribeProjectRepository.update(project.userId, project.id, {
 				currentLatex: latex,
+				finalPdfFileId: pdfResult.r2Key,
+				finalPdfUrl: presignedUrl,
 				status: "completed",
 			});
 		});

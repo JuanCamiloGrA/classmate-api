@@ -5,9 +5,9 @@
 El sistema **Scribe** es un motor de generación de documentos académicos completamente **basado en AI**. Funciona en **4 etapas secuenciales** ejecutadas por 4 agentes de IA distintos, cada uno especializado en una tarea específica.
 
 **Puntos clave:**
-- ✅ **TODO ES MARKDOWN y LATEX** — No se genera PDF
-- ✅ **El Markdown es INTERNO** — El cliente nunca ve el markdown, solo el LaTeX final
-- ❌ **NUNCA se llama a `PROCESSING_SERVICE_URL`** — Ese servicio es solo para procesamiento de audio en otros workflows
+- ✅ **MARKDOWN → LATEX → PDF** — El flujo completo de generación
+- ✅ **El Markdown y LaTeX son INTERNOS** — El cliente solo recibe una URL prefirmada al PDF final
+- ✅ **PDF generado en `SCRIBE_HEAVY_API_URL`** — Servicio externo para compilación de LaTeX
 - ✅ **Solo usa Gemini 2.5 Flash Lite** via Vercel AI Gateway (sin modelo selection logic)
 - ✅ **Completamente serverless** en Cloudflare Workers + D1 + Durable Workflows
 - ✅ **Acumulación de contexto** — Las respuestas del usuario se preservan entre rondas de revisión
@@ -52,7 +52,7 @@ El sistema **Scribe** es un motor de generación de documentos académicos compl
 
 El cliente solo ve estos estados:
 1. `collecting_answers` → Formulario para responder (puede repetirse)
-2. `completed` → LaTeX listo para renderizar
+2. `completed` → **URL prefirmada al PDF** listo para visualizar
 
 Los estados intermedios (`drafting`, `reviewing`, `typesetting`) son internos y el cliente puede ignorarlos o usarlos solo para mostrar estados de carga.
 
@@ -220,14 +220,15 @@ if (review.approved) {
 
 ---
 
-### 4️⃣ TYPESETTER AGENT
+### 4️⃣ TYPESETTER AGENT + PDF GENERATION
 **Archivo:** `scribe/prompt-04-typesetter.txt`
 **Entrada:** Markdown del Ghostwriter
-**Salida:** **LATEX CODE** (compilable)
+**Salida:** **PDF PRESIGNED URL** (accesible directamente)
 **Método IA:** `generateText()` (raw text)
 
 ```typescript
-// handler.ts línea 209-229
+// handler.ts - Flujo completo de typesetting
+// Paso 1: Generar LaTeX con IA
 const latex = await step.do("typesetter-agent", async () => {
   const response = await this.scribeAIService.runAgentWithText(
     TYPESETTER_AGENT,
@@ -238,32 +239,86 @@ const latex = await step.do("typesetter-agent", async () => {
       },
     },
   );
-  return response; // Raw LaTeX code
+  return response;
 });
 
+// Paso 2: Obtener metadata del usuario para el PDF
+const pdfMetadata = await step.do("fetch-pdf-metadata", async () => {
+  const profile = await this.profileRepository.findById(project.userId);
+  const studentName = profile?.name || "Estudiante";
+
+  let courseName = "Documento Académico";
+  if (project.subjectId) {
+    const subject = await this.subjectRepository.findByIdAndUserId(
+      project.userId,
+      project.subjectId,
+    );
+    if (subject) courseName = subject.name;
+  }
+
+  return { studentName, courseName, fecha: new Date().toLocaleDateString("es-ES", {...}) };
+});
+
+// Paso 3: Llamar al servicio de generación de PDF
+const pdfResult = await step.do("generate-pdf", async () => {
+  return await this.pdfService.generatePdf({
+    user_id: project.userId,
+    titulo: project.title || "Documento Sin Título",
+    curso: pdfMetadata.courseName,
+    estudiante: pdfMetadata.studentName,
+    fecha: pdfMetadata.fecha,
+    contenido_latex: latex,
+  });
+});
+
+// Paso 4: Generar URL prefirmada para el PDF
+const presignedUrl = await step.do("generate-presigned-url", async () => {
+  return await this.storageAdapter.generatePresignedGetUrl(
+    this.r2BucketName,
+    pdfResult.r2Key,
+    7 * 24 * 60 * 60, // 7 días
+  );
+});
+
+// Paso 5: Guardar en BD
 await step.do("update-after-typesetter", async () => {
   await this.scribeProjectRepository.update(project.userId, project.id, {
-    currentLatex: latex, // 👈 Aquí se guarda el LaTeX
+    currentLatex: latex,
+    finalPdfFileId: pdfResult.r2Key,
+    finalPdfUrl: presignedUrl,
     status: "completed",
   });
 });
 ```
 
 **¿Qué hace?**
-- Convierte el Markdown a **LaTeX puro y compilable**
-- Usa `\documentclass{article}`, packages (`geometry`, `times`, `hyperref`, `biblatex`)
-- Escapa caracteres especiales (`%`, `$`, `&`, `_`, etc.)
-- Crea una página de portada profesional
-- **Salida:** Código LaTeX raw (sin explicaciones)
+1. Convierte el Markdown a **LaTeX puro y compilable** (via IA)
+2. Obtiene nombre del estudiante y curso desde los repositorios
+3. Llama a `SCRIBE_HEAVY_API_URL` para compilar LaTeX → PDF
+4. Genera una URL prefirmada (7 días) para el PDF en R2
+5. Guarda la URL y marca el proyecto como completado
 
-**Prompt Rules:**
+**Servicio de PDF (`SCRIBE_HEAVY_API_URL`):**
+- **Endpoint:** `POST /v1/generate`
+- **Auth:** Header `X-API-KEY: {INTERNAL_SCRIBE_API_KEY}`
+- **Request:**
+```json
+{
+  "user_id": "user-123",
+  "titulo": "Mi Ensayo",
+  "curso": "Historia Universal",
+  "estudiante": "Juan Pérez",
+  "fecha": "26 de noviembre, 2025",
+  "contenido_latex": "\\section{Introducción}..."
+}
 ```
-1. Template: \documentclass[12pt, a4paper]{article}
-2. Packages: geometry, times, hyperref, biblatex
-3. Content Fidelity: NO cambies texto, solo layout
-4. Sanitization: Escapa especiales correctamente
-5. Cover Page: Profesional con nombre + title
-6. Output: SOLO código LaTeX
+- **Response:**
+```json
+{
+  "r2Key": "generated-pdfs/user_user-123/2025/11/mi-ensayo-abc123.pdf",
+  "filename": "mi-ensayo-abc123.pdf",
+  "mimeType": "application/pdf"
+}
 ```
 
 ---
@@ -286,9 +341,13 @@ rubricMimeType: string? (application/pdf, image/png, etc.)
 // Respuestas y contenido generado
 formQuestions: JSON? (estructura del formulario del Architect)
 userAnswers: JSON? (respuestas del usuario)
-contentMarkdown: string? (output del Ghostwriter)
+contentMarkdown: string? (output del Ghostwriter - INTERNO)
 reviewFeedback: JSON? (output del Supervisor)
-currentLatex: string? (output del Typesetter)
+currentLatex: string? (output del Typesetter - INTERNO)
+
+// PDF final
+finalPdfFileId: string? (R2 key del PDF generado)
+finalPdfUrl: string? (URL prefirmada para acceso al PDF - 7 días)
 
 createdAt: timestamp
 updatedAt: timestamp
@@ -411,9 +470,9 @@ Response (200):
 
 Después de enviar las respuestas, el cliente hace polling hasta recibir uno de dos resultados:
 - `collecting_answers` con nuevas preguntas (revisión necesaria)
-- `completed` con el LaTeX final
+- `completed` con la **URL prefirmada al PDF**
 
-**⚠️ IMPORTANTE:** El cliente **NUNCA** ve el markdown. Es uso interno entre agentes.
+**⚠️ IMPORTANTE:** El cliente **NUNCA** ve el markdown ni el LaTeX. Son de uso interno entre agentes.
 
 1. **Poll hasta `collecting_answers` (con nuevas preguntas) o `completed`:**
 ```bash
@@ -448,12 +507,12 @@ Response:
   ...
 }
 
-# Caso B: Aprobado → LaTeX listo
+# Caso B: Aprobado → PDF listo
 Response:
 {
   "id": "...",
   "status": "completed",
-  "currentLatex": "\\documentclass[12pt, a4paper]{article}\n...",
+  "finalPdfUrl": "https://r2-presigned-url.../generated-pdfs/user_xxx/2025/11/documento.pdf?signature=...",
   ...
 }
 ```
@@ -487,7 +546,7 @@ Las respuestas se **acumulan** internamente:
 
 3. **Repetir polling hasta `completed`**
 
-### Fase 4: Descargar LaTeX
+### Fase 4: Visualizar el PDF
 
 ```bash
 GET /scribe/{project-id}
@@ -496,61 +555,68 @@ Response:
 {
   "id": "...",
   "status": "completed",
-  "currentLatex": "\\documentclass[12pt, a4paper]{article}\n...",
-  // ⚠️ contentMarkdown NO está en la respuesta - es interno
+  "finalPdfUrl": "https://r2-presigned-url.../generated-pdfs/user_xxx/2025/11/mi-ensayo-abc123.pdf?...",
+  // ⚠️ contentMarkdown y currentLatex NO están en la respuesta - son internos
   ...
 }
 ```
 
 El cliente puede:
-- Usar `currentLatex` para renderizar con KaTeX/MathJax
-- O enviarlo a un servicio externo de LaTeX → PDF si desean PDF compilado
+- Mostrar el PDF directamente en un `<iframe>` o visor
+- Abrir `finalPdfUrl` en una nueva pestaña para descargar
+- La URL es válida por **7 días** desde la generación
 
 ---
 
 ## Campos Excluidos del API Response
 
-El campo `contentMarkdown` **NO se incluye** en ninguna respuesta del API:
+Los siguientes campos **NO se incluyen** en ninguna respuesta del API:
+- `contentMarkdown` — Markdown es solo para uso interno entre Ghostwriter y Supervisor
+- `currentLatex` — LaTeX es interno, el cliente recibe `finalPdfUrl`
+- `finalPdfFileId` — R2 key interno, el cliente solo necesita la URL prefirmada
+
+Endpoints afectados:
 - `GET /scribe` (list)
 - `GET /scribe/{id}` (get)
 - `POST /scribe` (create)
 - `PUT /scribe/{id}` (update)
 
-Esto es intencional - el markdown es solo para uso interno entre Ghostwriter y Supervisor.
+---
+
+## ¿Dónde está el PDF?
+
+### PDF ✅
+**Se genera en:** Servicio externo `SCRIBE_HEAVY_API_URL`
+**Almacenado en:** R2 bucket persistente
+**Acceso:** URL prefirmada en `finalPdfUrl` (válida 7 días)
+
+### Flujo de Generación:
+1. **Typesetter Agent** genera LaTeX (en Cloudflare Worker)
+2. **ScribePdfService** envía LaTeX a `SCRIBE_HEAVY_API_URL/v1/generate`
+3. Servicio externo compila con `pdflatex` y sube a R2
+4. Worker genera URL prefirmada para el R2 key devuelto
+5. `finalPdfUrl` se guarda en la BD
+
+### ¿Por qué un servicio externo?
+1. **Compilar LaTeX es CPU-intensive** (pdflatex tarda ~500ms+)
+2. **Cloudflare Workers máx 50ms CPU time** (límite strict)
+3. **Solución:** Servicio dedicado en Cloud Run (o similar) que puede tomar más tiempo
 
 ---
 
-## ¿Dónde está el LaTeX? ¿Y el PDF?
+## Variables de Entorno Relevantes
 
-### LaTeX ✅
-**Se genera en:** El campo `currentLatex` de la tabla `scribe_projects`
-**Generado por:** Typesetter Agent (última etapa del workflow)
-**Formato:** Código LaTeX puro, compilable con `pdflatex` o `xelatex`
-
-### PDF ❌
-**Se genera:** **NUNCA** en el servidor
-**¿Por qué?:** Compilar LaTeX es pesado (> 50ms) y violaría límites de Cloudflare Workers
-**Solución:** El cliente puede:
-1. Usar KaTeX para renderizar LaTeX en el navegador (solo matemáticas)
-2. Usar `pdflatex`/`xelatex` localmente
-3. Llamar a un servicio externo de LaTeX → PDF (e.g., Overleaf API)
-
----
-
-## ¿PROCESSING_SERVICE_URL? ❌ NUNCA
-
-**Búsqueda en el código:** Solo aparece en:
-- `cloud-run.processing.service.ts` — Para procesamiento de audio del workflow `summarize-class`
-- `process-url/` — Workflow para procesar URLs (audio)
-- `wrangler.jsonc` — Binding de configuración
-
-**En Scribe:** 
 ```typescript
-// handler.ts — Scribe NUNCA importa CloudRunProcessingService
-// Scribe NUNCA llama a PROCESSING_SERVICE_URL
-```
+// Secrets para el servicio de PDF
+SCRIBE_HEAVY_API_URL: string;      // URL del servicio de compilación LaTeX
+INTERNAL_SCRIBE_API_KEY: string;   // API key para autenticación
 
-✅ **Confirmado:** Scribe es 100% serverless AI, sin llamadas a heavy backends.
+// Secrets para R2 (URLs prefirmadas)
+R2_S3_PERSISTENT_API_ENDPOINT: string;
+R2_PERSISTENT_ACCESS_KEY_ID: string;
+R2_PERSISTENT_SECRET_ACCESS_KEY: string;
+R2_PERSISTENT_BUCKET_NAME: string;
+```
 
 ---
 
@@ -560,8 +626,8 @@ Esto es intencional - el markdown es solo para uso interno entre Ghostwriter y S
 src/
 ├── workflows/generate-scribe-project/
 │   ├── index.ts                    # Entrypoint de Cloudflare Workflow
-│   ├── handler.ts                  # State machine (4 agentes)
-│   ├── dependencies.ts             # DI factory
+│   ├── handler.ts                  # State machine (4 agentes + PDF generation)
+│   ├── dependencies.ts             # DI factory (inyecta PDF service, repos, storage)
 │   └── types.ts                    # Tipos del workflow
 │
 ├── domain/services/scribe/
@@ -569,6 +635,12 @@ src/
 │
 ├── infrastructure/ai/
 │   └── scribe.ai.service.ts        # ScribeAIService (runAgentWithSchema, runAgentWithText)
+│
+├── infrastructure/pdf/
+│   └── scribe-pdf.service.ts       # ScribePdfService (llama a SCRIBE_HEAVY_API_URL)
+│
+├── infrastructure/storage/
+│   └── r2.storage.ts               # R2StorageAdapter (URLs prefirmadas)
 │
 ├── infrastructure/prompt/
 │   └── assets.prompt.service.ts    # Carga prompts desde R2
@@ -596,7 +668,9 @@ src/
 | `userAnswers` | Usuario (Phase 2+) | JSON estructurado con respuestas acumuladas | HTTP PUT | ✅ Sí |
 | `contentMarkdown` | Ghostwriter Agent | Documento en **Markdown** | `generateText()` | ❌ **NO** (interno) |
 | `reviewFeedback` | Supervisor Agent | JSON: aprobado o rechazado + nuevas preguntas | `generateText()` + parsing | ✅ Sí |
-| `currentLatex` | Typesetter Agent | Código **LaTeX compilable** | `generateText()` | ✅ Sí |
+| `currentLatex` | Typesetter Agent | Código **LaTeX compilable** | `generateText()` | ❌ **NO** (interno) |
+| `finalPdfFileId` | PDF Service | R2 key del PDF | `SCRIBE_HEAVY_API_URL` | ❌ **NO** (interno) |
+| `finalPdfUrl` | Workflow | **URL prefirmada al PDF** (7 días) | `generatePresignedGetUrl()` | ✅ Sí |
 
 ### Estructura de `userAnswers` (Acumulada)
 
@@ -623,17 +697,6 @@ O en formato plano (primera ronda solamente):
 
 ---
 
-## La Clave: ¿Por Qué NO hay PDF?
-
-1. **Compilar LaTeX es CPU-intensive** (pdflatex tarda ~500ms+)
-2. **Cloudflare Workers máx 50ms CPU time** (límite strict)
-3. **Solución:** Generar LaTeX (rápido) y dejar al cliente que:
-   - Lo renderice con KaTeX (solo math)
-   - O lo compile localmente
-   - O lo envíe a un servicio LaTeX externo
-
----
-
 ## Conclusión
 
 ```mermaid
@@ -643,11 +706,9 @@ graph LR
     D -->|Supervisor| E{"✅ Aprobado?"}
     E -->|No + preguntas| B
     E -->|Yes| F["🔧 Typesetter"]
-    F -->|Typesetter| G["📠 LaTeX Code"]
-    G -->|Cliente| H{"📊 Renderizar?"}
-    H -->|KaTeX| I["🌐 Browser Preview"]
-    H -->|pdflatex| J["📄 PDF Local"]
-    H -->|Externo| K["☁️ Servicio LaTeX"]
+    F -->|Typesetter| G["📠 LaTeX (interno)"]
+    G -->|SCRIBE_HEAVY_API| H["📄 PDF en R2"]
+    H -->|Presigned URL| I["🔗 finalPdfUrl"]
 ```
 
 **Flow Summary:**
@@ -657,13 +718,14 @@ graph LR
 4. **Ghostwriter** crea documento en Markdown
 5. **Supervisor** revisa (loop de revisión si necesario)
 6. **Typesetter** convierte Markdown → LaTeX
-7. Cliente renderiza/compila LaTeX según necesite
+7. **PDF Service** compila LaTeX → PDF y lo sube a R2
+8. Cliente recibe `finalPdfUrl` → puede visualizar/descargar directamente
 
 **Stack:**
 - ✅ Cloudflare Workers (HTTP)
 - ✅ Cloudflare Durable Workflows (state machine)
 - ✅ D1 (database)
-- ✅ R2 (file storage + prompts)
+- ✅ R2 (file storage + prompts + PDFs generados)
 - ✅ Vercel AI Gateway (Gemini 2.5 Flash Lite)
-- ❌ NO PDF generation
-- ❌ NO PROCESSING_SERVICE_URL
+- ✅ SCRIBE_HEAVY_API_URL (PDF generation service)
+- ✅ URLs prefirmadas (7 días de validez)

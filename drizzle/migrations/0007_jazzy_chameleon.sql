@@ -1,0 +1,1 @@
+ALTER TABLE `scribe_projects` ADD `final_pdf_url` text;

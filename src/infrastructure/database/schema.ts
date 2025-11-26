@@ -327,6 +327,7 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	reviewFeedback: text("review_feedback", { mode: "json" }),
 	workflowId: text("workflow_id"),
 	finalPdfFileId: text("final_pdf_file_id").references(() => userFiles.id),
+	finalPdfUrl: text("final_pdf_url"),
 	createdAt: text("created_at").notNull().default(timestampDefault),
 	updatedAt: text("updated_at").notNull().default(timestampDefault),
 });

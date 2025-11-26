@@ -118,6 +118,8 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 			updatePayload.workflowId = data.workflowId;
 		if (data.finalPdfFileId !== undefined)
 			updatePayload.finalPdfFileId = data.finalPdfFileId;
+		if (data.finalPdfUrl !== undefined)
+			updatePayload.finalPdfUrl = data.finalPdfUrl;
 
 		const updated = await this.db
 			.update(scribeProjects)

@@ -50,6 +50,13 @@
 			"when": 1764036774137,
 			"tag": "0006_smooth_gorgon",
 			"breakpoints": true
+		},
+		{
+			"idx": 7,
+			"version": "6",
+			"when": 1764134295473,
+			"tag": "0007_jazzy_chameleon",
+			"breakpoints": true
 		}
 	]
 }
