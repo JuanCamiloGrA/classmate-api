@@ -326,7 +326,8 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	currentLatex: text("current_latex"),
 	reviewFeedback: text("review_feedback", { mode: "json" }),
 	workflowId: text("workflow_id"),
-	finalPdfFileId: text("final_pdf_file_id").references(() => userFiles.id),
+	/** R2 object key for the generated PDF (not a FK, just the storage path) */
+	finalPdfFileId: text("final_pdf_file_id"),
 	finalPdfUrl: text("final_pdf_url"),
 	isDeleted: integer("is_deleted").notNull().default(0),
 	deletedAt: text("deleted_at"),

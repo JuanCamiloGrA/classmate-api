@@ -64,6 +64,13 @@
 			"when": 1764186928331,
 			"tag": "0008_keen_santa_claus",
 			"breakpoints": true
+		},
+		{
+			"idx": 9,
+			"version": "6",
+			"when": 1764192962629,
+			"tag": "0009_romantic_paibok",
+			"breakpoints": true
 		}
 	]
 }
