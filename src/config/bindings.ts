@@ -14,14 +14,23 @@ export type Bindings = {
 	CLERK_SECRET_KEY: SecretsStoreBinding;
 	CLERK_PUBLISHABLE_KEY: SecretsStoreBinding;
 	ALLOWED_ORIGIN: SecretsStoreBinding;
+	// R2 Temporal Bucket (for audio uploads, etc.)
 	R2_S3_API_ENDPOINT: SecretsStoreBinding;
 	R2_ACCESS_KEY_ID: SecretsStoreBinding;
 	R2_SECRET_ACCESS_KEY: SecretsStoreBinding;
 	R2_TEMPORAL_BUCKET_NAME: SecretsStoreBinding;
+	// R2 Persistent Bucket (for scribe rubrics, permanent files)
+	R2_S3_PERSISTENT_API_ENDPOINT: SecretsStoreBinding;
+	R2_PERSISTENT_ACCESS_KEY_ID: SecretsStoreBinding;
+	R2_PERSISTENT_SECRET_ACCESS_KEY: SecretsStoreBinding;
+	R2_PERSISTENT_BUCKET_NAME: SecretsStoreBinding;
 	R2_PRESIGNED_URL_EXPIRATION_SECONDS?: string;
 	AI_GATEWAY_API_KEY: SecretsStoreBinding;
 	PROCESSING_SERVICE_URL: SecretsStoreBinding;
 	INTERNAL_API_KEY: SecretsStoreBinding;
+	// Scribe API
+	INTERNAL_SCRIBE_API_KEY: SecretsStoreBinding;
+	SCRIBE_HEAVY_API_URL: SecretsStoreBinding;
 	SUMMARIZE_CLASS_WORKFLOW: Workflow;
 	GENERATE_SCRIBE_PROJECT_WORKFLOW: Workflow;
 	ASSETS: Fetcher;

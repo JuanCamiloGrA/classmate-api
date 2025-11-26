@@ -73,11 +73,6 @@
 			"secret_name": "R2_TEMPORAL_BUCKET_NAME"
 		},
 		{
-			"binding": "GEMINI_API_KEY", // DEPRECATED - to be removed once migration to Vercel AI Gateway is complete
-			"store_id": "0c02e81d551048c5a3f672338d397a68",
-			"secret_name": "GEMINI_API_KEY"
-		},
-		{
 			"binding": "AI_GATEWAY_API_KEY",
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
 			"secret_name": "AI_GATEWAY_API_KEY"
@@ -91,6 +86,36 @@
 			"binding": "INTERNAL_API_KEY",
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
 			"secret_name": "INTERNAL_API_KEY"
+		},
+		{
+			"binding": "INTERNAL_SCRIBE_API_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "INTERNAL_SCRIBE_API_KEY"
+		},
+		{
+			"binding": "SCRIBE_HEAVY_API_URL",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "SCRIBE_HEAVY_API_URL"
+		},
+		{
+			"binding": "R2_S3_PERSISTENT_API_ENDPOINT",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_S3_PERSISTENT_API_ENDPOINT"
+		},
+		{
+			"binding": "R2_PERSISTENT_ACCESS_KEY_ID",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_PERSISTENT_ACCESS_KEY_ID"
+		},
+		{
+			"binding": "R2_PERSISTENT_SECRET_ACCESS_KEY",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_PERSISTENT_SECRET_ACCESS_KEY"
+		},
+		{
+			"binding": "R2_PERSISTENT_BUCKET_NAME",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "R2_PERSISTENT_BUCKET_NAME"
 		}
 	],
 	"d1_databases": [

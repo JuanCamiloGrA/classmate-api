@@ -342,22 +342,22 @@ export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
 
 			const { fileName, contentType } = validation.data;
 
-			// Resolve R2 secrets
+			// Resolve R2 persistent bucket secrets (rubrics are permanent files)
 			const endpoint = await resolveSecretBinding(
-				c.env.R2_S3_API_ENDPOINT,
-				"R2_S3_API_ENDPOINT",
+				c.env.R2_S3_PERSISTENT_API_ENDPOINT,
+				"R2_S3_PERSISTENT_API_ENDPOINT",
 			);
 			const accessKeyId = await resolveSecretBinding(
-				c.env.R2_ACCESS_KEY_ID,
-				"R2_ACCESS_KEY_ID",
+				c.env.R2_PERSISTENT_ACCESS_KEY_ID,
+				"R2_PERSISTENT_ACCESS_KEY_ID",
 			);
 			const secretAccessKey = await resolveSecretBinding(
-				c.env.R2_SECRET_ACCESS_KEY,
-				"R2_SECRET_ACCESS_KEY",
+				c.env.R2_PERSISTENT_SECRET_ACCESS_KEY,
+				"R2_PERSISTENT_SECRET_ACCESS_KEY",
 			);
 			const bucketName = await resolveSecretBinding(
-				c.env.R2_TEMPORAL_BUCKET_NAME,
-				"R2_TEMPORAL_BUCKET_NAME",
+				c.env.R2_PERSISTENT_BUCKET_NAME,
+				"R2_PERSISTENT_BUCKET_NAME",
 			);
 
 			const env = validateEnv({
