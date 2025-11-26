@@ -176,6 +176,20 @@ export class GenerateScribeProjectWorkflowHandler {
 		});
 	}
 
+	/**
+	 * Builds the rubric section for text content.
+	 * Handles both text rubrics and file-based rubrics (PDF/image).
+	 */
+	private buildRubricSection(project: ScribeProject): string {
+		if (project.rubricContent) {
+			return `RUBRIC:\n${project.rubricContent}`;
+		}
+		if (project.rubricFileUrl) {
+			return "RUBRIC: (See attached file - the rubric was provided as a PDF/image attachment)";
+		}
+		return "";
+	}
+
 	private async runGhostwriterAgent(
 		project: ScribeProject,
 		step: WorkflowStep,
@@ -192,9 +206,12 @@ export class GenerateScribeProjectWorkflowHandler {
 				textContent = this.buildRevisionContext(project);
 			} else {
 				// MODE A: Initial Draft
-				textContent = project.rubricContent
-					? `RUBRIC:\n${project.rubricContent}\n\nUSER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`
-					: `USER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`;
+				// Include rubric section (handles both text and file-based rubrics)
+				const rubricSection = this.buildRubricSection(project);
+				const answersSection = `USER ANSWERS:\n${JSON.stringify(project.userAnswers || {}, null, 2)}`;
+				textContent = rubricSection
+					? `${rubricSection}\n\n${answersSection}`
+					: answersSection;
 			}
 
 			// Use ScribeAIService with text output (generateText)
@@ -231,9 +248,10 @@ export class GenerateScribeProjectWorkflowHandler {
 	private buildRevisionContext(project: ScribeProject): string {
 		const parts: string[] = [];
 
-		// 1. Rubric (always include if available)
-		if (project.rubricContent) {
-			parts.push(`RUBRIC:\n${project.rubricContent}`);
+		// 1. Rubric (handles both text and file-based rubrics)
+		const rubricSection = this.buildRubricSection(project);
+		if (rubricSection) {
+			parts.push(rubricSection);
 		}
 
 		// 2. Previous Markdown Draft (the one that needs improvement)
@@ -286,6 +304,13 @@ export class GenerateScribeProjectWorkflowHandler {
 		step: WorkflowStep,
 	): Promise<void> {
 		const review = await step.do("supervisor-agent", async () => {
+			// Build textContent with content to review and rubric section
+			const rubricSection = this.buildRubricSection(project);
+			let textContent = `CONTENT TO REVIEW:\n${project.contentMarkdown || ""}`;
+			if (rubricSection) {
+				textContent += `\n\n${rubricSection}`;
+			}
+
 			// Use ScribeAIService with text output (generateText)
 			const response = await this.scribeAIService.runAgentWithText(
 				SUPERVISOR_AGENT,
@@ -294,7 +319,7 @@ export class GenerateScribeProjectWorkflowHandler {
 					fileUrl: project.rubricFileUrl ?? undefined,
 					fileMimeType: project.rubricMimeType ?? undefined,
 					// Pass the content to review along with rubric context
-					textContent: `CONTENT TO REVIEW:\n${project.contentMarkdown || ""}\n\nRUBRIC:\n${project.rubricContent || ""}`,
+					textContent,
 					templateVars: {
 						CONTENT: project.contentMarkdown || "",
 						RUBRIC: project.rubricContent || "",
