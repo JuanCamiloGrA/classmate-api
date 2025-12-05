@@ -258,6 +258,7 @@ async function getNotification(c: NotificationContext) {
 
 async function createNotification(c: NotificationContext) {
 	try {
+		const userId = ensureAuthenticatedUser(c);
 		const body = await c.req.json();
 		const result = CreateNotificationSchema.safeParse(body);
 		if (!result.success) {
@@ -271,7 +272,7 @@ async function createNotification(c: NotificationContext) {
 		const repository = getNotificationRepository(c);
 		const useCase = new CreateNotificationUseCase(repository);
 		const notification = await useCase.execute({
-			userId: result.data.user_id,
+			userId,
 			type: result.data.type,
 			payload: result.data.payload,
 			actionUrl: result.data.action_url ?? null,
@@ -450,8 +451,7 @@ export class CreateNotificationEndpoint extends OpenAPIRoute {
 	schema = {
 		tags: ["Notifications"],
 		summary: "Create a notification",
-		description:
-			"Create a new notification for a user. Typically called by backend services.",
+		description: "Create a new notification for the authenticated user.",
 		request: {
 			body: contentJson(CreateNotificationSchema),
 		},
@@ -462,6 +462,10 @@ export class CreateNotificationEndpoint extends OpenAPIRoute {
 			},
 			"400": {
 				description: "Invalid request body",
+				...contentJson(ErrorResponseSchema),
+			},
+			"401": {
+				description: "Missing or invalid authentication",
 				...contentJson(ErrorResponseSchema),
 			},
 			"500": {

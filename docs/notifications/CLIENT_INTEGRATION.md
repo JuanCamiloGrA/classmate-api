@@ -17,15 +17,17 @@ Authorization: Bearer <clerk_session_token>
 
 ## Endpoints Summary
 
-| Method | Endpoint                          | Description                          |
-|--------|-----------------------------------|--------------------------------------|
-| GET    | `/notifications`                  | List notifications (paginated)       |
-| GET    | `/notifications/unread-count`     | Get unread notification count        |
-| GET    | `/notifications/:id`              | Get a single notification            |
-| POST   | `/notifications`                  | Create a notification (backend use)  |
-| POST   | `/notifications/:id/read`         | Mark notification as read            |
-| POST   | `/notifications/read-all`         | Mark all notifications as read       |
-| DELETE | `/notifications/:id`              | Delete a notification                |
+| Method | Endpoint                          | Description                          | Auth Required |
+|--------|-----------------------------------|--------------------------------------|---------------|
+| GET    | `/notifications`                  | List notifications (paginated)       | ✅            |
+| GET    | `/notifications/unread-count`     | Get unread notification count        | ✅            |
+| GET    | `/notifications/:id`              | Get a single notification            | ✅            |
+| POST   | `/notifications`                  | Create a notification                | ✅            |
+| POST   | `/notifications/:id/read`         | Mark notification as read            | ✅            |
+| POST   | `/notifications/read-all`         | Mark all notifications as read       | ✅            |
+| DELETE | `/notifications/:id`              | Delete a notification                | ✅            |
+
+> All endpoints require Clerk authentication. The `user_id` is automatically extracted from the JWT token.
 
 ---
 
@@ -194,17 +196,26 @@ DELETE /notifications/:id
 
 ## Create Notification
 
+Create a notification for the authenticated user.
+
 ```http
 POST /notifications
 Content-Type: application/json
 
 {
-  "user_id": "user_abc",
   "type": "class_summary_ready",
   "payload": { "classId": "abc", "className": "Neuroscience" },
   "action_url": "/classes/abc"
 }
 ```
+
+### Request Body
+
+| Field        | Type   | Required | Description                                |
+|--------------|--------|----------|--------------------------------------------|
+| `type`       | string | ✅       | One of the notification types (see above)  |
+| `payload`    | object | ❌       | Dynamic data for the widget (default: `{}`) |
+| `action_url` | string | ❌       | URL to navigate when clicking notification |
 
 ### Response
 
@@ -356,6 +367,52 @@ export function useMarkAllAsRead() {
       const token = await getToken();
       const res = await fetch(`${API_BASE}/notifications/read-all`, {
         method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+export function useCreateNotification() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  
+  return useMutation({
+    mutationFn: async (data: { 
+      type: NotificationType; 
+      payload?: Record<string, unknown>; 
+      action_url?: string;
+    }) => {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE}/notifications`, {
+        method: 'POST',
+        headers: { 
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    },
+  });
+}
+
+export function useDeleteNotification() {
+  const queryClient = useQueryClient();
+  const { getToken } = useAuth();
+  
+  return useMutation({
+    mutationFn: async (notificationId: string) => {
+      const token = await getToken();
+      const res = await fetch(`${API_BASE}/notifications/${notificationId}`, {
+        method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
       return res.json();

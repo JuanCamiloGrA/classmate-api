@@ -19,9 +19,9 @@ export interface CreateNotificationInput {
 
 /**
  * Validation schema for creating a notification.
+ * user_id is optional - if not provided, the authenticated user's ID is used.
  */
 export const CreateNotificationSchema = z.object({
-	user_id: z.string().min(1, "User ID is required"),
 	type: z.enum(NOTIFICATION_TYPES, {
 		errorMap: () => ({
 			message: `Type must be one of: ${NOTIFICATION_TYPES.join(", ")}`,
