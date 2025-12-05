@@ -335,6 +335,33 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	updatedAt: text("updated_at").notNull().default(timestampDefault),
 });
 
+export const notifications = sqliteTable(
+	"notifications",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => profiles.id, { onDelete: "cascade" }),
+		type: text("type", {
+			enum: [
+				"class_summary_ready",
+				"task_due_soon",
+				"grade_posted",
+				"system_alert",
+			],
+		}).notNull(),
+		payload: text("payload", { mode: "json" }).notNull(),
+		isRead: integer("is_read").notNull().default(0),
+		readAt: text("read_at"),
+		actionUrl: text("action_url"),
+		createdAt: text("created_at").notNull().default(timestampDefault),
+	},
+	(table) => [
+		index("idx_notifications_user_id").on(table.userId),
+		index("idx_notifications_created_at").on(table.createdAt),
+	],
+);
+
 export type Profile = typeof profiles.$inferSelect;
 export type NewProfile = typeof profiles.$inferInsert;
 export const profileSchema = createSelectSchema(profiles);
@@ -399,3 +426,8 @@ export type ScribeProject = typeof scribeProjects.$inferSelect;
 export type NewScribeProject = typeof scribeProjects.$inferInsert;
 export const scribeProjectSchema = createSelectSchema(scribeProjects);
 export const newScribeProjectSchema = createInsertSchema(scribeProjects);
+
+export type Notification = typeof notifications.$inferSelect;
+export type NewNotification = typeof notifications.$inferInsert;
+export const notificationSchema = createSelectSchema(notifications);
+export const newNotificationSchema = createInsertSchema(notifications);

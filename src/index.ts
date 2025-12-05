@@ -22,6 +22,15 @@ import {
 	ListLibraryEndpoint,
 } from "./interfaces/http/routes/library";
 import {
+	CreateNotificationEndpoint,
+	DeleteNotificationEndpoint,
+	GetNotificationEndpoint,
+	GetUnreadCountEndpoint,
+	ListNotificationsEndpoint,
+	MarkAllNotificationsReadEndpoint,
+	MarkNotificationReadEndpoint,
+} from "./interfaces/http/routes/notifications";
+import {
 	CreateProfileEndpoint,
 	GetProfileEndpoint,
 } from "./interfaces/http/routes/profiles";
@@ -137,6 +146,15 @@ export default {
 		apiApp.post("/library/upload/presigned", GenerateUploadUrlEndpoint);
 		apiApp.post("/library/upload/confirm", ConfirmUploadEndpoint);
 		apiApp.delete("/library/:id", DeleteLibraryItemEndpoint);
+
+		// Notification endpoints
+		apiApp.get("/notifications", ListNotificationsEndpoint);
+		apiApp.get("/notifications/unread-count", GetUnreadCountEndpoint);
+		apiApp.get("/notifications/:id", GetNotificationEndpoint);
+		apiApp.post("/notifications", CreateNotificationEndpoint);
+		apiApp.post("/notifications/:id/read", MarkNotificationReadEndpoint);
+		apiApp.post("/notifications/read-all", MarkAllNotificationsReadEndpoint);
+		apiApp.delete("/notifications/:id", DeleteNotificationEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},
