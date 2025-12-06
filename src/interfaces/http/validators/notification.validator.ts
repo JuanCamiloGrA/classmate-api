@@ -28,11 +28,7 @@ export const CreateNotificationSchema = z.object({
 		}),
 	}),
 	payload: z.record(z.unknown()).default({}),
-	action_url: z
-		.string()
-		.url("Action URL must be a valid URL")
-		.nullable()
-		.optional(),
+	action_url: z.string().nullable().optional(),
 });
 
 /**
