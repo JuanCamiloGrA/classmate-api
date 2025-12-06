@@ -1,4 +1,5 @@
 import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import type { ClassAIStatus } from "../../domain/entities/class";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
@@ -14,6 +15,11 @@ import {
 	WORKFLOW_CONFIG,
 	type WorkflowRequestBody,
 } from "./types";
+
+const STATUS_STEP_CONFIG = {
+	retries: { limit: 3, delay: "5 seconds", backoff: "exponential" as const },
+	timeout: "30 seconds",
+} as const;
 
 /**
  * Summarize Class Workflow Handler
@@ -40,34 +46,65 @@ export class SummarizeClassWorkflowHandler {
 		step: WorkflowStep,
 	): Promise<void> {
 		const payload = event.payload;
+		const { classId, userId } = payload;
+
+		// Mark class as processing before heavy work starts
+		await this.updateAiStatus(
+			step,
+			"ai-status-processing",
+			classId,
+			userId,
+			"processing",
+		);
 
 		// Step 0: Prepare file input - convert URL to R2 file if needed
-		const fileInput = await step.do(
-			"prepare-file-input",
-			PREPARE_FILE_INPUT_CONFIG,
-			async () => {
-				return await this.prepareFileInput(payload);
-			},
-		);
+		try {
+			const fileInput = await step.do(
+				"prepare-file-input",
+				PREPARE_FILE_INPUT_CONFIG,
+				async () => {
+					return await this.prepareFileInput(payload);
+				},
+			);
 
-		// Step 1: Generate summary from file content
-		const summaryMarkdown = await step.do(
-			"generate-summary",
-			WORKFLOW_CONFIG,
-			async () => {
-				return await this.generateSummary(payload.classId, fileInput);
-			},
-		);
+			// Step 1: Generate summary from file content
+			const summaryMarkdown = await step.do(
+				"generate-summary",
+				WORKFLOW_CONFIG,
+				async () => {
+					return await this.generateSummary(payload.classId, fileInput);
+				},
+			);
 
-		// Step 2: Convert markdown to HTML and save to database
-		await step.do("save-summary", SAVE_SUMMARY_CONFIG, async () => {
-			await this.saveSummary(payload, summaryMarkdown);
-		});
+			// Step 2: Convert markdown to HTML and save to database
+			await step.do("save-summary", SAVE_SUMMARY_CONFIG, async () => {
+				await this.saveSummary(payload, summaryMarkdown);
+			});
 
-		// Step 3: Cleanup - delete temporary file from R2
-		await step.do("cleanup-temp-file", { timeout: "5 minutes" }, async () => {
-			await this.cleanupTempFile(fileInput);
-		});
+			// Step 3: Cleanup - delete temporary file from R2
+			await step.do("cleanup-temp-file", { timeout: "5 minutes" }, async () => {
+				await this.cleanupTempFile(fileInput);
+			});
+
+			// Mark class as done after successful completion
+			await this.updateAiStatus(
+				step,
+				"ai-status-done",
+				classId,
+				userId,
+				"done",
+			);
+		} catch (error) {
+			// Mark class as failed but preserve original error
+			await this.updateAiStatusSafely(
+				step,
+				"ai-status-failed",
+				classId,
+				userId,
+				"failed",
+			);
+			throw error;
+		}
 	}
 
 	private async prepareFileInput(
@@ -192,5 +229,38 @@ export class SummarizeClassWorkflowHandler {
 		console.log("✅ [WORKFLOW] Temporary file deleted", {
 			r2Key: file.r2Key,
 		});
+	}
+
+	private async updateAiStatus(
+		step: WorkflowStep,
+		stepName: string,
+		classId: string,
+		userId: string,
+		status: ClassAIStatus,
+	): Promise<void> {
+		await step.do(stepName, STATUS_STEP_CONFIG, async () => {
+			await this.summaryRepository.updateAIStatus(classId, userId, status);
+		});
+	}
+
+	private async updateAiStatusSafely(
+		step: WorkflowStep,
+		stepName: string,
+		classId: string,
+		userId: string,
+		status: ClassAIStatus,
+	): Promise<void> {
+		try {
+			await this.updateAiStatus(step, stepName, classId, userId, status);
+		} catch (statusError) {
+			console.error("❌ [WORKFLOW] Failed to update ai_status", {
+				classId,
+				status,
+				error:
+					statusError instanceof Error
+						? statusError.message
+						: String(statusError),
+			});
+		}
 	}
 }

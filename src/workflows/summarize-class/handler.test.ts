@@ -44,6 +44,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 
 		mockSummaryRepository = {
 			save: vi.fn(),
+			updateAIStatus: vi.fn(),
 		};
 
 		mockMarkdownService = {
@@ -136,6 +137,16 @@ describe("SummarizeClassWorkflowHandler", () => {
 				"class-123",
 				"user-456",
 				mockSummaryHtml,
+			);
+			expect(mockSummaryRepository.updateAIStatus).toHaveBeenCalledWith(
+				"class-123",
+				"user-456",
+				"processing",
+			);
+			expect(mockSummaryRepository.updateAIStatus).toHaveBeenCalledWith(
+				"class-123",
+				"user-456",
+				"done",
 			);
 			expect(mockStorageService.deleteFile).toHaveBeenCalledWith(
 				"temp/user-456/audio.mp3",
@@ -269,28 +280,40 @@ describe("SummarizeClassWorkflowHandler", () => {
 			await handler.run(mockEvent, mockStep);
 
 			// Assert
-			expect(mockStep.do).toHaveBeenCalledTimes(4);
+			expect(mockStep.do).toHaveBeenCalledTimes(6);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				1,
-				"prepare-file-input",
+				"ai-status-processing",
 				expect.any(Object),
 				expect.any(Function),
 			);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				2,
-				"generate-summary",
+				"prepare-file-input",
 				expect.any(Object),
 				expect.any(Function),
 			);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				3,
-				"save-summary",
+				"generate-summary",
 				expect.any(Object),
 				expect.any(Function),
 			);
 			expect(mockStep.do).toHaveBeenNthCalledWith(
 				4,
+				"save-summary",
+				expect.any(Object),
+				expect.any(Function),
+			);
+			expect(mockStep.do).toHaveBeenNthCalledWith(
+				5,
 				"cleanup-temp-file",
+				expect.any(Object),
+				expect.any(Function),
+			);
+			expect(mockStep.do).toHaveBeenNthCalledWith(
+				6,
+				"ai-status-done",
 				expect.any(Object),
 				expect.any(Function),
 			);
