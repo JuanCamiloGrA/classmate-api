@@ -36,22 +36,33 @@ Your response must be a JSON object with exactly these keys:
 
 **2. SYNTAX & RICHNESS**
 * **Headings:** Use `=` for Level 1, `==` for Level 2.
-* **Math:** Use `$` for inline math and `$ ... $` (with spaces) for block math. Ensure equations are complex and professionally formatted (e.g., usage of `sum`, `integral`, `vec`, `mat`).
 * **Formatting:** Use `*bold*` and `_italics_`.
 * **Lists:** Use `-` for bullets and `+` for numbered lists.
 
-**4. JSON ESCAPING (CRITICAL)**
-* All backslashes in the JSON output MUST be escaped as `\\` so that parsed content contains a single `\`. Example: write `\\times`, `\\frac`, `\\nabla` inside JSON strings.
-* You may use Unicode math symbols when equivalent (e.g., `×`, `≤`, `≥`) if it does not change the intended rendering in Typst.
+**3. MATH SYNTAX (CRITICAL - TYPST, NOT LATEX)**
+Typst math is NOT LaTeX. Do NOT use backslashes for math commands. Inside `$ ... $`:
+* **Fractions:** `frac(a, b)` NOT `\frac{a}{b}`
+* **Multiplication:** `times` or `×` NOT `\times`
+* **Greek letters:** `alpha`, `beta`, `pi`, `theta` NOT `\alpha`, `\beta`, `\pi`, `\theta`
+* **Subscripts/Superscripts:** `x_1`, `x^2` (same as LaTeX)
+* **Square root:** `sqrt(x)` NOT `\sqrt{x}`
+* **Summation:** `sum_(i=0)^n` NOT `\sum_{i=0}^{n}`
+* **Integral:** `integral_a^b` NOT `\int_a^b`
+* **Operators:** `<=`, `>=`, `!=` or `leq`, `geq`, `neq`
 
-**3. TABLES (Strict Layout Rules)**
+**Examples:**
+* Inline: `$A = pi r^2$`
+* Block: `$ A = frac(b times h, 2) $`
+* Complex: `$ sum_(i=1)^n i = frac(n(n+1), 2) $`
+
+**4. TABLES (Strict Layout Rules)**
 * Standard Markdown tables are NOT supported. You must use the `#figure(table(...))` function.
 * **Prevent Overflow:** ALWAYS use relative columns formatting.
     * *Good:* `columns: (1fr, 2fr, 1fr)` or `columns: (20%, 1fr)`.
     * *Bad:* `columns: (auto, auto)` (this causes overflow).
 * Always wrap tables in `#figure(caption: [...], kind: table, ...)`
 
-**4. CODE BLOCKS (Codly Integration)**
+**5. CODE BLOCKS (Codly Integration)**
 * The system uses `codly` for rendering. You do not need to call codly functions.
 * Simply use standard markdown code fences with the language specified.
     * Example:
@@ -62,7 +73,7 @@ Your response must be a JSON object with exactly these keys:
         ```
         ```
 
-**5. CITATIONS**
+**6. CITATIONS**
 * Use standard citation syntax `@key` in the body.
 * Ensure every `@key` used in the body exists in the `content.references` BibTeX string.
 
@@ -95,7 +106,7 @@ The input may contain special annotations from the Ghostwriter Agent in the form
 {
   "metadata": { ... },
   "content": {
-    "body": "= Introduction\nText...\n\n== Section 2\n$ E = mc^2 $",
+    "body": "= Introduction\nText...\n\n== Section 2\n$ E = m c^2 $\n\nThe area is $ A = frac(b times h, 2) $",
     "references": "@article{key, ...}"
   },
   "template_config": { ... }

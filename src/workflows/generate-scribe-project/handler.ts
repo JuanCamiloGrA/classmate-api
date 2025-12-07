@@ -12,6 +12,7 @@ import {
 	TYPESETTER_AGENT,
 	type TypesetterOutput,
 } from "../../domain/services/scribe/agents";
+import { normalizeTypstContent } from "../../domain/services/typst-escape.service";
 import type { ScribeAIService } from "../../infrastructure/ai/scribe.ai.service";
 import type { ScribeManifestService } from "../../infrastructure/api/scribe-manifest.service";
 import type { ScribePdfService } from "../../infrastructure/pdf/scribe-pdf.service";
@@ -449,7 +450,23 @@ export class GenerateScribeProjectWorkflowHandler {
 						},
 					},
 				);
-				return output;
+
+				// Fix corrupted escape sequences and make operators Unicode-safe
+				// e.g., \times parsed as tab+"imes" → restored; then \times → ×
+				const normalizeContent = (value?: string) =>
+					value ? normalizeTypstContent(value) : value;
+
+				return {
+					...output,
+					content: {
+						...output.content,
+						body: normalizeContent(output.content.body) ?? "",
+					},
+					metadata: {
+						...output.metadata,
+						abstract: normalizeContent(output.metadata.abstract) ?? undefined,
+					},
+				};
 			},
 		);
 
