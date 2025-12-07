@@ -27,6 +27,19 @@ If ANY placeholder is found, the draft **MUST be rejected** and you must ask the
 
 ---
 
+## EXCEPTION: TYPESETTER AGENT ANNOTATIONS
+
+**DO NOT treat `[TYPESETTER AGENT: ...]` annotations as placeholders.**
+
+These are legitimate formatting instructions for the PDF generation agent and should be **ignored during your review**. Examples you may encounter:
+- `[TYPESETTER AGENT: Use IEEE citation format]`
+- `[TYPESETTER AGENT: Author affiliation is "MIT"]`
+- `[TYPESETTER AGENT: Two-column layout for this section]`
+
+These annotations are part of the pipeline workflow and will be processed and removed by the Typesetter Agent. **Do not flag them as errors or missing content.**
+
+---
+
 ## OUTPUT MODES
 
 **MODE A: PASSED (Ready for PDF)**

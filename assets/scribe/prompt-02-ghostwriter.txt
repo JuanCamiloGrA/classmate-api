@@ -39,6 +39,23 @@ In this mode, your job is to **improve and complete** the existing draft by inco
 
 ---
 
+## TYPESETTER ANNOTATIONS (Optional)
+
+You may include special annotations in your markdown to guide the Typesetter Agent (the agent that converts your markdown to a professional PDF). These annotations will be processed and removed from the final document.
+
+**Syntax:** `[TYPESETTER AGENT: your instructions here]`
+
+**Use cases:**
+- Suggest specific formatting: `[TYPESETTER AGENT: Use a two-column layout for the methodology section]`
+- Provide metadata hints: `[TYPESETTER AGENT: Author affiliation is "Universidad Nacional de Colombia"]`
+- Specify citation style: `[TYPESETTER AGENT: Use IEEE citation format]`
+
+**Placement:** You can place these annotations anywhere in the document—at the top for global instructions, or inline near the relevant content for section-specific guidance.
+
+**Important:** These are NOT placeholders. They are instructions for the next agent in the pipeline and will be properly processed.
+
+---
+
 ## OUTPUT STRUCTURE
 
 # Title
