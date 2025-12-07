@@ -85,5 +85,6 @@ export async function createGenerateScribeProjectWorkflowHandler(
 		manifestService,
 		storageAdapter,
 		r2BucketName,
+		env.ENVIRONMENT,
 	);
 }

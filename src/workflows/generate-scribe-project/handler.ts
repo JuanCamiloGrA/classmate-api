@@ -30,6 +30,7 @@ export class GenerateScribeProjectWorkflowHandler {
 		private manifestService: ScribeManifestService,
 		private storageAdapter: StorageRepository,
 		private r2BucketName: string,
+		private environment: string,
 	) {}
 
 	async run(
@@ -511,7 +512,7 @@ export class GenerateScribeProjectWorkflowHandler {
 
 		// Step 4: Call PDF generation service with Typst payload
 		const pdfResult = await step.do("generate-pdf", async () => {
-			const result = await this.pdfService.generatePdf({
+			const payload = {
 				user_id: project.userId,
 				template_id: project.templateId,
 				metadata: enrichedMetadata,
@@ -520,7 +521,16 @@ export class GenerateScribeProjectWorkflowHandler {
 					references: typesetterResult.content.references,
 				},
 				template_config: typesetterResult.template_config,
-			});
+			};
+
+			if (this.environment === "development") {
+				console.log(
+					"[SCRIBE] PDF Generation Payload:",
+					JSON.stringify(payload, null, 2),
+				);
+			}
+
+			const result = await this.pdfService.generatePdf(payload);
 			return result;
 		});
 
