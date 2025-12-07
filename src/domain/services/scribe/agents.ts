@@ -52,31 +52,47 @@ export const ArchitectOutputSchema = z.object({
 export type ArchitectOutput = z.infer<typeof ArchitectOutputSchema>;
 
 // ============================================================================
-// Typesetter Output Schema
+// Typesetter Output Schema (Typst-based)
 // ============================================================================
 
 /**
+ * Schema for author information in document metadata
+ */
+const TypesetterAuthorSchema = z.object({
+	name: z.string().describe("Author's full name"),
+	affiliation: z.string().describe("Author's institution or organization"),
+	email: z.string().optional().describe("Author's email address"),
+});
+
+/**
  * Output schema for the Typesetter Agent
- * Contains metadata for PDF cover page and LaTeX body content
+ * Produces structured JSON for Typst PDF generation via Heavy API
  */
 export const TypesetterOutputSchema = z.object({
-	title: z
-		.string()
-		.describe("Document title extracted from the heading or metadata"),
-	course: z
-		.string()
-		.describe("Course name if mentioned, otherwise 'Academic Document'"),
-	student: z
-		.string()
-		.describe("Student name if mentioned, otherwise 'Student'"),
-	date: z
-		.string()
-		.describe("Date in format 'DD of Month, YYYY' (e.g., 'November 25, 2025')"),
-	latex_content: z
-		.string()
-		.describe(
-			"LaTeX body content starting with \\section{} - NO preamble or document wrapper",
-		),
+	metadata: z.object({
+		title: z
+			.string()
+			.describe("Professional academic title inferred from content"),
+		authors: z
+			.array(TypesetterAuthorSchema)
+			.describe("Authors with name, affiliation, and optional email"),
+		date: z.string().describe("Date in YYYY-MM-DD format"),
+		abstract: z
+			.string()
+			.optional()
+			.describe("Concise summary of the document (100-200 words)"),
+	}),
+	content: z.object({
+		body: z
+			.string()
+			.describe(
+				"Raw Typst content (headings, text, math, code blocks). NO imports or preamble.",
+			),
+		references: z.string().describe("BibTeX string containing all citations"),
+	}),
+	template_config: z
+		.record(z.any())
+		.describe("Dynamic fields matching the injected template schema"),
 });
 
 export type TypesetterOutput = z.infer<typeof TypesetterOutputSchema>;
@@ -146,7 +162,7 @@ export const SUPERVISOR_AGENT: ScribeAgentConfig = {
 /**
  * Typesetter Agent Configuration
  *
- * Converts final Markdown content to LaTeX format with extracted metadata.
+ * Converts final Markdown content to structured JSON for Typst PDF generation.
  * Uses structured output (generateObject) to ensure valid JSON response.
  */
 export const TYPESETTER_AGENT: ScribeAgentWithSchema = {
@@ -154,7 +170,7 @@ export const TYPESETTER_AGENT: ScribeAgentWithSchema = {
 	promptPath: "scribe/prompt-04-typesetter.txt",
 	outputSchema: TypesetterOutputSchema,
 	description:
-		"Converts approved Markdown content to structured JSON with metadata and LaTeX body",
+		"Converts approved Markdown content to structured JSON for Typst PDF generation",
 };
 
 // ============================================================================

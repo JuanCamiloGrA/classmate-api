@@ -302,6 +302,8 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	subjectId: text("subject_id").references(() => subjects.id, {
 		onDelete: "set null",
 	}),
+	/** Template ID for Typst generation (e.g., "apa", "ieee") */
+	templateId: text("template_id").notNull().default("apa"),
 	title: text("title").notNull().default("Untitled Draft"),
 	status: text("status", {
 		enum: [
@@ -323,7 +325,8 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	formQuestions: text("form_questions", { mode: "json" }),
 	userAnswers: text("user_answers", { mode: "json" }),
 	contentMarkdown: text("content_markdown"),
-	currentLatex: text("current_latex"),
+	/** JSON output from Typesetter Agent (metadata, content, template_config) */
+	currentTypstJson: text("current_typst_json"),
 	reviewFeedback: text("review_feedback", { mode: "json" }),
 	workflowId: text("workflow_id"),
 	/** R2 object key for the generated PDF (not a FK, just the storage path) */

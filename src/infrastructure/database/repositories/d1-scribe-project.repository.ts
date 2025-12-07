@@ -56,6 +56,7 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				userId: data.userId,
 				taskId: data.taskId ?? null,
 				subjectId: data.subjectId ?? null,
+				templateId: data.templateId ?? "apa",
 				title: data.title ?? "Untitled Draft",
 				status: "draft",
 				rubricContent: data.rubricContent ?? null,
@@ -64,7 +65,7 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				formQuestions: null,
 				userAnswers: null,
 				contentMarkdown: null,
-				currentLatex: null,
+				currentTypstJson: null,
 				reviewFeedback: null,
 				workflowId: null,
 				finalPdfFileId: null,
@@ -110,8 +111,8 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 			updatePayload.userAnswers = data.userAnswers;
 		if (data.contentMarkdown !== undefined)
 			updatePayload.contentMarkdown = data.contentMarkdown;
-		if (data.currentLatex !== undefined)
-			updatePayload.currentLatex = data.currentLatex;
+		if (data.currentTypstJson !== undefined)
+			updatePayload.currentTypstJson = data.currentTypstJson;
 		if (data.reviewFeedback !== undefined)
 			updatePayload.reviewFeedback = data.reviewFeedback;
 		if (data.workflowId !== undefined)

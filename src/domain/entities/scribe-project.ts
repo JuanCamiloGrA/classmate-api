@@ -5,7 +5,7 @@
  * - 'drafting': AI is generating the content
  * - 'reviewing': Content is ready for user review
  * - 'needs_input': AI needs more information
- * - 'typesetting': Converting to PDF/LaTeX
+ * - 'typesetting': Converting to PDF via Typst
  * - 'completed': Final PDF is ready
  * - 'failed': Something went wrong
  */
@@ -32,6 +32,8 @@ export interface ScribeProject {
 	taskId: string | null;
 	/** Optional Subject ID associated with this project */
 	subjectId: string | null;
+	/** Template ID for Typst generation (e.g., "apa", "ieee") */
+	templateId: string;
 	/** Project title */
 	title: string;
 	/** Current status of the project */
@@ -48,8 +50,8 @@ export interface ScribeProject {
 	userAnswers: unknown | null;
 	/** Generated content in Markdown format */
 	contentMarkdown: string | null;
-	/** Generated content in LaTeX format */
-	currentLatex: string | null;
+	/** JSON output from Typesetter Agent (metadata, content, template_config) */
+	currentTypstJson: string | null;
 	/** Feedback from the review process */
 	reviewFeedback: unknown | null;
 	/** ID of the Cloudflare Workflow execution */
@@ -77,6 +79,8 @@ export interface CreateScribeProjectData {
 	taskId?: string | null;
 	/** Optional Subject ID */
 	subjectId?: string | null;
+	/** Template ID for Typst generation (defaults to "apa") */
+	templateId?: string;
 	/** Initial rubric content (text) */
 	rubricContent?: string | null;
 	/** URL of the rubric file in R2 */
@@ -106,8 +110,8 @@ export interface UpdateScribeProjectData {
 	userAnswers?: unknown | null;
 	/** Content markdown update */
 	contentMarkdown?: string | null;
-	/** Current LaTeX update */
-	currentLatex?: string | null;
+	/** JSON output from Typesetter Agent */
+	currentTypstJson?: string | null;
 	/** Review feedback update */
 	reviewFeedback?: unknown | null;
 	/** Workflow ID update */

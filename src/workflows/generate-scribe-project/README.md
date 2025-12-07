@@ -13,7 +13,7 @@ This Cloudflare Durable Workflow orchestrates the **Scribe Engine** — an AI-po
 | `index.ts` | Cloudflare Workflow entrypoint; extends `WorkflowEntrypoint` |
 | `handler.ts` | Core state machine; executes agents based on project status |
 | `types.ts` | TypeScript interfaces for workflow payload |
-| `dependencies.ts` | DI factory; creates and wires up all services (AI, Prompt, Repository) |
+| `dependencies.ts` | DI factory; creates and wires up all services (AI, Prompt, Repository, Manifest, PDF) |
 
 ---
 
@@ -31,7 +31,7 @@ drafting/collecting_answers → reviewing (Ghostwriter Agent)
 reviewing
   ├─→ typesetting (if approved)
   └─→ collecting_answers (if revision needed)
-  ↓ (Typesetter Agent)
+  ↓ (Typesetter Agent + Heavy API)
 typesetting
   ↓
 completed
@@ -41,14 +41,14 @@ completed
 
 ## AI Agents & Prompts
 
-All agents use **Google Gemini 2.5 Flash Lite** via Vercel AI Gateway (`google/gemini-2.5-flash-lite`).
+All agents use AI models via Vercel AI Gateway.
 
 | Agent | Prompt File | Input | Output |
 | --- | --- | --- | --- |
 | **Architect** | `scribe/prompt-01-architect.txt` | Rubric content | Form questions (JSON) |
 | **Ghostwriter** | `scribe/prompt-02-ghostwriter.txt` | Rubric + User answers | Markdown document |
 | **Supervisor** | `scribe/prompt-03-supervisor.txt` | Markdown + Rubric | JSON feedback (approved/revision) |
-| **Typesetter** | `scribe/prompt-04-typesetter.txt` | Markdown content | LaTeX code |
+| **Typesetter** | `scribe/prompt-04-typesetter.txt` | Markdown content + Template Schema | Typst JSON (metadata, content, template_config) |
 
 ### Agent Selection Strategy
 
@@ -64,13 +64,17 @@ Each agent is **hardcoded** to a specific prompt template:
 ### Service Injection (dependencies.ts)
 
 ```typescript
-const aiService = new VercelAIService(aiGatewayApiKey)
+const aiService = new ScribeAIService(aiGatewayApiKey, promptService)
 const promptService = new AssetsPromptService(env.ASSETS)
+const manifestService = new ScribeManifestService(scribeHeavyApiUrl, apiKey)
+const pdfService = new ScribePdfService(scribeHeavyApiUrl, apiKey)
 const scribeProjectRepository = new D1ScribeProjectRepository(db)
 ```
 
-- **AIService**: Wraps Vercel AI Gateway for LLM calls
-- **PromptService**: Loads prompt templates from R2 with template variable replacement (`{{RUBRIC}}`, `{{CONTENT}}`, etc.)
+- **ScribeAIService**: Wraps Vercel AI Gateway for LLM calls with prompt template support
+- **PromptService**: Loads prompt templates from R2 with template variable replacement (`{{RUBRIC}}`, `{{TEMPLATE_CONFIG_SCHEMA_JSON}}`, etc.)
+- **ManifestService**: Fetches template configuration schemas from the Heavy API
+- **PdfService**: Calls Heavy API to generate PDFs from Typst content
 - **Repository**: Persists project state to D1 database
 
 ### Workflow Steps (handler.ts)
@@ -89,17 +93,23 @@ await step.do("update-after-architect", async () => {
 })
 ```
 
-### LaTeX Generation
+### Typst PDF Generation (New Architecture)
 
-- The **Typesetter Agent** converts Markdown to LaTeX code (stored in `currentLatex` field)
-- **No PDF generation occurs in this workflow** — LaTeX is returned as-is for the client to render
-- The workflow never calls `PROCESSING_SERVICE_URL` (that's used only for audio processing in other workflows)
+The **Typesetter Agent** now produces structured JSON for the Heavy API:
+
+1. **Fetch Manifest**: Get template config schema from `GET /v1/templates/{template_id}/manifest`
+2. **Inject Schema**: Replace `{{TEMPLATE_CONFIG_SCHEMA_JSON}}` placeholder in prompt
+3. **Generate JSON**: AI outputs `{ metadata, content, template_config }`
+4. **Call Heavy API**: POST to `/v1/generate` with full payload
+5. **Store Result**: Save R2 key and generate presigned URL
+
+The `currentTypstJson` field stores the raw Typesetter output for debugging.
 
 ### User Feedback Loop
 
 - After Ghostwriter generates content, **Supervisor** reviews it
-- If revision needed: Supervisor returns JSON with new questions → status resets to `collecting_answers` with `userAnswers: null` (forces user to re-answer)
-- If approved: Status moves to `typesetting` → Typesetter generates LaTeX → `completed`
+- If revision needed: Supervisor returns JSON with new questions → status resets to `collecting_answers`
+- If approved: Status moves to `typesetting` → Typesetter generates Typst JSON → Heavy API generates PDF → `completed`
 
 ---
 
@@ -111,14 +121,14 @@ await step.do("update-after-architect", async () => {
 | `collecting_answers` | None (waiting for user) | User submits answers → Ghostwriter |
 | `drafting` | Ghostwriter | Poll until `reviewing` |
 | `reviewing` | Supervisor | Poll until `typesetting` or back to `collecting_answers` |
-| `typesetting` | Typesetter | Poll until `completed` |
+| `typesetting` | Typesetter + Heavy API | Poll until `completed` |
 | `completed` | None | Document ready for download |
 
 ---
 
 ## Important Notes
 
-- **No external heavy services called**: The workflow uses only Vercel AI Gateway (LLM inference)
-- **No PDF generation**: LaTeX is generated but not converted to PDF
-- **All AI calls use Gemini 2.5 Flash Lite**: Cost-optimized, no model selection logic
+- **Heavy API for PDF generation**: The workflow calls `SCRIBE_HEAVY_API_URL` for Typst-to-PDF conversion
+- **Template-based generation**: Each project has a `templateId` (e.g., "apa", "ieee") that determines the output format
+- **Dynamic schema injection**: Template config schemas are fetched at runtime and injected into the Typesetter prompt
 - **Database-backed state machine**: Each project state persists in D1; workflow is idempotent

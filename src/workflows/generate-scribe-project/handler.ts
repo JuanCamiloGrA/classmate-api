@@ -13,6 +13,7 @@ import {
 	type TypesetterOutput,
 } from "../../domain/services/scribe/agents";
 import type { ScribeAIService } from "../../infrastructure/ai/scribe.ai.service";
+import type { ScribeManifestService } from "../../infrastructure/api/scribe-manifest.service";
 import type { ScribePdfService } from "../../infrastructure/pdf/scribe-pdf.service";
 import type { WorkflowRequestBody } from "./types";
 
@@ -26,6 +27,7 @@ export class GenerateScribeProjectWorkflowHandler {
 		private profileRepository: ProfileRepository,
 		private subjectRepository: SubjectRepository,
 		private pdfService: ScribePdfService,
+		private manifestService: ScribeManifestService,
 		private storageAdapter: StorageRepository,
 		private r2BucketName: string,
 	) {}
@@ -423,71 +425,106 @@ export class GenerateScribeProjectWorkflowHandler {
 		project: ScribeProject,
 		step: WorkflowStep,
 	): Promise<void> {
-		// Step 1: Generate structured output using Typesetter Agent
-		// The AI extracts metadata (title, course, student, date) from the Markdown
-		// and converts the content to LaTeX body
+		// Step 1: Fetch manifest for the template to get config schema
+		const manifest = await step.do("fetch-template-manifest", async () => {
+			return this.manifestService.getManifest(project.templateId);
+		});
+
+		// Step 2: Generate structured output using Typesetter Agent
+		// Inject the template config schema into the prompt
 		const typesetterResult: TypesetterOutput = await step.do(
 			"typesetter-agent",
 			async () => {
-				// Use ScribeAIService with structured output (generateObject)
 				const output = await this.scribeAIService.runAgentWithSchema(
 					TYPESETTER_AGENT,
 					{
 						textContent: project.contentMarkdown || "",
+						templateVars: {
+							TEMPLATE_CONFIG_SCHEMA_JSON: JSON.stringify(
+								manifest.template_config_schema,
+								null,
+								2,
+							),
+						},
 					},
 				);
 				return output;
 			},
 		);
 
-		// Step 2: Enrich metadata with fallbacks from repositories
-		// If AI returned default values, use data from user profile and subject
+		// Step 3: Enrich metadata with fallbacks from repositories
 		const enrichedMetadata = await step.do("enrich-metadata", async () => {
-			let student = typesetterResult.student;
-			let course = typesetterResult.course;
+			// Start with a copy of authors from the AI result
+			const authors: Array<{
+				name: string;
+				affiliation: string;
+				email?: string;
+			}> = typesetterResult.metadata.authors.map((a) => ({
+				name: a.name,
+				affiliation: a.affiliation,
+				email: a.email,
+			}));
 
-			// Fallback: If AI returned default "Student", try to get from profile
-			if (student === "Student") {
+			// Fallback: If no authors or using default, try to get from profile
+			if (
+				authors.length === 0 ||
+				(authors.length === 1 && authors[0].name === "Anonymous")
+			) {
 				const profile = await this.profileRepository.findById(project.userId);
 				if (profile?.name) {
-					student = profile.name;
+					authors[0] = {
+						name: profile.name,
+						affiliation: authors[0]?.affiliation || "Independent Researcher",
+						email: profile.email || undefined,
+					};
 				}
 			}
 
-			// Fallback: If AI returned default "Academic Document", try to get from subject
-			if (course === "Academic Document" && project.subjectId) {
+			// Fallback: If subject exists, use it for affiliation context
+			if (project.subjectId && authors.length > 0) {
 				const subject = await this.subjectRepository.findByIdAndUserId(
 					project.userId,
 					project.subjectId,
 				);
-				if (subject?.name) {
-					course = subject.name;
+				if (
+					subject?.name &&
+					authors[0].affiliation === "Independent Researcher"
+				) {
+					authors[0] = {
+						name: authors[0].name,
+						affiliation: subject.name,
+						email: authors[0].email,
+					};
 				}
 			}
 
 			return {
-				title: typesetterResult.title || project.title || "Untitled Document",
-				course,
-				student,
-				date: typesetterResult.date,
-				latex_content: typesetterResult.latex_content,
+				title:
+					typesetterResult.metadata.title ||
+					project.title ||
+					"Untitled Document",
+				authors,
+				date: typesetterResult.metadata.date,
+				abstract: typesetterResult.metadata.abstract,
 			};
 		});
 
-		// Step 3: Call PDF generation service with enriched metadata
+		// Step 4: Call PDF generation service with Typst payload
 		const pdfResult = await step.do("generate-pdf", async () => {
 			const result = await this.pdfService.generatePdf({
 				user_id: project.userId,
-				title: enrichedMetadata.title,
-				course: enrichedMetadata.course,
-				student: enrichedMetadata.student,
-				date: enrichedMetadata.date,
-				latex_content: enrichedMetadata.latex_content,
+				template_id: project.templateId,
+				metadata: enrichedMetadata,
+				content: {
+					body: typesetterResult.content.body,
+					references: typesetterResult.content.references,
+				},
+				template_config: typesetterResult.template_config,
 			});
 			return result;
 		});
 
-		// Step 4: Generate presigned URL for the PDF
+		// Step 5: Generate presigned URL for the PDF
 		const presignedUrl = await step.do("generate-presigned-url", async () => {
 			const url = await this.storageAdapter.generatePresignedGetUrl(
 				this.r2BucketName,
@@ -497,10 +534,10 @@ export class GenerateScribeProjectWorkflowHandler {
 			return url;
 		});
 
-		// Step 5: Update project with PDF info
+		// Step 6: Update project with PDF info
 		await step.do("update-after-typesetter", async () => {
 			await this.scribeProjectRepository.update(project.userId, project.id, {
-				currentLatex: enrichedMetadata.latex_content,
+				currentTypstJson: JSON.stringify(typesetterResult),
 				finalPdfFileId: pdfResult.r2Key,
 				finalPdfUrl: presignedUrl,
 				status: "completed",

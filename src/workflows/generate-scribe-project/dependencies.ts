@@ -1,5 +1,6 @@
 import { type Bindings, resolveSecretBinding } from "../../config/bindings";
 import { ScribeAIService } from "../../infrastructure/ai/scribe.ai.service";
+import { ScribeManifestService } from "../../infrastructure/api/scribe-manifest.service";
 import { DatabaseFactory } from "../../infrastructure/database/client";
 import { D1ScribeProjectRepository } from "../../infrastructure/database/repositories/d1-scribe-project.repository";
 import { D1ProfileRepository } from "../../infrastructure/database/repositories/profile.repository";
@@ -57,6 +58,12 @@ export async function createGenerateScribeProjectWorkflowHandler(
 		internalScribeApiKey,
 	);
 
+	// Create manifest service for fetching template schemas
+	const manifestService = new ScribeManifestService(
+		scribeHeavyApiUrl,
+		internalScribeApiKey,
+	);
+
 	// Create storage adapter for presigned URLs
 	const storageAdapter = new R2StorageAdapter({
 		endpoint: r2Endpoint,
@@ -75,6 +82,7 @@ export async function createGenerateScribeProjectWorkflowHandler(
 		profileRepository,
 		subjectRepository,
 		pdfService,
+		manifestService,
 		storageAdapter,
 		r2BucketName,
 	);

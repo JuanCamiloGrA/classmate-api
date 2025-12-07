@@ -31,6 +31,8 @@ const CreateScribeProjectSchema = z.object({
 	title: z.string().optional(),
 	taskId: z.string().optional(),
 	subjectId: z.string().optional(),
+	/** Template ID for Typst generation (e.g., "apa", "ieee"). Defaults to "apa" */
+	templateId: z.string().default("apa"),
 	/** Text content of the rubric (alternative to file upload) */
 	rubricContent: z.string().optional(),
 	/** URL of the rubric file in R2 (after upload via presigned URL) */
@@ -72,6 +74,7 @@ const UpdateScribeProjectSchema = z.object({
 const ScribeProjectResponseSchema = z.object({
 	id: z.string(),
 	userId: z.string(),
+	templateId: z.string(),
 	title: z.string(),
 	status: z.string(),
 	rubricContent: z.string().nullable(),
@@ -142,6 +145,7 @@ export class CreateScribeProjectEndpoint extends OpenAPIRoute {
 				title: validation.data.title,
 				taskId: validation.data.taskId,
 				subjectId: validation.data.subjectId,
+				templateId: validation.data.templateId,
 				rubricContent: rubricContent ?? null,
 				rubricFileUrl: rubricFileUrl ?? null,
 				rubricMimeType: rubricMimeType ?? null,
@@ -159,7 +163,7 @@ export class CreateScribeProjectEndpoint extends OpenAPIRoute {
 			// Exclude internal fields from response
 			const {
 				contentMarkdown: _internal,
-				currentLatex: _latex,
+				currentTypstJson: _typstJson,
 				finalPdfFileId: _pdfKey,
 				...publicProject
 			} = project;
@@ -198,7 +202,7 @@ export class ListScribeProjectsEndpoint extends OpenAPIRoute {
 			const publicProjects = projects.map(
 				({
 					contentMarkdown: _internal,
-					currentLatex: _latex,
+					currentTypstJson: _typstJson,
 					finalPdfFileId: _pdfKey,
 					...rest
 				}) => rest,
@@ -244,7 +248,7 @@ export class GetScribeProjectEndpoint extends OpenAPIRoute {
 			// Exclude internal fields from response
 			const {
 				contentMarkdown: _internal,
-				currentLatex: _latex,
+				currentTypstJson: _typstJson,
 				finalPdfFileId: _pdfKey,
 				...publicProject
 			} = project;
@@ -338,7 +342,7 @@ export class UpdateScribeProjectEndpoint extends OpenAPIRoute {
 			// Exclude internal fields from response
 			const {
 				contentMarkdown: _internal,
-				currentLatex: _latex,
+				currentTypstJson: _typstJson,
 				finalPdfFileId: _pdfKey,
 				...publicProject
 			} = project;

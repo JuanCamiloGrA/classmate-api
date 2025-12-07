@@ -1,31 +1,61 @@
 /**
  * Scribe PDF Generation Service
- * Calls the external SCRIBE_HEAVY_API_URL to compile LaTeX to PDF
+ * Calls the external SCRIBE_HEAVY_API_URL to compile Typst to PDF
  *
  * Request fields match TypesetterOutput schema from the AI typesetter agent
  */
 
+/**
+ * Author information for document metadata
+ */
+export interface ScribePdfAuthor {
+	name: string;
+	affiliation: string;
+	email?: string;
+}
+
+/**
+ * Document metadata for PDF generation
+ */
+export interface ScribePdfMetadata {
+	title: string;
+	authors: ScribePdfAuthor[];
+	date: string;
+	abstract?: string;
+}
+
+/**
+ * Document content for PDF generation
+ */
+export interface ScribePdfContent {
+	/** Raw Typst content (headings, text, math, code blocks). NO imports. */
+	body: string;
+	/** BibTeX string containing all citations */
+	references: string;
+}
+
+/**
+ * Request payload for the Heavy API
+ */
 export interface ScribePdfRequest {
 	/** User ID for path organization (required) */
 	user_id: string;
-	/** Document title extracted from the heading or metadata */
-	title: string;
-	/** Course name if mentioned, otherwise 'Academic Document' */
-	course: string;
-	/** Student name if mentioned, otherwise 'Student' */
-	student: string;
-	/** Date in format 'DD of Month, YYYY' (e.g., 'November 25, 2025') */
-	date: string;
-	/** LaTeX body content starting with \section{} - NO preamble or document wrapper */
-	latex_content: string;
+	/** Template ID for Typst generation (e.g., "apa", "ieee") */
+	template_id: string;
+	/** Document metadata */
+	metadata: ScribePdfMetadata;
+	/** Document content */
+	content: ScribePdfContent;
+	/** Dynamic template configuration fields */
+	template_config: Record<string, unknown>;
 }
 
 export interface ScribePdfSuccessResponse {
-	/** R2 object key where PDF is stored (camelCase) */
+	/** R2 object key where PDF is stored */
 	r2Key: string;
 	/** Generated filename */
 	filename: string;
-	/** Always "application/pdf" (camelCase) */
+	/** Always "application/pdf" */
 	mimeType: string;
 }
 
@@ -41,19 +71,19 @@ export type ScribePdfResponse =
 	| ScribePdfErrorResponse;
 
 /**
- * Service for generating PDFs from LaTeX via the heavy processing API
+ * Service for generating PDFs from Typst content via the heavy processing API
  */
 export class ScribePdfService {
 	constructor(
 		private readonly apiUrl: string,
 		private readonly apiKey: string,
 	) {
-		console.log("📄 [SCRIBE_PDF] Initialized PDF generation service");
+		console.log("📄 [SCRIBE_PDF] Initialized Typst PDF generation service");
 	}
 
 	/**
-	 * Generates a PDF from LaTeX content
-	 * @param request - The PDF generation request matching Client Integration Guide spec
+	 * Generates a PDF from Typst content
+	 * @param request - The PDF generation request with Typst payload
 	 * @returns The R2 key and filename of the generated PDF
 	 * @throws Error if PDF generation fails
 	 */
@@ -62,8 +92,9 @@ export class ScribePdfService {
 	): Promise<ScribePdfSuccessResponse> {
 		console.log("🔄 [SCRIBE_PDF] Generating PDF", {
 			userId: request.user_id,
-			title: request.title,
-			contentLength: request.latex_content.length,
+			templateId: request.template_id,
+			title: request.metadata.title,
+			bodyLength: request.content.body.length,
 		});
 
 		const response = await fetch(`${this.apiUrl}/v1/generate`, {

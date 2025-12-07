@@ -98,10 +98,23 @@ export class ScribeAIService {
 			textContent?: string;
 			/** Additional context to append to the user message */
 			userMessage?: string;
+			/** Template variables to replace in the prompt (e.g., {{TEMPLATE_CONFIG_SCHEMA_JSON}}) */
+			templateVars?: Record<string, string>;
 		},
 	): Promise<z.infer<T>> {
 		const model = this.gateway(agent.model);
-		const systemPrompt = await this.promptService.getPrompt(agent.promptPath);
+		let systemPrompt = await this.promptService.getPrompt(agent.promptPath);
+
+		// Replace template variables in system prompt
+		if (options.templateVars) {
+			for (const [key, value] of Object.entries(options.templateVars)) {
+				systemPrompt = systemPrompt.replace(
+					new RegExp(`\\{\\{${key}\\}\\}`, "g"),
+					value,
+				);
+			}
+		}
+
 		const userMessage = this.buildUserMessage(options);
 
 		const { object } = await generateObject({
