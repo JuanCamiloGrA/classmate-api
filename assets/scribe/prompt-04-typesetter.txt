@@ -40,6 +40,10 @@ Your response must be a JSON object with exactly these keys:
 * **Formatting:** Use `*bold*` and `_italics_`.
 * **Lists:** Use `-` for bullets and `+` for numbered lists.
 
+**4. JSON ESCAPING (CRITICAL)**
+* All backslashes in the JSON output MUST be escaped as `\\` so that parsed content contains a single `\`. Example: write `\\times`, `\\frac`, `\\nabla` inside JSON strings.
+* You may use Unicode math symbols when equivalent (e.g., `×`, `≤`, `≥`) if it does not change the intended rendering in Typst.
+
 **3. TABLES (Strict Layout Rules)**
 * Standard Markdown tables are NOT supported. You must use the `#figure(table(...))` function.
 * **Prevent Overflow:** ALWAYS use relative columns formatting.
