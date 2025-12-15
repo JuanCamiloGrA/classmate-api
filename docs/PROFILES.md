@@ -112,10 +112,38 @@ The Profiles API provides endpoints for managing user profiles. Profiles are aut
   "profile": {
     "id": "user_2eZpWWvKJlPuwhzVTmNl6Mq5tGR",
     "email": "user@example.com",
-    "name": "John Doe"
+    "name": "John Doe",
+    "subscriptionTier": "free",
+    "storageUsedBytes": 0,
+    "scribeStyleSlot1R2Key": "users/user_2eZpWWvKJlPuwhzVTmNl6Mq5tGR/rubrics/2025/10/uuid-scribe-style-slot-1-style-example.pdf",
+    "scribeStyleSlot1MimeType": "application/pdf",
+    "scribeStyleSlot1OriginalFilename": "style-example.pdf",
+    "scribeStyleSlot2R2Key": null,
+    "scribeStyleSlot2MimeType": null,
+    "scribeStyleSlot2OriginalFilename": null,
+    "createdAt": "2025-01-15T10:30:00.000Z",
+    "updatedAt": "2025-01-15T10:30:00.000Z"
   }
 }
 ```
+
+**Profile Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Unique identifier (Clerk user ID) |
+| `email` | `string \| null` | User's email address |
+| `name` | `string \| null` | User's display name |
+| `subscriptionTier` | `"free" \| "pro" \| "premium"` | Current subscription tier |
+| `storageUsedBytes` | `number` | Storage used in bytes |
+| `scribeStyleSlot1R2Key` | `string \| null` | R2 key for scribe style reference slot 1 |
+| `scribeStyleSlot1MimeType` | `string \| null` | MIME type for scribe style reference slot 1 |
+| `scribeStyleSlot1OriginalFilename` | `string \| null` | Original filename for scribe style reference slot 1 |
+| `scribeStyleSlot2R2Key` | `string \| null` | R2 key for scribe style reference slot 2 |
+| `scribeStyleSlot2MimeType` | `string \| null` | MIME type for scribe style reference slot 2 |
+| `scribeStyleSlot2OriginalFilename` | `string \| null` | Original filename for scribe style reference slot 2 |
+| `createdAt` | `string` | ISO 8601 timestamp of profile creation |
+| `updatedAt` | `string` | ISO 8601 timestamp of last update |
 
 **Status: 401 Unauthorized**
 
@@ -140,6 +168,17 @@ The Profiles API provides endpoints for managing user profiles. Profiles are aut
   "error": "Internal server error"
 }
 ```
+
+---
+
+## Scribe Style References
+
+The profile includes two persistent style reference slots that can be used with the Scribe API. These slots store R2 keys, MIME types, and original filenames for style reference files uploaded by the user.
+
+- **Slot 1** (`scribeStyleSlot1R2Key`, `scribeStyleSlot1MimeType`, `scribeStyleSlot1OriginalFilename`)
+- **Slot 2** (`scribeStyleSlot2R2Key`, `scribeStyleSlot2MimeType`, `scribeStyleSlot2OriginalFilename`)
+
+To upload and manage these style references, see the [Scribe API Reference](./scribe/API_REFERENCE.md#profiles-scribe-style-references-2-slots).
 
 ---
 
