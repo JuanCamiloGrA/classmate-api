@@ -13,6 +13,18 @@ export interface Profile {
 	subscriptionTier: "free" | "pro" | "premium";
 	/** Storage used in bytes */
 	storageUsedBytes: number;
+	/** Scribe: Style reference slot 1 (R2 key) */
+	scribeStyleSlot1R2Key: string | null;
+	/** Scribe: Style reference slot 1 MIME type */
+	scribeStyleSlot1MimeType: string | null;
+	/** Scribe: Style reference slot 1 original filename */
+	scribeStyleSlot1OriginalFilename: string | null;
+	/** Scribe: Style reference slot 2 (R2 key) */
+	scribeStyleSlot2R2Key: string | null;
+	/** Scribe: Style reference slot 2 MIME type */
+	scribeStyleSlot2MimeType: string | null;
+	/** Scribe: Style reference slot 2 original filename */
+	scribeStyleSlot2OriginalFilename: string | null;
 	/** ISO 8601 timestamp of profile creation */
 	createdAt: string;
 	/** ISO 8601 timestamp of last update */

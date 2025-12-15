@@ -27,6 +27,7 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				and(
 					eq(scribeProjects.id, projectId),
 					eq(scribeProjects.userId, userId),
+					eq(scribeProjects.isDeleted, 0),
 				),
 			)
 			.get();
@@ -38,7 +39,9 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 		const projects = await this.db
 			.select()
 			.from(scribeProjects)
-			.where(eq(scribeProjects.userId, userId))
+			.where(
+				and(eq(scribeProjects.userId, userId), eq(scribeProjects.isDeleted, 0)),
+			)
 			.orderBy(desc(scribeProjects.createdAt))
 			.all();
 
@@ -58,12 +61,13 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				subjectId: data.subjectId ?? null,
 				templateId: data.templateId ?? "apa",
 				title: data.title ?? "Untitled Draft",
-				status: "draft",
+				status: "processing",
 				rubricContent: data.rubricContent ?? null,
 				rubricFileUrl: data.rubricFileUrl ?? null,
 				rubricMimeType: data.rubricMimeType ?? null,
-				formQuestions: null,
+				formSchema: null,
 				userAnswers: null,
+				exam: null,
 				contentMarkdown: null,
 				currentTypstJson: null,
 				reviewFeedback: null,
@@ -105,10 +109,11 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 			updatePayload.rubricFileUrl = data.rubricFileUrl;
 		if (data.rubricMimeType !== undefined)
 			updatePayload.rubricMimeType = data.rubricMimeType;
-		if (data.formQuestions !== undefined)
-			updatePayload.formQuestions = data.formQuestions;
+		if (data.formSchema !== undefined)
+			updatePayload.formSchema = data.formSchema;
 		if (data.userAnswers !== undefined)
 			updatePayload.userAnswers = data.userAnswers;
+		if (data.exam !== undefined) updatePayload.exam = data.exam;
 		if (data.contentMarkdown !== undefined)
 			updatePayload.contentMarkdown = data.contentMarkdown;
 		if (data.currentTypstJson !== undefined)

@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { Profile, ProfileData } from "../../../domain/entities/profile";
 import type { ProfileRepository } from "../../../domain/repositories/profile.repository";
 import type { Database } from "../client";
@@ -53,5 +53,41 @@ export class D1ProfileRepository implements ProfileRepository {
 			.get();
 
 		return result !== undefined && result !== null;
+	}
+
+	async updateScribeStyleSlot(
+		userId: string,
+		slot: 1 | 2,
+		data: { r2Key: string; mimeType: string; originalFilename: string },
+	): Promise<Profile> {
+		const now = new Date().toISOString();
+
+		const updatePayload =
+			slot === 1
+				? {
+						scribeStyleSlot1R2Key: data.r2Key,
+						scribeStyleSlot1MimeType: data.mimeType,
+						scribeStyleSlot1OriginalFilename: data.originalFilename,
+						updatedAt: now,
+					}
+				: {
+						scribeStyleSlot2R2Key: data.r2Key,
+						scribeStyleSlot2MimeType: data.mimeType,
+						scribeStyleSlot2OriginalFilename: data.originalFilename,
+						updatedAt: now,
+					};
+
+		const updated = await this.db
+			.update(profiles)
+			.set(updatePayload)
+			.where(and(eq(profiles.id, userId)))
+			.returning()
+			.get();
+
+		if (!updated) {
+			throw new Error("Profile not found");
+		}
+
+		return updated;
 	}
 }

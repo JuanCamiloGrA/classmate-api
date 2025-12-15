@@ -27,4 +27,18 @@ export interface ProfileRepository {
 	 * @returns True if profile exists, false otherwise
 	 */
 	existsById(id: string): Promise<boolean>;
+
+	/**
+	 * Update one of the 2 Scribe style reference slots.
+	 * The slot points to a persistent R2 object key (`r2Key`) plus metadata.
+	 */
+	updateScribeStyleSlot(
+		userId: string,
+		slot: 1 | 2,
+		data: {
+			r2Key: string;
+			mimeType: string;
+			originalFilename: string;
+		},
+	): Promise<Profile>;
 }

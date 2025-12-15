@@ -22,6 +22,17 @@ export const profiles = sqliteTable("profiles", {
 		.notNull()
 		.default("free"),
 	storageUsedBytes: integer("storage_used_bytes").notNull().default(0),
+	// Scribe: 2 persistent style reference slots (R2 keys)
+	scribeStyleSlot1R2Key: text("scribe_style_slot_1_r2_key"),
+	scribeStyleSlot1MimeType: text("scribe_style_slot_1_mime_type"),
+	scribeStyleSlot1OriginalFilename: text(
+		"scribe_style_slot_1_original_filename",
+	),
+	scribeStyleSlot2R2Key: text("scribe_style_slot_2_r2_key"),
+	scribeStyleSlot2MimeType: text("scribe_style_slot_2_mime_type"),
+	scribeStyleSlot2OriginalFilename: text(
+		"scribe_style_slot_2_original_filename",
+	),
 	createdAt: text("created_at").notNull().default(timestampDefault),
 	updatedAt: text("updated_at").notNull().default(timestampDefault),
 });
@@ -306,26 +317,21 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	templateId: text("template_id").notNull().default("apa"),
 	title: text("title").notNull().default("Untitled Draft"),
 	status: text("status", {
-		enum: [
-			"draft",
-			"collecting_answers",
-			"drafting",
-			"reviewing",
-			"needs_input",
-			"typesetting",
-			"completed",
-			"failed",
-		],
+		enum: ["needs_input", "processing", "blocked", "available", "failed"],
 	})
 		.notNull()
-		.default("draft"),
+		.default("processing"),
 	rubricContent: text("rubric_content"),
 	rubricFileUrl: text("rubric_file_url"),
 	rubricMimeType: text("rubric_mime_type"),
-	formQuestions: text("form_questions", { mode: "json" }),
+	/** JSON schema for the dynamic form (needs_input) */
+	formSchema: text("form_schema", { mode: "json" }),
 	userAnswers: text("user_answers", { mode: "json" }),
+	/** Exam payload generated after PDF creation (blocked/available) */
+	exam: text("exam", { mode: "json" }),
+	// Legacy fields (kept for now; unused in Scribe v2)
+	formQuestions: text("form_questions", { mode: "json" }),
 	contentMarkdown: text("content_markdown"),
-	/** JSON output from Typesetter Agent (metadata, content, template_config) */
 	currentTypstJson: text("current_typst_json"),
 	reviewFeedback: text("review_feedback", { mode: "json" }),
 	workflowId: text("workflow_id"),
