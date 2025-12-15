@@ -60,7 +60,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 	it("should generate presigned URL for valid class", async () => {
 		const mockSignedUrl =
-			"https://bucket.r2.cloudflarestorage.com/temporal/class-audio/user-123/class-123/uuid-audio.mp3?signature=xyz";
+			"https://bucket.r2.cloudflarestorage.com/users/user-123/temp/2025/10/uuid-class-class-123-audio.mp3?signature=xyz";
 
 		(
 			mockClassRepository.findByIdAndUserId as ReturnType<typeof vi.fn>
@@ -87,7 +87,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		expect(result.signedUrl).toBe(mockSignedUrl);
 		expect(result.key).toMatch(
-			/^temporal\/class-audio\/user-123\/class-123\/[a-f0-9-]+-audio\.mp3$/,
+			/^users\/user-123\/temp\/\d{4}\/\d{2}\/[a-f0-9-]+-class-class-123-audio\.mp3$/,
 		);
 		expect(mockClassRepository.findByIdAndUserId).toHaveBeenCalledWith(
 			"user-123",
@@ -95,7 +95,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 		);
 		expect(mockStorageRepository.generatePresignedPutUrl).toHaveBeenCalledWith(
 			"temporal",
-			expect.stringContaining("temporal/class-audio/user-123/class-123/"),
+			expect.stringContaining("users/user-123/temp/"),
 			"audio/mpeg",
 			300,
 		);

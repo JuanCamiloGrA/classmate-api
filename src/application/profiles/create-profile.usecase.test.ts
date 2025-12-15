@@ -10,6 +10,12 @@ describe("CreateProfileUseCase", () => {
 		name: "Test User",
 		subscriptionTier: "free",
 		storageUsedBytes: 0,
+		scribeStyleSlot1R2Key: null,
+		scribeStyleSlot1MimeType: null,
+		scribeStyleSlot1OriginalFilename: null,
+		scribeStyleSlot2R2Key: null,
+		scribeStyleSlot2MimeType: null,
+		scribeStyleSlot2OriginalFilename: null,
 		createdAt: "2025-10-16T12:00:00Z",
 		updatedAt: "2025-10-16T12:00:00Z",
 	};
@@ -19,6 +25,7 @@ describe("CreateProfileUseCase", () => {
 			findById: vi.fn(),
 			create: vi.fn().mockResolvedValue(mockProfile),
 			existsById: vi.fn().mockResolvedValue(false),
+			updateScribeStyleSlot: vi.fn(),
 		};
 
 		const useCase = new CreateProfileUseCase(mockRepository);
@@ -42,6 +49,7 @@ describe("CreateProfileUseCase", () => {
 			findById: vi.fn(),
 			create: vi.fn(),
 			existsById: vi.fn().mockResolvedValue(true),
+			updateScribeStyleSlot: vi.fn(),
 		};
 
 		const useCase = new CreateProfileUseCase(mockRepository);
@@ -66,6 +74,7 @@ describe("CreateProfileUseCase", () => {
 				name: null,
 			}),
 			existsById: vi.fn().mockResolvedValue(false),
+			updateScribeStyleSlot: vi.fn(),
 		};
 
 		const useCase = new CreateProfileUseCase(mockRepository);
@@ -84,6 +93,7 @@ describe("CreateProfileUseCase", () => {
 			findById: vi.fn(),
 			create: vi.fn().mockRejectedValue(new Error("Database error")),
 			existsById: vi.fn().mockResolvedValue(false),
+			updateScribeStyleSlot: vi.fn(),
 		};
 
 		const useCase = new CreateProfileUseCase(mockRepository);

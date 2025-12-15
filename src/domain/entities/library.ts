@@ -14,13 +14,10 @@ export type LibraryItemType =
 	| "other";
 
 export type LibraryItemStatus =
-	| "draft"
-	| "collecting_answers"
-	| "drafting"
-	| "reviewing"
 	| "needs_input"
-	| "typesetting"
-	| "completed"
+	| "processing"
+	| "blocked"
+	| "available"
 	| "failed"
 	| "final";
 

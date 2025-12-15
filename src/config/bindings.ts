@@ -32,7 +32,6 @@ export type Bindings = {
 	INTERNAL_SCRIBE_API_KEY: SecretsStoreBinding;
 	SCRIBE_HEAVY_API_URL: SecretsStoreBinding;
 	SUMMARIZE_CLASS_WORKFLOW: Workflow;
-	GENERATE_SCRIBE_PROJECT_WORKFLOW: Workflow;
 	ASSETS: Fetcher;
 };
 

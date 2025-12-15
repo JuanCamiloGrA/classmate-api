@@ -1,5 +1,9 @@
 import type { ClassRepository } from "../../domain/repositories/class.repository";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
+import {
+	buildUserR2Key,
+	sanitizeFilename,
+} from "../../domain/services/r2-path.service";
 
 export interface GenerateClassAudioUploadUrlInput {
 	userId: string;
@@ -78,7 +82,10 @@ export class GenerateClassAudioUploadUrlUseCase {
 		classId: string;
 		fileName: string;
 	}): string {
-		const uniqueId = crypto.randomUUID();
-		return `temporal/class-audio/${params.userId}/${params.classId}/${uniqueId}-${params.fileName}`;
+		return buildUserR2Key({
+			userId: params.userId,
+			category: "temp",
+			filename: sanitizeFilename(`class-${params.classId}-${params.fileName}`),
+		});
 	}
 }

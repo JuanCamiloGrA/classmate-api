@@ -33,6 +33,11 @@ export class ScribeAIService {
 	private buildUserMessage(options: {
 		fileUrl?: string;
 		fileMimeType?: string;
+		files?: Array<{
+			url: string;
+			mediaType: string;
+			filename?: string;
+		}>;
 		textContent?: string;
 		userMessage?: string;
 	}): ModelMessage {
@@ -41,7 +46,18 @@ export class ScribeAIService {
 			| { type: "file"; data: URL; mediaType: string }
 		> = [];
 
-		// Add file if provided (URL-based for Gemini)
+		// Add multiple files first (URL-based)
+		if (options.files && options.files.length > 0) {
+			for (const f of options.files) {
+				content.push({
+					type: "file",
+					data: new URL(f.url),
+					mediaType: f.mediaType,
+				});
+			}
+		}
+
+		// Back-compat: single file if provided
 		if (options.fileUrl && options.fileMimeType) {
 			content.push({
 				type: "file",
@@ -87,13 +103,19 @@ export class ScribeAIService {
 	 * @param options - Options for the agent run
 	 * @returns Parsed and validated output matching the schema
 	 */
-	async runAgentWithSchema<T extends z.ZodType>(
-		agent: ScribeAgentConfig & { outputSchema: T },
+	async runAgentWithSchema<T extends z.ZodTypeAny>(
+		agent: { model: string; promptPath: string; outputSchema: T },
 		options: {
 			/** Optional file URL to attach (PDF, image, etc.) */
 			fileUrl?: string;
 			/** MIME type of the file */
 			fileMimeType?: string;
+			/** Optional multiple files to attach (preferred for Scribe v2) */
+			files?: Array<{
+				url: string;
+				mediaType: string;
+				filename?: string;
+			}>;
 			/** Optional text content (fallback if no file) */
 			textContent?: string;
 			/** Additional context to append to the user message */
@@ -125,7 +147,8 @@ export class ScribeAIService {
 			messages: [userMessage],
 		});
 
-		return object;
+		// AI SDK types allow partial objects; enforce full schema at runtime.
+		return (agent.outputSchema as T).parse(object);
 	}
 
 	/**
@@ -142,6 +165,12 @@ export class ScribeAIService {
 			fileUrl?: string;
 			/** MIME type of the file */
 			fileMimeType?: string;
+			/** Optional multiple files to attach */
+			files?: Array<{
+				url: string;
+				mediaType: string;
+				filename?: string;
+			}>;
 			/** Optional text content */
 			textContent?: string;
 			/** Template variables to replace in the prompt (e.g., {{RUBRIC}}) */
@@ -164,6 +193,7 @@ export class ScribeAIService {
 		const userMessage = this.buildUserMessage({
 			fileUrl: options.fileUrl,
 			fileMimeType: options.fileMimeType,
+			files: options.files,
 			textContent: options.textContent,
 		});
 

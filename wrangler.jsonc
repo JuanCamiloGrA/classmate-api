@@ -132,11 +132,6 @@
 			"name": "summarize-class",
 			"binding": "SUMMARIZE_CLASS_WORKFLOW",
 			"class_name": "SummarizeClassWorkflow"
-		},
-		{
-			"name": "generate-scribe-project",
-			"binding": "GENERATE_SCRIBE_PROJECT_WORKFLOW",
-			"class_name": "GenerateScribeProjectWorkflow"
 		}
 	]
 }

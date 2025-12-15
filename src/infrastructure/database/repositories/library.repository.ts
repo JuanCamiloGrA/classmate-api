@@ -70,9 +70,12 @@ export class D1LibraryRepository implements LibraryRepository {
 				subjectName: subjects.name,
 				subjectColor: subjects.colorTheme,
 				date: scribeProjects.createdAt,
-				sizeBytes: sql<
-					number | null
-				>`LENGTH(${scribeProjects.contentMarkdown})`.as("size_bytes"),
+				sizeBytes: sql<number>`COALESCE(
+          LENGTH(${scribeProjects.currentTypstJson}),
+          LENGTH(${scribeProjects.formSchema}),
+          LENGTH(${scribeProjects.rubricContent}),
+          0
+        )`.as("size_bytes"),
 				status: scribeProjects.status,
 				linkedTaskId: scribeProjects.taskId,
 				linkedTaskTitle: tasks.title,

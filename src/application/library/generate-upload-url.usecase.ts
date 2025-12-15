@@ -1,6 +1,7 @@
 import { STORAGE_TIER_LIMITS } from "../../domain/entities/library";
 import type { LibraryRepository } from "../../domain/repositories/library.repository";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
+import { buildUserR2Key } from "../../domain/services/r2-path.service";
 import type { PresignedUploadDTO } from "./library.dto";
 
 export interface GenerateUploadUrlInput {
@@ -54,9 +55,12 @@ export class GenerateUploadUrlUseCase {
 
 		// 2. Generate unique file ID and R2 key
 		const fileId = crypto.randomUUID();
-		const sanitizedFilename = input.filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-		const timestamp = Date.now();
-		const r2Key = `users/${input.userId}/${timestamp}-${fileId}-${sanitizedFilename}`;
+		const r2Key = buildUserR2Key({
+			userId: input.userId,
+			category: "user_uploads",
+			uuid: fileId,
+			filename: input.filename,
+		});
 
 		// 3. Create pending file record
 		await this.libraryRepository.createPendingFile({

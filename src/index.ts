@@ -35,11 +35,16 @@ import {
 	GetProfileEndpoint,
 } from "./interfaces/http/routes/profiles";
 import {
-	CreateScribeProjectEndpoint,
+	GenerateProfileScribeStyleUploadUrlEndpoint,
+	UpdateProfileScribeStyleEndpoint,
+} from "./interfaces/http/routes/profiles-scribe-style";
+import {
+	GenerateScribeAnswerUploadUrlEndpoint,
 	GenerateScribeRubricUploadUrlEndpoint,
 	GetScribeProjectEndpoint,
+	IterateScribeEndpoint,
 	ListScribeProjectsEndpoint,
-	UpdateScribeProjectEndpoint,
+	UnlockScribePdfEndpoint,
 } from "./interfaces/http/routes/scribe";
 import {
 	CreateSubjectEndpoint,
@@ -63,7 +68,6 @@ import {
 	SoftDeleteTermEndpoint,
 	UpdateTermEndpoint,
 } from "./interfaces/http/routes/terms";
-import { GenerateScribeProjectWorkflow } from "./workflows/generate-scribe-project";
 import { SummarizeClassWorkflow } from "./workflows/summarize-class";
 
 export default {
@@ -93,6 +97,11 @@ export default {
 		// Profile endpoints
 		apiApp.post("/profiles", CreateProfileEndpoint);
 		apiApp.get("/profiles/me", GetProfileEndpoint);
+		apiApp.post(
+			"/profiles/me/scribe-style/upload-url",
+			GenerateProfileScribeStyleUploadUrlEndpoint,
+		);
+		apiApp.put("/profiles/me/scribe-style", UpdateProfileScribeStyleEndpoint);
 
 		// Term endpoints
 		apiApp.get("/terms", ListTermsEndpoint);
@@ -135,10 +144,14 @@ export default {
 
 		// Scribe endpoints
 		apiApp.post("/scribe/upload-url", GenerateScribeRubricUploadUrlEndpoint);
-		apiApp.post("/scribe", CreateScribeProjectEndpoint);
+		apiApp.post(
+			"/scribe/projects/:id/answer-upload-url",
+			GenerateScribeAnswerUploadUrlEndpoint,
+		);
+		apiApp.post("/scribe", IterateScribeEndpoint);
 		apiApp.get("/scribe", ListScribeProjectsEndpoint);
 		apiApp.get("/scribe/:id", GetScribeProjectEndpoint);
-		apiApp.put("/scribe/:id", UpdateScribeProjectEndpoint);
+		apiApp.post("/scribe/:id/unlock_pdf", UnlockScribePdfEndpoint);
 
 		// Library endpoints
 		apiApp.get("/library", ListLibraryEndpoint);
@@ -161,4 +174,4 @@ export default {
 };
 
 // Export workflow for Cloudflare Workers
-export { SummarizeClassWorkflow, GenerateScribeProjectWorkflow };
+export { SummarizeClassWorkflow };
