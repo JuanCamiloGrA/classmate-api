@@ -119,7 +119,7 @@ export interface ScribeAgentWithSchema<TSchema extends z.ZodType>
 export const SCRIBE_AGENT: ScribeAgentWithSchema<
 	typeof ScribeAgentOutputSchema
 > = {
-	model: "google/gemini-3.0-pro",
+	model: "google/gemini-2.0-flash-lite",
 	promptPath: "scribe/prompt-scribe-agent.txt",
 	outputSchema: ScribeAgentOutputSchema,
 	description:
@@ -128,7 +128,7 @@ export const SCRIBE_AGENT: ScribeAgentWithSchema<
 
 export const SCRIBE_EXAM_AGENT: ScribeAgentWithSchema<typeof ScribeExamSchema> =
 	{
-		model: "google/gemini-3.0-pro",
+		model: "google/gemini-3.0-flash",
 		promptPath: "scribe/prompt-scribe-exam-agent.txt",
 		outputSchema: ScribeExamSchema,
 		description:

@@ -5,6 +5,12 @@ export class DevLogger {
 		return this.environment === "development";
 	}
 
+	private encodeUtf8(str: string): string {
+		// Ensure the string is properly encoded as UTF-8
+		// This is particularly important for characters with diacritics (tildes, accents, etc.)
+		return new TextDecoder().decode(new TextEncoder().encode(str));
+	}
+
 	log(tag: string, message: string, data?: unknown) {
 		if (!this.isDevelopment()) return;
 
@@ -12,10 +18,22 @@ export class DevLogger {
 
 		// We use console.log because Cloudflare Workers don't have a local file system.
 		// The user can pipe the output of 'wrangler dev' to a file if needed.
-		console.log(`[${timestamp}] [${tag}] ${message}`);
+		// Ensure UTF-8 encoding for proper display of accents and special characters
+		const encodedMessage = this.encodeUtf8(message);
+		const encodedTag = this.encodeUtf8(tag);
+		console.log(`[${timestamp}] [${encodedTag}] ${encodedMessage}`);
 		if (data) {
-			console.log(`--- DETAIL [${tag}] ---`);
-			console.log(JSON.stringify(data, null, 2));
+			console.log(`--- DETAIL [${encodedTag}] ---`);
+			// JSON.stringify handles UTF-8 correctly, but we ensure the output is valid
+			try {
+				const jsonStr = JSON.stringify(data, null, 2);
+				const encodedJson = this.encodeUtf8(jsonStr);
+				console.log(encodedJson);
+			} catch (error) {
+				console.log(
+					`[Error serializing data]: ${this.encodeUtf8(String(error))}`,
+				);
+			}
 			console.log(`-----------------------`);
 		}
 	}
@@ -27,10 +45,18 @@ export class DevLogger {
 		body?: unknown,
 		headers?: Record<string, string>,
 	) {
-		this.log(tag, `Request: ${method} ${url}`, { body, headers });
+		const encodedTag = this.encodeUtf8(tag);
+		const encodedUrl = this.encodeUtf8(url);
+		const encodedMethod = this.encodeUtf8(method);
+		this.log(encodedTag, `Request: ${encodedMethod} ${encodedUrl}`, {
+			body,
+			headers,
+		});
 	}
 
 	logResponse(tag: string, url: string, status: number, body?: unknown) {
-		this.log(tag, `Response: ${status} ${url}`, { body });
+		const encodedTag = this.encodeUtf8(tag);
+		const encodedUrl = this.encodeUtf8(url);
+		this.log(encodedTag, `Response: ${status} ${encodedUrl}`, { body });
 	}
 }
