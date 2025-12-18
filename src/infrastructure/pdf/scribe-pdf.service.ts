@@ -1,3 +1,5 @@
+import type { DevLogger } from "../logging/dev-logger";
+
 /**
  * Scribe PDF Generation Service
  * Calls the external SCRIBE_HEAVY_API_URL to compile Typst to PDF
@@ -77,6 +79,7 @@ export class ScribePdfService {
 	constructor(
 		private readonly apiUrl: string,
 		private readonly apiKey: string,
+		private readonly logger?: DevLogger,
 	) {
 		console.log("📄 [SCRIBE_PDF] Initialized Typst PDF generation service");
 	}
@@ -97,6 +100,14 @@ export class ScribePdfService {
 			bodyLength: request.content.body.length,
 		});
 
+		this.logger?.logRequest(
+			"SCRIBE_PDF",
+			`${this.apiUrl}/v1/generate`,
+			"POST",
+			request,
+			{ "X-API-KEY": "***" },
+		);
+
 		const response = await fetch(`${this.apiUrl}/v1/generate`, {
 			method: "POST",
 			headers: {
@@ -107,6 +118,13 @@ export class ScribePdfService {
 		});
 
 		const data = (await response.json()) as ScribePdfResponse;
+
+		this.logger?.logResponse(
+			"SCRIBE_PDF",
+			`${this.apiUrl}/v1/generate`,
+			response.status,
+			data,
+		);
 
 		if (!response.ok) {
 			const errorData = data as ScribePdfErrorResponse;

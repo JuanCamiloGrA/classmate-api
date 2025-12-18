@@ -28,6 +28,7 @@ import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ScribeProjectRepository } from "../../../infrastructure/database/repositories/d1-scribe-project.repository";
 import { D1ProfileRepository } from "../../../infrastructure/database/repositories/profile.repository";
+import { DevLogger } from "../../../infrastructure/logging/dev-logger";
 import { ScribePdfService } from "../../../infrastructure/pdf/scribe-pdf.service";
 import { AssetsPromptService } from "../../../infrastructure/prompt/assets.prompt.service";
 import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
@@ -100,16 +101,24 @@ async function createIterationUseCase(c: ScribeContext) {
 		"INTERNAL_SCRIBE_API_KEY",
 	);
 
+	const logger = new DevLogger(c.env.ENVIRONMENT);
+
 	const { storage, bucket } = await createPersistentStorageAdapter(c);
-	const promptService = new AssetsPromptService(c.env.ASSETS);
-	const scribeAIService = new ScribeAIService(aiGatewayApiKey, promptService);
+	const promptService = new AssetsPromptService(c.env.ASSETS, logger);
+	const scribeAIService = new ScribeAIService(
+		aiGatewayApiKey,
+		promptService,
+		logger,
+	);
 	const pdfService = new ScribePdfService(
 		scribeHeavyApiUrl,
 		internalScribeApiKey,
+		logger,
 	);
 	const manifestService = new ScribeManifestService(
 		scribeHeavyApiUrl,
 		internalScribeApiKey,
+		logger,
 	);
 
 	const db = DatabaseFactory.create(c.env.DB);
@@ -125,10 +134,12 @@ async function createIterationUseCase(c: ScribeContext) {
 			pdfService,
 			storage,
 			{ bucket },
+			logger,
 		),
 		scribeRepo,
 		bucket,
 		storage,
+		logger,
 	};
 }
 
@@ -363,10 +374,13 @@ export class IterateScribeEndpoint extends OpenAPIRoute {
 			const userId = ensureUserId(c);
 
 			const body = await c.req.json();
+
+			const { useCase, scribeRepo, logger } = await createIterationUseCase(c);
+
+			logger.log("SCRIBE_ENDPOINT", "Client Request Payload", body);
+
 			const parsed = IterateScribeSchema.safeParse(body);
 			if (!parsed.success) throw new ValidationError("Invalid input");
-
-			const { useCase, scribeRepo } = await createIterationUseCase(c);
 
 			let projectId = parsed.data.projectId;
 
@@ -411,7 +425,11 @@ export class IterateScribeEndpoint extends OpenAPIRoute {
 				await updateUseCase.execute(userId, projectId, { userAnswers: merged });
 			}
 
-			return c.json(await useCase.execute({ userId, projectId }), 200);
+			const result = await useCase.execute({ userId, projectId });
+
+			logger.log("SCRIBE_ENDPOINT", "Response Sent to Client", result);
+
+			return c.json(result, 200);
 		} catch (e) {
 			return handleError(e, c);
 		}

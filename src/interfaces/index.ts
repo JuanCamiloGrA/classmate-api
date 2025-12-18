@@ -19,6 +19,20 @@ export function createApp(_dependencies?: Dependencies) {
 	// 1. Request ID (observabilidad)
 	app.use("*", requestIdMiddleware);
 
+	// 1.5 Development Logging
+	app.use("*", async (c, next) => {
+		if (c.env.ENVIRONMENT === "development") {
+			const start = Date.now();
+			await next();
+			const duration = Date.now() - start;
+			console.log(
+				`[DEV_HTTP] ${c.req.method} ${c.req.path} ${c.res.status} (${duration}ms)`,
+			);
+		} else {
+			await next();
+		}
+	});
+
 	// 2. Database initialization (instantiate per-request using env binding)
 	app.use("*", async (c, next) => {
 		// Ensure the DB binding exists and pass the D1Database binding to the factory

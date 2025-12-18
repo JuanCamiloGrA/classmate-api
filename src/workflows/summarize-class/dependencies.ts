@@ -3,6 +3,7 @@ import { resolveSecretBinding } from "../../config/bindings";
 import { VercelAIService } from "../../infrastructure/ai/vercel.ai.service";
 import { DatabaseFactory } from "../../infrastructure/database/client";
 import { D1SummaryRepository } from "../../infrastructure/database/repositories/summary.repository";
+import { DevLogger } from "../../infrastructure/logging/dev-logger";
 import { MiniGFMMarkdownService } from "../../infrastructure/markdown/minigfm.markdown.service";
 import { CloudRunProcessingService } from "../../infrastructure/processing/cloud-run.processing.service";
 import { AssetsPromptService } from "../../infrastructure/prompt/assets.prompt.service";
@@ -39,10 +40,12 @@ export async function createSummarizeClassWorkflowHandler(
 		"R2_TEMPORAL_BUCKET_NAME",
 	);
 
+	const logger = new DevLogger(env.ENVIRONMENT);
+
 	// Create infrastructure services
 	const processingService = new CloudRunProcessingService(env);
 	const aiService = new VercelAIService(aiGatewayApiKey);
-	const promptService = new AssetsPromptService(env.ASSETS);
+	const promptService = new AssetsPromptService(env.ASSETS, logger);
 	const storageService = new R2StorageService({
 		endpoint: r2Endpoint,
 		accessKeyId: r2AccessKeyId,

@@ -9,6 +9,7 @@ import {
 } from "../../domain/services/scribe/agents";
 import type { ScribeAIService } from "../../infrastructure/ai/scribe.ai.service";
 import type { ScribeManifestService } from "../../infrastructure/api/scribe-manifest.service";
+import type { DevLogger } from "../../infrastructure/logging/dev-logger";
 import type {
 	ScribePdfContent,
 	ScribePdfMetadata,
@@ -66,12 +67,18 @@ export class RunScribeIterationUseCase {
 		private readonly pdfService: ScribePdfService,
 		private readonly storage: StorageRepository,
 		private readonly options: RunScribeIterationOptions,
+		private readonly logger?: DevLogger,
 	) {}
 
 	async execute(params: {
 		userId: string;
 		projectId: string;
 	}): Promise<RunScribeIterationResult> {
+		this.logger?.log(
+			"SCRIBE_USECASE",
+			"Executing RunScribeIterationUseCase",
+			params,
+		);
 		const project = await this.scribeProjectRepository.findById(
 			params.userId,
 			params.projectId,

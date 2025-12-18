@@ -7,6 +7,7 @@ import {
 import type { z } from "zod";
 import type { PromptService } from "../../domain/services/prompt.service";
 import type { ScribeAgentConfig } from "../../domain/services/scribe/agents";
+import type { DevLogger } from "../logging/dev-logger";
 
 /**
  * Scribe AI Service
@@ -23,6 +24,7 @@ export class ScribeAIService {
 	constructor(
 		apiKey: string,
 		private promptService: PromptService,
+		private readonly logger?: DevLogger,
 	) {
 		this.gateway = createGateway({ apiKey });
 	}
@@ -139,6 +141,12 @@ export class ScribeAIService {
 
 		const userMessage = this.buildUserMessage(options);
 
+		this.logger?.log("SCRIBE_AI", `Running agent: ${agent.promptPath}`, {
+			model: agent.model,
+			userMessage,
+			templateVars: options.templateVars,
+		});
+
 		const { object } = await generateObject({
 			model,
 			schema: agent.outputSchema,
@@ -146,6 +154,12 @@ export class ScribeAIService {
 			system: systemPrompt,
 			messages: [userMessage],
 		});
+
+		this.logger?.log(
+			"SCRIBE_AI",
+			`Agent response: ${agent.promptPath}`,
+			object,
+		);
 
 		// AI SDK types allow partial objects; enforce full schema at runtime.
 		return (agent.outputSchema as T).parse(object);
@@ -197,11 +211,23 @@ export class ScribeAIService {
 			textContent: options.textContent,
 		});
 
+		this.logger?.log("SCRIBE_AI", `Running agent (text): ${agent.promptPath}`, {
+			model: agent.model,
+			userMessage,
+			templateVars: options.templateVars,
+		});
+
 		const { text } = await generateText({
 			model,
 			system: systemPrompt,
 			messages: [userMessage],
 		});
+
+		this.logger?.log(
+			"SCRIBE_AI",
+			`Agent response (text): ${agent.promptPath}`,
+			{ text },
+		);
 
 		return text;
 	}

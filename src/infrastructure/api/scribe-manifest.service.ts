@@ -1,3 +1,5 @@
+import type { DevLogger } from "../logging/dev-logger";
+
 /**
  * Scribe Manifest Service
  * Fetches template manifests from the SCRIBE_HEAVY_API to get configuration schemas
@@ -22,6 +24,7 @@ export class ScribeManifestService {
 	constructor(
 		private readonly apiUrl: string,
 		private readonly apiKey: string,
+		private readonly logger?: DevLogger,
 	) {
 		console.log("📋 [SCRIBE_MANIFEST] Initialized manifest service");
 	}
@@ -37,19 +40,24 @@ export class ScribeManifestService {
 			`🔍 [SCRIBE_MANIFEST] Fetching manifest for template: ${templateId}`,
 		);
 
-		const response = await fetch(
-			`${this.apiUrl}/v1/templates/${templateId}/manifest`,
-			{
-				method: "GET",
-				headers: {
-					"X-API-KEY": this.apiKey,
-					"Content-Type": "application/json",
-				},
+		const url = `${this.apiUrl}/v1/templates/${templateId}/manifest`;
+		this.logger?.logRequest("SCRIBE_MANIFEST", url, "GET", null, {
+			"X-API-KEY": "***",
+		});
+
+		const response = await fetch(url, {
+			method: "GET",
+			headers: {
+				"X-API-KEY": this.apiKey,
+				"Content-Type": "application/json",
 			},
-		);
+		});
 
 		if (!response.ok) {
 			const errorText = await response.text();
+			this.logger?.logResponse("SCRIBE_MANIFEST", url, response.status, {
+				error: errorText,
+			});
 			console.error(`❌ [SCRIBE_MANIFEST] Failed to fetch manifest`, {
 				status: response.status,
 				templateId,
@@ -61,6 +69,7 @@ export class ScribeManifestService {
 		}
 
 		const manifest = (await response.json()) as TemplateManifest;
+		this.logger?.logResponse("SCRIBE_MANIFEST", url, response.status, manifest);
 		console.log(`✅ [SCRIBE_MANIFEST] Manifest fetched successfully`, {
 			templateId,
 			hasSchema: !!manifest.template_config_schema,

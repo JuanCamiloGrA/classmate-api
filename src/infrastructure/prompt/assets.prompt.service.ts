@@ -1,4 +1,5 @@
 import type { PromptService } from "../../domain/services/prompt.service";
+import type { DevLogger } from "../logging/dev-logger";
 
 const DEFAULT_PROMPT = `You are an assistant that reads a class transcript and returns a concise, well-structured summary. Use markdown with headings, bullet points, and key takeaways. Respond in the original language.`;
 
@@ -7,7 +8,10 @@ const DEFAULT_PROMPT = `You are an assistant that reads a class transcript and r
  * Loads prompt from bundled assets via ASSETS binding
  */
 export class AssetsPromptService implements PromptService {
-	constructor(private readonly assetsFetcher?: Fetcher) {}
+	constructor(
+		private readonly assetsFetcher?: Fetcher,
+		private readonly logger?: DevLogger,
+	) {}
 
 	async loadPrompt(): Promise<string> {
 		return this.getPrompt("prompt.txt");
@@ -34,6 +38,9 @@ export class AssetsPromptService implements PromptService {
 			}
 
 			const promptText = await response.text();
+			this.logger?.log("PROMPT", `Prompt ${path} loaded`, {
+				length: promptText.length,
+			});
 			console.log(
 				`✅ [PROMPT] Prompt ${path} loaded from ASSETS successfully`,
 				{
