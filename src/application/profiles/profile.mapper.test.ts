@@ -28,7 +28,7 @@ describe("extractProfileDataFromWebhook", () => {
 		expect(result).toEqual({
 			id: "user_123",
 			email: "john@example.com",
-			name: "John",
+			name: "John Doe",
 		});
 	});
 
@@ -54,7 +54,32 @@ describe("extractProfileDataFromWebhook", () => {
 
 		const result = extractProfileDataFromWebhook(payload);
 
-		expect(result.name).toBeNull();
+		expect(result.name).toBe("Doe");
+	});
+
+	it("should handle missing last name", () => {
+		const payload: ClerkWebhookPayload = {
+			data: {
+				id: "user_123",
+				first_name: "John",
+				last_name: null,
+				email_addresses: [
+					{
+						id: "idn_123",
+						email_address: "john@example.com",
+						verification: { status: "verified" },
+					},
+				],
+				primary_email_address_id: "idn_123",
+			},
+			type: "user.created",
+			object: "event",
+			timestamp: 1728000000,
+		};
+
+		const result = extractProfileDataFromWebhook(payload);
+
+		expect(result.name).toBe("John");
 	});
 
 	it("should find correct email when multiple emails exist", () => {

@@ -36,8 +36,18 @@ export function extractProfileDataFromWebhook(
 		email = primaryEmail?.email_address || null;
 	}
 
-	// Extract name - use first_name if present, otherwise null
-	const name = userData.first_name || null;
+	const normalizeNamePart = (value: string | null | undefined) => {
+		const trimmed = value?.trim();
+		return trimmed ? trimmed : null;
+	};
+
+	const firstName = normalizeNamePart(userData.first_name);
+	const lastName = normalizeNamePart(userData.last_name);
+
+	// Extract name - prefer "first last", fall back to either part, else null
+	const name =
+		[firstName, lastName].filter((p): p is string => Boolean(p)).join(" ") ||
+		null;
 
 	return {
 		id: userData.id,
