@@ -3,11 +3,13 @@ import {
 	generateObject,
 	generateText,
 	type ModelMessage,
+	stepCountIs,
 } from "ai";
 import type { z } from "zod";
 import type { PromptService } from "../../domain/services/prompt.service";
 import type { ScribeAgentConfig } from "../../domain/services/scribe/agents";
 import type { DevLogger } from "../logging/dev-logger";
+import { createEditToolWithState } from "./tools/edit-content/edit.tool";
 
 /**
  * Scribe AI Service
@@ -230,5 +232,52 @@ export class ScribeAIService {
 		);
 
 		return text;
+	}
+
+	/**
+	 * Run the Fixer Agent with tool-calling enabled.
+	 * The Fixer edits the Typst body string via the `edit` tool; the final body is returned.
+	 */
+	async fixTypstCompilation(
+		agent: ScribeAgentConfig,
+		options: {
+			body: string;
+			diagnostic: string;
+			templateVars?: Record<string, string>;
+		},
+	): Promise<string> {
+		const model = this.gateway(agent.model);
+		let systemPrompt = await this.promptService.getPrompt(agent.promptPath);
+
+		if (options.templateVars) {
+			for (const [key, value] of Object.entries(options.templateVars)) {
+				systemPrompt = systemPrompt.replace(
+					new RegExp(`\\{\\{${key}\\}\\}`, "g"),
+					value,
+				);
+			}
+		}
+
+		const { edit, state } = createEditToolWithState(options.body);
+
+		const userMessage = this.buildUserMessage({
+			textContent: `DIAGNOSTIC:\n${options.diagnostic}\n\nBODY:\n${options.body}`,
+		});
+
+		this.logger?.log("SCRIBE_AI", `Running fixer agent: ${agent.promptPath}`, {
+			model: agent.model,
+		});
+
+		// Allow a small number of tool-calling steps (bounded for latency/cost).
+		await generateText({
+			model,
+			system: systemPrompt,
+			messages: [userMessage],
+			tools: { edit },
+			stopWhen: stepCountIs(5),
+			maxOutputTokens: 256,
+		});
+
+		return state.getContent();
 	}
 }

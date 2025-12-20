@@ -119,7 +119,7 @@ export interface ScribeAgentWithSchema<TSchema extends z.ZodType>
 export const SCRIBE_AGENT: ScribeAgentWithSchema<
 	typeof ScribeAgentOutputSchema
 > = {
-	model: "google/gemini-2.0-flash-lite",
+	model: "google/gemini-3-flash",
 	promptPath: "scribe/prompt-scribe-agent.txt",
 	outputSchema: ScribeAgentOutputSchema,
 	description:
@@ -128,12 +128,19 @@ export const SCRIBE_AGENT: ScribeAgentWithSchema<
 
 export const SCRIBE_EXAM_AGENT: ScribeAgentWithSchema<typeof ScribeExamSchema> =
 	{
-		model: "google/gemini-3.0-flash",
+		model: "google/gemini-3-flash",
 		promptPath: "scribe/prompt-scribe-exam-agent.txt",
 		outputSchema: ScribeExamSchema,
 		description:
 			"Generates a short multiple-choice exam from the rubric and generated PDF",
 	};
+
+export const SCRIBE_FIXER_AGENT: ScribeAgentConfig = {
+	model: "xai/grok-4.1-fast-reasoning",
+	promptPath: "scribe/prompt-scribe-fixer-agent.txt",
+	description:
+		"Fixes Typst compilation errors by editing the Typst body string using the edit tool and retrying compilation",
+};
 
 // =============================================================================
 // Supported MIME Types for Rubric Files

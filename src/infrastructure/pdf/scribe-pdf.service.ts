@@ -72,6 +72,19 @@ export type ScribePdfResponse =
 	| ScribePdfSuccessResponse
 	| ScribePdfErrorResponse;
 
+export class ScribePdfGenerationError extends Error {
+	constructor(
+		message: string,
+		readonly status: number,
+		readonly errorCode?: string,
+		readonly errorMessage?: string,
+		readonly details?: string,
+	) {
+		super(message);
+		this.name = "ScribePdfGenerationError";
+	}
+}
+
 /**
  * Service for generating PDFs from Typst content via the heavy processing API
  */
@@ -134,10 +147,12 @@ export class ScribePdfService {
 				errorMessage: errorData.error_message,
 				details: errorData.details,
 			});
-			throw new Error(
-				`PDF generation failed: ${errorData.error_message || "Unknown error"}${
-					errorData.details ? ` - ${errorData.details}` : ""
-				}`,
+			throw new ScribePdfGenerationError(
+				`PDF generation failed: ${errorData.error_message || "Unknown error"}`,
+				response.status,
+				errorData.error_code,
+				errorData.error_message,
+				errorData.details,
 			);
 		}
 

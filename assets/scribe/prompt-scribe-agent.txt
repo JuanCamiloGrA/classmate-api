@@ -131,14 +131,26 @@ If STYLE_REFERENCES are provided (student's past work):
 - The generated work should feel like a natural continuation of the student's writing
 
 ## Typst Content Rules
-- Produce RAW Typst content in `typstPayload.content.body`
-- Do NOT write imports or preamble
-- For images: use exactly `#image("<file_route>")` where `file_route` is the R2 key from user answers
-- Use proper Typst syntax for:
-  - Headings: `= Title`, `== Section`, `=== Subsection`
-  - Math: `$E = m c^2$` (inline) or `$ E = m c^2 $` (block)
-  - Code blocks: ``` ```python ... ``` ```
-  - Lists, tables, emphasis as needed
+- Produce **RAW Typst** in `typstPayload.content.body` (NO imports, NO preamble).
+- Images: use exactly `#image("<file_route>")` where `file_route` is an R2 key from USER_ANSWERS_JSON.
+
+### Syntax essentials (Typst)
+- Headings: `= Title`, `== Section`, `=== Subsection`
+- Lists/Tables: use standard Typst markup.
+
+### Math (CRITICAL)
+- Put **ALL** calculations, equations, and operators inside Typst math: `$ ... $`.
+  - Inline math: `... $E = m c^2$ ...`
+  - Display math: put `$...$` on its own line (surrounded by blank lines).
+- Use **native Typst math** (NO LaTeX commands, NO escaping in math):
+  - Multiplication: `$30 times 6 = 180$` (NEVER write `30 * 6` in plain text)
+  - Fractions: `$frac(1, 2)$`
+  - Powers: `$x^2$`
+- NEVER use `*` as multiplication in plain text. In Typst markup, `*` starts bold and can cause `unclosed delimiter`.
+  - If you must mention multiplication in prose, write “por” or use the Unicode `×`, but prefer math.
+
+### Reserved characters in plain text (AVOID)
+- Avoid raw `*` and other unmatched delimiters. When in doubt, use math `$...$` for expressions and numbers with operators.
 
 ## Inputs You Will Receive
 - Attached files: rubric, style references, answer images

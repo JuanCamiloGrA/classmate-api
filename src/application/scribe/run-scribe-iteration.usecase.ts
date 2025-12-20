@@ -4,6 +4,7 @@ import type { StorageRepository } from "../../domain/repositories/storage.reposi
 import {
 	SCRIBE_AGENT,
 	SCRIBE_EXAM_AGENT,
+	SCRIBE_FIXER_AGENT,
 	type ScribeAgentOutput,
 	type ScribeExam,
 } from "../../domain/services/scribe/agents";
@@ -15,6 +16,7 @@ import type {
 	ScribePdfMetadata,
 	ScribePdfService,
 } from "../../infrastructure/pdf/scribe-pdf.service";
+import { ScribePdfGenerationError } from "../../infrastructure/pdf/scribe-pdf.service";
 
 const PDF_PRESIGNED_URL_EXPIRATION_SECONDS = 7 * 24 * 60 * 60;
 const ATTACHMENT_URL_EXPIRATION_SECONDS = 60 * 60;
@@ -187,17 +189,84 @@ export class RunScribeIterationUseCase {
 			formSchema: null,
 		});
 
-		// Zod-validated payload; cast to the exact Heavy API request types.
-		const pdfMetadata = output.typstPayload.metadata as ScribePdfMetadata;
-		const pdfContent = output.typstPayload.content as ScribePdfContent;
+		const maxFixAttempts = 2;
 
-		const pdfResult = await this.pdfService.generatePdf({
-			user_id: params.userId,
-			template_id: project.templateId,
-			metadata: pdfMetadata,
-			content: pdfContent,
-			template_config: output.typstPayload.template_config,
+		// Persist the initial Typst payload for debugging/retries (per requirement).
+		let currentPayload = output.typstPayload as unknown as {
+			metadata: ScribePdfMetadata;
+			content: ScribePdfContent;
+			template_config: Record<string, unknown>;
+		};
+		await this.scribeProjectRepository.update(params.userId, params.projectId, {
+			currentTypstJson: JSON.stringify(currentPayload),
 		});
+
+		let pdfResult: Awaited<ReturnType<ScribePdfService["generatePdf"]>> | null =
+			null;
+
+		for (let attempt = 0; attempt <= maxFixAttempts; attempt++) {
+			try {
+				pdfResult = await this.pdfService.generatePdf({
+					user_id: params.userId,
+					template_id: project.templateId,
+					metadata: currentPayload.metadata,
+					content: currentPayload.content,
+					template_config: currentPayload.template_config,
+				});
+				break;
+			} catch (e) {
+				const isCompilationError =
+					e instanceof ScribePdfGenerationError &&
+					e.status === 400 &&
+					e.errorCode === "TYPST_COMPILATION_ERROR";
+
+				if (!isCompilationError || attempt >= maxFixAttempts) {
+					await this.scribeProjectRepository.update(
+						params.userId,
+						params.projectId,
+						{
+							status: "failed",
+							currentTypstJson: JSON.stringify(currentPayload),
+						},
+					);
+					throw e;
+				}
+
+				const diagnostic = e.details ?? e.errorMessage ?? e.message;
+				const fixedBody = await this.scribeAIService.fixTypstCompilation(
+					SCRIBE_FIXER_AGENT,
+					{
+						body: currentPayload.content.body,
+						diagnostic,
+					},
+				);
+
+				currentPayload = {
+					...currentPayload,
+					content: { ...currentPayload.content, body: fixedBody },
+				};
+
+				await this.scribeProjectRepository.update(
+					params.userId,
+					params.projectId,
+					{
+						currentTypstJson: JSON.stringify(currentPayload),
+					},
+				);
+			}
+		}
+
+		if (!pdfResult) {
+			await this.scribeProjectRepository.update(
+				params.userId,
+				params.projectId,
+				{
+					status: "failed",
+					currentTypstJson: JSON.stringify(currentPayload),
+				},
+			);
+			throw new Error("PDF generation failed after fixer attempts");
+		}
 
 		const pdfUrl = await this.storage.generatePresignedGetUrl(
 			this.options.bucket,
