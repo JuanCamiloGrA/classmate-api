@@ -146,6 +146,7 @@ export class RunScribeIterationUseCase {
 
 		const textContent = [
 			project.rubricContent ? `RUBRIC_TEXT:\n${project.rubricContent}` : "",
+			`STUDENT_NAME: ${profile.name ?? "Student"}`,
 			`USER_ANSWERS_JSON:\n${JSON.stringify(project.userAnswers ?? {}, null, 2)}`,
 			`STYLE_REFERENCES:\n${JSON.stringify(styleRefs, null, 2)}`,
 			`ANSWER_IMAGES:\n${JSON.stringify(answerImageRoutes, null, 2)}`,
@@ -165,6 +166,19 @@ export class RunScribeIterationUseCase {
 					),
 				},
 			});
+
+		if (output.kind === "ready") {
+			// Enforce profile name as the primary author
+			const studentName = profile.name ?? "Student";
+			if (output.typstPayload.metadata.authors.length > 0) {
+				output.typstPayload.metadata.authors[0].name = studentName;
+			} else {
+				output.typstPayload.metadata.authors.push({
+					name: studentName,
+					affiliation: "",
+				});
+			}
+		}
 
 		if (output.kind === "needs_input") {
 			await this.scribeProjectRepository.update(

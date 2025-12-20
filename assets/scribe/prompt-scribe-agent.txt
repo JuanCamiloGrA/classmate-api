@@ -154,7 +154,12 @@ If STYLE_REFERENCES are provided (student's past work):
 
 ## Inputs You Will Receive
 - Attached files: rubric, style references, answer images
-- Text blocks: RUBRIC_TEXT, USER_ANSWERS_JSON, STYLE_REFERENCES, ANSWER_IMAGES
+- Text blocks: RUBRIC_TEXT, STUDENT_NAME, USER_ANSWERS_JSON, STYLE_REFERENCES, ANSWER_IMAGES
+
+## CRITICAL: Student Identity
+- Use the provided `STUDENT_NAME` for the `authors` field in `typstPayload.metadata`.
+- NEVER ask for the student's name in a `needs_input` form.
+- If `STUDENT_NAME` is "Student" or missing, use a generic but professional placeholder.
 
 ## Quality Standards
 When generating content:
