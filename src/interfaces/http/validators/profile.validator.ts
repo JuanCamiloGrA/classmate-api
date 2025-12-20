@@ -27,6 +27,12 @@ const UserDataSchema = z.object({
 	external_accounts: z.array(ExternalAccountSchema).optional(),
 });
 
+const ClerkWebhookBaseSchema = z.object({
+	data: UserDataSchema,
+	object: z.literal("event"),
+	timestamp: z.number(),
+});
+
 /**
  * Validates a Clerk user.created webhook payload.
  * Ensures the webhook is for the expected event type and has all required fields.
@@ -40,3 +46,24 @@ export const ClerkWebhookPayloadSchema = z.object({
 });
 
 export type ClerkWebhookPayload = z.infer<typeof ClerkWebhookPayloadSchema>;
+
+/** Clerk user.created webhook payload (preferred export). */
+export const ClerkNewUserWebhookPayloadSchema = ClerkWebhookBaseSchema.extend({
+	type: z.literal("user.created"),
+});
+
+/** Clerk user.updated webhook payload. */
+export const ClerkUpdateUserWebhookPayloadSchema =
+	ClerkWebhookBaseSchema.extend({
+		type: z.literal("user.updated"),
+	});
+
+export type ClerkNewUserWebhookPayload = z.infer<
+	typeof ClerkNewUserWebhookPayloadSchema
+>;
+export type ClerkUpdateUserWebhookPayload = z.infer<
+	typeof ClerkUpdateUserWebhookPayloadSchema
+>;
+export type ClerkUserWebhookPayload =
+	| ClerkNewUserWebhookPayload
+	| ClerkUpdateUserWebhookPayload;

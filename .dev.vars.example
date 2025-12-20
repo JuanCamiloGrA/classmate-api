@@ -5,7 +5,8 @@
 # They can be defined in .dev.vars for local development.
 
 ENVIRONMENT=development
-CLERK_WEBHOOK_SECRET=whsec_your_secret_here
+CLERK_NEW_USER_WEBHOOK_SECRET=whsec_your_secret_here
+CLERK_UPDATE_USER_WEBHOOK_SECRET=whsec_your_secret_here
 
 # The variables below are Secret Store Variables.
 # They are available for various workers around the Cloudflare account.

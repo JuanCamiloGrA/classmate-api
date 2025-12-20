@@ -23,10 +23,15 @@
 	 */
 	"assets": { "directory": "./assets/", "binding": "ASSETS" },
 	/**
-	 * Secrets - Set via: wrangler secret put CLERK_WEBHOOK_SECRET
+	 * Webhook Secrets (normal worker secrets)
+	 * Set via:
+	 * - wrangler secret put CLERK_NEW_USER_WEBHOOK_SECRET
+	 * - wrangler secret put CLERK_UPDATE_USER_WEBHOOK_SECRET
+	 *
 	 * In development, create .dev.vars file with:
-	 * CLERK_WEBHOOK_SECRET=whsec_your_secret_here
-	 * ENVIRONMENT=development|production
+	 * - CLERK_NEW_USER_WEBHOOK_SECRET=whsec_your_secret_here
+	 * - CLERK_UPDATE_USER_WEBHOOK_SECRET=whsec_your_secret_here
+	 * - ENVIRONMENT=development|production
 	 */
 	"vars": {
 		"ENVIRONMENT": "production",

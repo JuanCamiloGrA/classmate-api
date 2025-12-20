@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Profile, ProfileData } from "../../../domain/entities/profile";
 import type { ProfileRepository } from "../../../domain/repositories/profile.repository";
 import type { Database } from "../client";
@@ -53,6 +53,41 @@ export class D1ProfileRepository implements ProfileRepository {
 			.get();
 
 		return result !== undefined && result !== null;
+	}
+
+	async upsertIdentityFromWebhook(profile: ProfileData): Promise<{
+		action: "created" | "updated" | "noop";
+		profileId: string;
+	}> {
+		const now = new Date().toISOString();
+
+		const updated = await this.db
+			.update(profiles)
+			.set({
+				email: profile.email,
+				name: profile.name,
+				updatedAt: now,
+			})
+			.where(
+				and(
+					eq(profiles.id, profile.id),
+					sql`(${profiles.email} is not ${profile.email} OR ${profiles.name} is not ${profile.name})`,
+				),
+			)
+			.returning({ id: profiles.id })
+			.get();
+
+		if (updated?.id) {
+			return { action: "updated", profileId: updated.id };
+		}
+
+		const exists = await this.existsById(profile.id);
+		if (exists) {
+			return { action: "noop", profileId: profile.id };
+		}
+
+		const created = await this.create(profile);
+		return { action: "created", profileId: created.id };
 	}
 
 	async updateScribeStyleSlot(

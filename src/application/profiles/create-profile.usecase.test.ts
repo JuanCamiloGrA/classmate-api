@@ -25,6 +25,7 @@ describe("CreateProfileUseCase", () => {
 			findById: vi.fn(),
 			create: vi.fn().mockResolvedValue(mockProfile),
 			existsById: vi.fn().mockResolvedValue(false),
+			upsertIdentityFromWebhook: vi.fn(),
 			updateScribeStyleSlot: vi.fn(),
 		};
 
@@ -49,6 +50,7 @@ describe("CreateProfileUseCase", () => {
 			findById: vi.fn(),
 			create: vi.fn(),
 			existsById: vi.fn().mockResolvedValue(true),
+			upsertIdentityFromWebhook: vi.fn(),
 			updateScribeStyleSlot: vi.fn(),
 		};
 
@@ -74,6 +76,7 @@ describe("CreateProfileUseCase", () => {
 				name: null,
 			}),
 			existsById: vi.fn().mockResolvedValue(false),
+			upsertIdentityFromWebhook: vi.fn(),
 			updateScribeStyleSlot: vi.fn(),
 		};
 
@@ -93,6 +96,7 @@ describe("CreateProfileUseCase", () => {
 			findById: vi.fn(),
 			create: vi.fn().mockRejectedValue(new Error("Database error")),
 			existsById: vi.fn().mockResolvedValue(false),
+			upsertIdentityFromWebhook: vi.fn(),
 			updateScribeStyleSlot: vi.fn(),
 		};
 

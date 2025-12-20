@@ -30,10 +30,7 @@ import {
 	MarkAllNotificationsReadEndpoint,
 	MarkNotificationReadEndpoint,
 } from "./interfaces/http/routes/notifications";
-import {
-	CreateProfileEndpoint,
-	GetProfileEndpoint,
-} from "./interfaces/http/routes/profiles";
+import { GetProfileEndpoint } from "./interfaces/http/routes/profiles";
 import {
 	GenerateProfileScribeStyleUploadUrlEndpoint,
 	UpdateProfileScribeStyleEndpoint,
@@ -68,6 +65,10 @@ import {
 	SoftDeleteTermEndpoint,
 	UpdateTermEndpoint,
 } from "./interfaces/http/routes/terms";
+import {
+	CreateProfileEndpoint,
+	UpdateProfileFromClerkEndpoint,
+} from "./interfaces/http/routes/webhooks-clerk";
 import { SummarizeClassWorkflow } from "./workflows/summarize-class";
 
 export default {
@@ -94,8 +95,11 @@ export default {
 		});
 
 		// Register OpenAPI endpoints
+		// Clerk webhooks
+		apiApp.post("/webhooks/clerk/user.created", CreateProfileEndpoint);
+		apiApp.post("/webhooks/clerk/user.updated", UpdateProfileFromClerkEndpoint);
+
 		// Profile endpoints
-		apiApp.post("/profiles", CreateProfileEndpoint);
 		apiApp.get("/profiles/me", GetProfileEndpoint);
 		apiApp.post(
 			"/profiles/me/scribe-style/upload-url",

@@ -66,7 +66,7 @@ export function normalizeTypstEscapes(content: string): string {
 		for (const suffix of sortedSuffixes) {
 			// Replace control char + suffix with backslash + prefix + suffix
 			const corrupted = controlChar + suffix;
-			const fixed = "\\" + prefix + suffix;
+			const fixed = `\\${prefix}${suffix}`;
 			result = result.split(corrupted).join(fixed);
 		}
 	}

@@ -10,7 +10,7 @@ The Profiles API provides endpoints for managing user profiles. Profiles are aut
 
 ### 1. Create Profile (Webhook)
 
-**Endpoint:** `POST /profiles`
+**Endpoint:** `POST /webhooks/clerk/user.created`
 
 **Purpose:** Webhook handler for Clerk `user.created` events. This endpoint is called automatically by Clerk when a new user is created.
 
@@ -48,8 +48,41 @@ The Profiles API provides endpoints for managing user profiles. Profiles are aut
 ```json
 {
   "success": true,
-  "message": "Profile created successfully",
   "profileId": "user_2eZpWWvKJlPuwhzVTmNl6Mq5tGR"
+}
+```
+
+---
+
+### 2. Update Profile (Webhook)
+
+**Endpoint:** `POST /webhooks/clerk/user.updated`
+
+**Purpose:** Webhook handler for Clerk `user.updated` events. Updates the existing profile's identity fields in D1 (currently: `profiles.name` and `profiles.email`) based on Clerk's payload.
+
+**Update rules:**
+
+- `profiles.email`: taken from the `email_addresses[]` item whose `id` matches `primary_email_address_id`.
+- `profiles.name`: concatenation of `first_name` + `last_name` (trimmed). Example: `"New Name" + " " + "New Last Name"`.
+- Performs a no-op when the stored values already match.
+- If the profile does not exist (unexpected), it will be created with default fields.
+
+**Headers (Required):**
+
+| Header | Value | Description |
+|--------|-------|-------------|
+| `svix-id` | `string` | Unique webhook message ID provided by Clerk |
+| `svix-timestamp` | `string` | Unix timestamp of webhook provided by Clerk |
+| `svix-signature` | `string` | v1,\<base64-signature\> HMAC-SHA256 signature for verification |
+| `Content-Type` | `application/json` | Must be application/json |
+
+**Response (200):**
+
+```json
+{
+  "success": true,
+  "profileId": "user_35dBuEC0UGiONT1yCvOunPec745",
+  "action": "updated"
 }
 ```
 
@@ -88,7 +121,7 @@ The Profiles API provides endpoints for managing user profiles. Profiles are aut
 
 ---
 
-### 2. Get User Profile
+### 3. Get User Profile
 
 **Endpoint:** `GET /profiles/me`
 

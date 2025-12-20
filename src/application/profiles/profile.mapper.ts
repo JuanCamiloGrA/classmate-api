@@ -1,5 +1,5 @@
 import type { ProfileData } from "../../domain/entities/profile";
-import type { ClerkWebhookPayload } from "../../interfaces/http/validators/profile.validator";
+import type { ClerkUserWebhookPayload } from "../../interfaces/http/validators/profile.validator";
 
 /**
  * Extract and transform profile data from a Clerk webhook payload.
@@ -20,7 +20,7 @@ import type { ClerkWebhookPayload } from "../../interfaces/http/validators/profi
  * ```
  */
 export function extractProfileDataFromWebhook(
-	payload: ClerkWebhookPayload,
+	payload: ClerkUserWebhookPayload,
 ): ProfileData {
 	const userData = payload.data;
 

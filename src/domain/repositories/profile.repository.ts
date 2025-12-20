@@ -29,6 +29,15 @@ export interface ProfileRepository {
 	existsById(id: string): Promise<boolean>;
 
 	/**
+	 * Upsert a profile's identity fields (name/email) based on external source-of-truth
+	 * (e.g., Clerk webhooks). Implementations should avoid DB writes when nothing changed.
+	 */
+	upsertIdentityFromWebhook(profile: ProfileData): Promise<{
+		action: "created" | "updated" | "noop";
+		profileId: string;
+	}>;
+
+	/**
 	 * Update one of the 2 Scribe style reference slots.
 	 * The slot points to a persistent R2 object key (`r2Key`) plus metadata.
 	 */
