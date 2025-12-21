@@ -59,7 +59,7 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				userId: data.userId,
 				taskId: data.taskId ?? null,
 				subjectId: data.subjectId ?? null,
-				templateId: data.templateId ?? "apa",
+				templateId: data.templateId ?? "default",
 				title: data.title ?? "Untitled Draft",
 				status: "processing",
 				rubricContent: data.rubricContent ?? null,

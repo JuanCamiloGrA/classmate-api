@@ -31,7 +31,7 @@ export class ScribeManifestService {
 
 	/**
 	 * Fetches the manifest for a given template ID
-	 * @param templateId - The template identifier (e.g., "apa", "ieee")
+	 * @param templateId - The template identifier (e.g., "default", "apa", "ieee")
 	 * @returns The template manifest containing the config schema
 	 * @throws Error if the manifest cannot be fetched
 	 */

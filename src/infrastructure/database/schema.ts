@@ -313,8 +313,8 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 	subjectId: text("subject_id").references(() => subjects.id, {
 		onDelete: "set null",
 	}),
-	/** Template ID for Typst generation (e.g., "apa", "ieee") */
-	templateId: text("template_id").notNull().default("apa"),
+	/** Template ID for Typst generation (e.g., "default", "apa", "ieee") */
+	templateId: text("template_id").notNull().default("default"),
 	title: text("title").notNull().default("Untitled Draft"),
 	status: text("status", {
 		enum: ["needs_input", "processing", "blocked", "available", "failed"],

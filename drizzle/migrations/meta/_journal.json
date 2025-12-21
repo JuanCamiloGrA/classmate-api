@@ -92,6 +92,13 @@
 			"when": 1765817495452,
 			"tag": "0012_abandoned_epoch",
 			"breakpoints": true
+		},
+		{
+			"idx": 13,
+			"version": "6",
+			"when": 1766358133728,
+			"tag": "0013_abandoned_junta",
+			"breakpoints": true
 		}
 	]
 }

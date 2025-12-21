@@ -185,7 +185,7 @@ const IterateScribeSchema = z.object({
 	title: z.string().optional(),
 	taskId: z.string().optional(),
 	subjectId: z.string().optional(),
-	templateId: z.string().default("apa"),
+	templateId: z.string().default("default"),
 	rubricContent: z.string().optional(),
 	rubricFileUrl: z.string().optional(),
 	rubricMimeType: z.string().optional(),

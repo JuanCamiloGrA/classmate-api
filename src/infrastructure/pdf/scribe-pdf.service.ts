@@ -42,7 +42,7 @@ export interface ScribePdfContent {
 export interface ScribePdfRequest {
 	/** User ID for path organization (required) */
 	user_id: string;
-	/** Template ID for Typst generation (e.g., "apa", "ieee") */
+	/** Template ID for Typst generation (e.g., "default", "apa", "ieee") */
 	template_id: string;
 	/** Document metadata */
 	metadata: ScribePdfMetadata;

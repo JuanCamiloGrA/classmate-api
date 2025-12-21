@@ -27,7 +27,7 @@ export interface ScribeProject {
 	taskId: string | null;
 	/** Optional Subject ID associated with this project */
 	subjectId: string | null;
-	/** Template ID for Typst generation (e.g., "apa", "ieee") */
+	/** Template ID for Typst generation (e.g., "default", "apa", "ieee") */
 	templateId: string;
 	/** Project title */
 	title: string;
@@ -76,7 +76,7 @@ export interface CreateScribeProjectData {
 	taskId?: string | null;
 	/** Optional Subject ID */
 	subjectId?: string | null;
-	/** Template ID for Typst generation (defaults to "apa") */
+	/** Template ID for Typst generation (defaults to "default") */
 	templateId?: string;
 	/** Initial rubric content (text) */
 	rubricContent?: string | null;
