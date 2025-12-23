@@ -41,6 +41,7 @@ import {
 	GetScribeProjectEndpoint,
 	IterateScribeEndpoint,
 	ListScribeProjectsEndpoint,
+	ListScribeTemplatesEndpoint,
 	UnlockScribePdfEndpoint,
 } from "./interfaces/http/routes/scribe";
 import {
@@ -154,6 +155,7 @@ export default {
 		);
 		apiApp.post("/scribe", IterateScribeEndpoint);
 		apiApp.get("/scribe", ListScribeProjectsEndpoint);
+		apiApp.get("/scribe/templates", ListScribeTemplatesEndpoint);
 		apiApp.get("/scribe/:id", GetScribeProjectEndpoint);
 		apiApp.post("/scribe/:id/unlock_pdf", UnlockScribePdfEndpoint);
 

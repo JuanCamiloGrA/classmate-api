@@ -228,6 +228,16 @@ const IterateScribeResponseSchema = z.discriminatedUnion("kind", [
 
 const UnlockPdfResponseSchema = z.object({ success: z.literal(true) });
 
+const ScribeTemplateSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	description: z.string(),
+});
+
+const ListScribeTemplatesResponseSchema = z.object({
+	templates: z.array(ScribeTemplateSchema),
+});
+
 // -----------------------------------------------------------------------------
 // Endpoints
 // -----------------------------------------------------------------------------
@@ -430,6 +440,66 @@ export class IterateScribeEndpoint extends OpenAPIRoute {
 			logger.log("SCRIBE_ENDPOINT", "Response Sent to Client", result);
 
 			return c.json(result, 200);
+		} catch (e) {
+			return handleError(e, c);
+		}
+	}
+}
+
+export class ListScribeTemplatesEndpoint extends OpenAPIRoute {
+	schema = {
+		tags: ["Scribe"],
+		summary: "List available Scribe templates",
+		responses: {
+			"200": {
+				description: "Templates from Scribe Heavy API",
+				...contentJson(ListScribeTemplatesResponseSchema),
+			},
+		},
+	};
+
+	async handle(c: ScribeContext) {
+		try {
+			ensureUserId(c);
+
+			const scribeHeavyApiUrl = await resolveSecretBinding(
+				c.env.SCRIBE_HEAVY_API_URL,
+				"SCRIBE_HEAVY_API_URL",
+			);
+			const internalScribeApiKey = await resolveSecretBinding(
+				c.env.INTERNAL_SCRIBE_API_KEY,
+				"INTERNAL_SCRIBE_API_KEY",
+			);
+
+			const url = `${scribeHeavyApiUrl}/v1/templates`;
+			const response = await fetch(url, {
+				method: "GET",
+				headers: {
+					"X-API-KEY": internalScribeApiKey,
+					Accept: "application/json",
+				},
+			});
+
+			const contentType =
+				response.headers.get("Content-Type") ?? "application/json";
+
+			if (!response.ok) {
+				const payload = await response.text();
+				throw new Error(
+					`Failed to fetch templates: ${response.status} - ${payload}`,
+				);
+			}
+
+			if (!response.body) {
+				const payload = await response.text();
+				return c.body(payload, 200, {
+					"Content-Type": contentType,
+				});
+			}
+
+			return c.body(response.body, 200, {
+				"Content-Type": contentType,
+			});
 		} catch (e) {
 			return handleError(e, c);
 		}
