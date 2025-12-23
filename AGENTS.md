@@ -29,6 +29,12 @@ bun run deploy
 
 # Test
 bun run test
+
+# Lint and format (Biome)
+bun run check
+
+# Type checking
+bunx tsc --noEmit
 ```
 
 ---
