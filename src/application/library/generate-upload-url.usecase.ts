@@ -38,8 +38,8 @@ export class GenerateUploadUrlUseCase {
 
 	constructor(
 		private readonly libraryRepository: LibraryRepository,
-		private readonly storageAccountingRepository: StorageAccountingRepository,
-		private readonly storageRepository: StorageRepository,
+		readonly storageAccountingRepository: StorageAccountingRepository,
+		readonly storageRepository: StorageRepository,
 		private readonly options: GenerateUploadUrlOptions,
 	) {
 		this.uploadGuardService = new UploadGuardService(

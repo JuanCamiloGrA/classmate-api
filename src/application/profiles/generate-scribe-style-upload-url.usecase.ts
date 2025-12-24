@@ -37,9 +37,9 @@ export class GenerateScribeStyleUploadUrlUseCase {
 
 	constructor(
 		private readonly profileRepository: ProfileRepository,
-		private readonly libraryRepository: LibraryRepository,
-		private readonly storageAccountingRepository: StorageAccountingRepository,
-		private readonly storageRepository: StorageRepository,
+		readonly libraryRepository: LibraryRepository,
+		readonly storageAccountingRepository: StorageAccountingRepository,
+		readonly storageRepository: StorageRepository,
 		private readonly options: GenerateScribeStyleUploadUrlOptions,
 	) {
 		this.uploadGuardService = new UploadGuardService(
