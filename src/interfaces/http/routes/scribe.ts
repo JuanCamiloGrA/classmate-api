@@ -11,6 +11,7 @@ import { ListScribeProjectsUseCase } from "../../../application/scribe/list-scri
 import { RunScribeIterationUseCase } from "../../../application/scribe/run-scribe-iteration.usecase";
 import { UnlockScribePdfUseCase } from "../../../application/scribe/unlock-scribe-pdf.usecase";
 import { UpdateScribeProjectUseCase } from "../../../application/scribe/update-scribe-project.usecase";
+import { UploadGuardService } from "../../../application/storage/upload-guard.service";
 import type { Bindings, Variables } from "../../../config/bindings";
 import { resolveSecretBinding } from "../../../config/bindings";
 import { validateEnv } from "../../../config/env";
@@ -27,7 +28,9 @@ import { ScribeManifestService } from "../../../infrastructure/api/scribe-manife
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ScribeProjectRepository } from "../../../infrastructure/database/repositories/d1-scribe-project.repository";
+import { D1LibraryRepository } from "../../../infrastructure/database/repositories/library.repository";
 import { D1ProfileRepository } from "../../../infrastructure/database/repositories/profile.repository";
+import { D1StorageAccountingRepository } from "../../../infrastructure/database/repositories/storage-accounting.repository";
 import { DevLogger } from "../../../infrastructure/logging/dev-logger";
 import { ScribePdfService } from "../../../infrastructure/pdf/scribe-pdf.service";
 import { AssetsPromptService } from "../../../infrastructure/prompt/assets.prompt.service";
@@ -154,6 +157,7 @@ const GenerateRubricUploadUrlSchema = z.object({
 			message: `Unsupported file type. Allowed: ${SUPPORTED_RUBRIC_MIME_TYPES.join(", ")}`,
 		}),
 	}),
+	sizeBytes: z.number().int().positive("File size must be positive"),
 });
 
 const GenerateRubricUploadUrlResponseSchema = z.object({
@@ -172,6 +176,7 @@ const GenerateScribeAnswerUploadUrlSchema = z.object({
 	questionId: z.string().min(1),
 	fileName: z.string().min(1),
 	contentType: z.enum(AnswerUploadMimeTypes),
+	sizeBytes: z.number().int().positive("File size must be positive"),
 });
 
 const GenerateScribeAnswerUploadUrlResponseSchema = z.object({
@@ -187,7 +192,7 @@ const IterateScribeSchema = z.object({
 	subjectId: z.string().optional(),
 	templateId: z.string().default("default"),
 	rubricContent: z.string().optional(),
-	rubricFileUrl: z.string().optional(),
+	rubricFileR2Key: z.string().optional(),
 	rubricMimeType: z.string().optional(),
 	// Optional: answers from the latest form iteration
 	userAnswers: z.record(z.unknown()).optional(),
@@ -200,7 +205,7 @@ const ScribeProjectResponseSchema = z.object({
 	title: z.string(),
 	status: z.string(),
 	rubricContent: z.string().nullable(),
-	rubricFileUrl: z.string().nullable(),
+	rubricFileR2Key: z.string().nullable(),
 	rubricMimeType: z.string().nullable(),
 	formSchema: z.unknown().nullable(),
 	userAnswers: z.unknown().nullable(),
@@ -271,7 +276,7 @@ export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
 				);
 			}
 
-			const { fileName, contentType } = validation.data;
+			const { fileName, contentType, sizeBytes } = validation.data;
 
 			const { storage, bucket } = await createPersistentStorageAdapter(c);
 
@@ -287,12 +292,26 @@ export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
 				filename: sanitizeFilename(fileName),
 			});
 
-			const signedUrl = await storage.generatePresignedPutUrl(
-				bucket,
-				key,
-				contentType,
-				env.R2_PRESIGNED_URL_EXPIRATION_SECONDS,
+			// Use UploadGuardService for policy and accounting
+			const db = DatabaseFactory.create(c.env.DB);
+			const libraryRepo = new D1LibraryRepository(db);
+			const storageAccountingRepo = new D1StorageAccountingRepository(db);
+
+			const uploadGuard = new UploadGuardService(
+				libraryRepo,
+				storageAccountingRepo,
+				storage,
 			);
+
+			const { uploadUrl } = await uploadGuard.generatePresignedUpload({
+				userId,
+				r2Key: key,
+				mimeType: contentType,
+				sizeBytes,
+				bucketType: "persistent",
+				bucket,
+				expiresInSeconds: env.R2_PRESIGNED_URL_EXPIRATION_SECONDS,
+			});
 
 			const publicUrl = await storage.generatePresignedGetUrl(
 				bucket,
@@ -300,7 +319,7 @@ export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
 				7 * 24 * 60 * 60,
 			);
 
-			return c.json({ signedUrl, key, publicUrl }, 200);
+			return c.json({ signedUrl: uploadUrl, key, publicUrl }, 200);
 		} catch (e) {
 			return handleError(e, c);
 		}
@@ -339,12 +358,20 @@ export class GenerateScribeAnswerUploadUrlEndpoint extends OpenAPIRoute {
 				: 3600;
 
 			const db = DatabaseFactory.create(c.env.DB);
-			const repo = new D1ScribeProjectRepository(db);
+			const scribeRepo = new D1ScribeProjectRepository(db);
+			const libraryRepo = new D1LibraryRepository(db);
+			const storageAccountingRepo = new D1StorageAccountingRepository(db);
 
-			const useCase = new GenerateScribeAnswerUploadUrlUseCase(repo, storage, {
-				bucket,
-				expiresInSeconds,
-			});
+			const useCase = new GenerateScribeAnswerUploadUrlUseCase(
+				scribeRepo,
+				libraryRepo,
+				storageAccountingRepo,
+				storage,
+				{
+					bucket,
+					expiresInSeconds,
+				},
+			);
 
 			const result = await useCase.execute({
 				userId,
@@ -352,6 +379,7 @@ export class GenerateScribeAnswerUploadUrlEndpoint extends OpenAPIRoute {
 				questionId: validation.data.questionId,
 				fileName: validation.data.fileName,
 				contentType: validation.data.contentType,
+				sizeBytes: validation.data.sizeBytes,
 			});
 
 			return c.json(result, 200);
@@ -395,13 +423,13 @@ export class IterateScribeEndpoint extends OpenAPIRoute {
 			let projectId = parsed.data.projectId;
 
 			if (!projectId) {
-				const { rubricContent, rubricFileUrl, rubricMimeType } = parsed.data;
-				if (!rubricContent && !rubricFileUrl) {
+				const { rubricContent, rubricFileR2Key, rubricMimeType } = parsed.data;
+				if (!rubricContent && !rubricFileR2Key) {
 					throw new ValidationError(
-						"Either rubricContent (text) or rubricFileUrl (file) must be provided",
+						"Either rubricContent (text) or rubricFileR2Key (file) must be provided",
 					);
 				}
-				if (rubricFileUrl && rubricMimeType) {
+				if (rubricFileR2Key && rubricMimeType) {
 					if (!isSupportedRubricMimeType(rubricMimeType)) {
 						throw new ValidationError(
 							`Unsupported rubric file type: ${rubricMimeType}. Allowed: ${SUPPORTED_RUBRIC_MIME_TYPES.join(", ")}`,
@@ -417,7 +445,7 @@ export class IterateScribeEndpoint extends OpenAPIRoute {
 					subjectId: parsed.data.subjectId,
 					templateId: parsed.data.templateId,
 					rubricContent: rubricContent ?? null,
-					rubricFileUrl: rubricFileUrl ?? null,
+					rubricFileR2Key: rubricFileR2Key ?? null,
 					rubricMimeType: rubricMimeType ?? null,
 				});
 				projectId = project.id;

@@ -63,7 +63,7 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				title: data.title ?? "Untitled Draft",
 				status: "processing",
 				rubricContent: data.rubricContent ?? null,
-				rubricFileUrl: data.rubricFileUrl ?? null,
+				rubricFileR2Key: data.rubricFileR2Key ?? null,
 				rubricMimeType: data.rubricMimeType ?? null,
 				formSchema: null,
 				userAnswers: null,
@@ -105,8 +105,8 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 		if (data.status !== undefined) updatePayload.status = data.status;
 		if (data.rubricContent !== undefined)
 			updatePayload.rubricContent = data.rubricContent;
-		if (data.rubricFileUrl !== undefined)
-			updatePayload.rubricFileUrl = data.rubricFileUrl;
+		if (data.rubricFileR2Key !== undefined)
+			updatePayload.rubricFileR2Key = data.rubricFileR2Key;
 		if (data.rubricMimeType !== undefined)
 			updatePayload.rubricMimeType = data.rubricMimeType;
 		if (data.formSchema !== undefined)

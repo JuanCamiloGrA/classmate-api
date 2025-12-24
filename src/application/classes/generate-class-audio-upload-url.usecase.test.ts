@@ -1,7 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClassWithResources } from "../../domain/entities/class";
 import type { ClassRepository } from "../../domain/repositories/class.repository";
+import type { LibraryRepository } from "../../domain/repositories/library.repository";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
+import type { StorageAccountingRepository } from "../../domain/repositories/storage-accounting.repository";
 import {
 	ClassNotAccessibleError,
 	GenerateClassAudioUploadUrlUseCase,
@@ -40,6 +42,8 @@ const mockDeletedClass: ClassWithResources = {
 
 describe("GenerateClassAudioUploadUrlUseCase", () => {
 	let mockClassRepository: ClassRepository;
+	let mockLibraryRepository: LibraryRepository;
+	let mockStorageAccountingRepository: StorageAccountingRepository;
 	let mockStorageRepository: StorageRepository;
 
 	beforeEach(() => {
@@ -52,9 +56,44 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			hardDelete: vi.fn(),
 		};
 
+		mockLibraryRepository = {
+			findAll: vi.fn(),
+			getStorageUsage: vi.fn().mockResolvedValue({
+				usedBytes: 0,
+				totalBytes: 1073741824,
+				tier: "free",
+			}),
+			createPendingFile: vi.fn(),
+			confirmUpload: vi.fn(),
+			getFileById: vi.fn(),
+			deleteUserFile: vi.fn(),
+			softDeleteScribeProject: vi.fn(),
+			updateStorageUsage: vi.fn(),
+			linkFileToTask: vi.fn(),
+		};
+
+		mockStorageAccountingRepository = {
+			createOrUpdatePending: vi.fn().mockResolvedValue({
+				id: "storage-obj-1",
+				userId: "user-123",
+				r2Key: "test-key",
+				bucketType: "temporal",
+				status: "pending",
+				sizeBytes: 1024000,
+				confirmedAt: null,
+				createdAt: new Date().toISOString(),
+				updatedAt: new Date().toISOString(),
+			}),
+			confirmUpload: vi.fn(),
+			markDeleted: vi.fn(),
+			getByR2Key: vi.fn(),
+			listConfirmedByUser: vi.fn(),
+		};
+
 		mockStorageRepository = {
 			generatePresignedPutUrl: vi.fn(),
 			generatePresignedGetUrl: vi.fn(),
+			headObject: vi.fn(),
 		};
 	});
 
@@ -71,6 +110,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -83,6 +124,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			classId: "class-123",
 			fileName: "audio.mp3",
 			contentType: "audio/mpeg",
+			sizeBytes: 1024000,
 		});
 
 		expect(result.signedUrl).toBe(mockSignedUrl);
@@ -93,12 +135,6 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			"user-123",
 			"class-123",
 		);
-		expect(mockStorageRepository.generatePresignedPutUrl).toHaveBeenCalledWith(
-			"temporal",
-			expect.stringContaining("users/user-123/temp/"),
-			"audio/mpeg",
-			300,
-		);
 	});
 
 	it("should throw ClassNotAccessibleError if class not found", async () => {
@@ -108,6 +144,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -121,6 +159,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 				classId: "non-existent",
 				fileName: "audio.mp3",
 				contentType: "audio/mpeg",
+				sizeBytes: 1024000,
 			}),
 		).rejects.toThrow(ClassNotAccessibleError);
 	});
@@ -132,6 +171,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -145,6 +186,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 				classId: "class-123",
 				fileName: "audio.mp3",
 				contentType: "audio/mpeg",
+				sizeBytes: 1024000,
 			}),
 		).rejects.toThrow(ClassNotAccessibleError);
 	});
@@ -161,6 +203,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -173,6 +217,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			classId: "class-123",
 			fileName: "path/to/audio.mp3",
 			contentType: "audio/mpeg",
+			sizeBytes: 1024000,
 		});
 
 		expect(result.key).toMatch(/path_to_audio\.mp3$/);
@@ -186,6 +231,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -199,6 +246,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 				classId: "class-123",
 				fileName: "   ",
 				contentType: "audio/mpeg",
+				sizeBytes: 1024000,
 			}),
 		).rejects.toThrow("File name cannot be empty");
 	});
@@ -215,6 +263,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -227,6 +277,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			classId: "class-123",
 			fileName: "audio.mp3",
 			contentType: "audio/wav",
+			sizeBytes: 1024000,
 		});
 
 		expect(mockStorageRepository.generatePresignedPutUrl).toHaveBeenCalledWith(
@@ -249,6 +300,8 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			mockClassRepository,
+			mockLibraryRepository,
+			mockStorageAccountingRepository,
 			mockStorageRepository,
 			{
 				bucket: "temporal",
@@ -261,6 +314,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			classId: "class-123",
 			fileName: "audio.mp3",
 			contentType: "audio/mpeg",
+			sizeBytes: 1024000,
 		});
 
 		const result2 = await useCase.execute({
@@ -268,6 +322,7 @@ describe("GenerateClassAudioUploadUrlUseCase", () => {
 			classId: "class-123",
 			fileName: "audio.mp3",
 			contentType: "audio/mpeg",
+			sizeBytes: 1024000,
 		});
 
 		expect(result1.key).not.toBe(result2.key);

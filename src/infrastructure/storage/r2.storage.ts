@@ -1,5 +1,6 @@
 import {
 	GetObjectCommand,
+	HeadObjectCommand,
 	PutObjectCommand,
 	S3Client,
 } from "@aws-sdk/client-s3";
@@ -56,5 +57,35 @@ export class R2StorageAdapter implements StorageRepository {
 		return getSignedUrl(this.client, command, {
 			expiresIn: expiresInSeconds,
 		});
+	}
+
+	async headObject(
+		bucket: string,
+		key: string,
+	): Promise<{ sizeBytes: number; etag: string } | null> {
+		try {
+			const command = new HeadObjectCommand({
+				Bucket: bucket,
+				Key: key,
+			});
+
+			const response = await this.client.send(command);
+
+			return {
+				sizeBytes: response.ContentLength ?? 0,
+				etag: response.ETag ?? "",
+			};
+		} catch (error) {
+			// If object doesn't exist, return null
+			if (
+				error &&
+				typeof error === "object" &&
+				"name" in error &&
+				error.name === "NotFound"
+			) {
+				return null;
+			}
+			throw error;
+		}
 	}
 }

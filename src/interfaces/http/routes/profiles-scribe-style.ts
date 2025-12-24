@@ -7,7 +7,9 @@ import type { Bindings, Variables } from "../../../config/bindings";
 import { resolveSecretBinding } from "../../../config/bindings";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
+import { D1LibraryRepository } from "../../../infrastructure/database/repositories/library.repository";
 import { D1ProfileRepository } from "../../../infrastructure/database/repositories/profile.repository";
+import { D1StorageAccountingRepository } from "../../../infrastructure/database/repositories/storage-accounting.repository";
 import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
 import {
 	handleError,
@@ -38,6 +40,7 @@ const GenerateScribeStyleUploadUrlSchema = z.object({
 	slot: z.union([z.literal(1), z.literal(2)]),
 	fileName: z.string().min(1),
 	contentType: z.enum(AllowedStyleRefMimeTypes),
+	sizeBytes: z.number().int().positive("File size must be positive"),
 });
 
 const GenerateScribeStyleUploadUrlResponseSchema = z.object({
@@ -98,9 +101,13 @@ export class GenerateProfileScribeStyleUploadUrlEndpoint extends OpenAPIRoute {
 
 			const db = DatabaseFactory.create(c.env.DB);
 			const profileRepo = new D1ProfileRepository(db);
+			const libraryRepo = new D1LibraryRepository(db);
+			const storageAccountingRepo = new D1StorageAccountingRepository(db);
 
 			const useCase = new GenerateScribeStyleUploadUrlUseCase(
 				profileRepo,
+				libraryRepo,
+				storageAccountingRepo,
 				storageAdapter,
 				{
 					bucket,
@@ -113,6 +120,7 @@ export class GenerateProfileScribeStyleUploadUrlEndpoint extends OpenAPIRoute {
 				slot: parsed.data.slot,
 				fileName: parsed.data.fileName,
 				contentType: parsed.data.contentType,
+				sizeBytes: parsed.data.sizeBytes,
 			});
 
 			return c.json(result, 200);

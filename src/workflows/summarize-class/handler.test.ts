@@ -40,6 +40,7 @@ describe("SummarizeClassWorkflowHandler", () => {
 		mockStorageRepository = {
 			generatePresignedPutUrl: vi.fn(),
 			generatePresignedGetUrl: vi.fn(),
+			headObject: vi.fn(),
 		};
 
 		mockSummaryRepository = {

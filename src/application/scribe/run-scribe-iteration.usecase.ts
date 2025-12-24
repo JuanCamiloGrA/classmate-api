@@ -94,10 +94,14 @@ export class RunScribeIterationUseCase {
 
 		const attachments: FileAttachment[] = [];
 
-		// Rubric file (if present)
-		if (project.rubricFileUrl && project.rubricMimeType) {
+		// Rubric file (if present) - generate presigned URL on-demand
+		if (project.rubricFileR2Key && project.rubricMimeType) {
 			attachments.push({
-				url: project.rubricFileUrl,
+				url: await this.storage.generatePresignedGetUrl(
+					this.options.bucket,
+					project.rubricFileR2Key,
+					ATTACHMENT_URL_EXPIRATION_SECONDS,
+				),
 				mediaType: project.rubricMimeType,
 				filename: "rubric",
 			});
@@ -290,9 +294,13 @@ export class RunScribeIterationUseCase {
 
 		// Exam agent (rubric + generated pdf)
 		const examFiles: FileAttachment[] = [];
-		if (project.rubricFileUrl && project.rubricMimeType) {
+		if (project.rubricFileR2Key && project.rubricMimeType) {
 			examFiles.push({
-				url: project.rubricFileUrl,
+				url: await this.storage.generatePresignedGetUrl(
+					this.options.bucket,
+					project.rubricFileR2Key,
+					ATTACHMENT_URL_EXPIRATION_SECONDS,
+				),
 				mediaType: project.rubricMimeType,
 				filename: "rubric",
 			});

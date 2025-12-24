@@ -1,7 +1,11 @@
-import { STORAGE_TIER_LIMITS } from "../../domain/entities/library";
 import type { LibraryRepository } from "../../domain/repositories/library.repository";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
+import type { StorageAccountingRepository } from "../../domain/repositories/storage-accounting.repository";
 import { buildUserR2Key } from "../../domain/services/r2-path.service";
+import {
+	UploadGuardService,
+	UploadPolicyViolationError,
+} from "../storage/upload-guard.service";
 import type { PresignedUploadDTO } from "./library.dto";
 
 export interface GenerateUploadUrlInput {
@@ -27,33 +31,26 @@ export class StorageQuotaExceededError extends Error {
 
 /**
  * Use case for generating presigned upload URL.
- * Validates storage quota and creates pending file record.
+ * Now uses UploadGuardService for centralized policy and accounting.
  */
 export class GenerateUploadUrlUseCase {
+	private readonly uploadGuardService: UploadGuardService;
+
 	constructor(
 		private readonly libraryRepository: LibraryRepository,
+		private readonly storageAccountingRepository: StorageAccountingRepository,
 		private readonly storageRepository: StorageRepository,
 		private readonly options: GenerateUploadUrlOptions,
-	) {}
+	) {
+		this.uploadGuardService = new UploadGuardService(
+			libraryRepository,
+			storageAccountingRepository,
+			storageRepository,
+		);
+	}
 
 	async execute(input: GenerateUploadUrlInput): Promise<PresignedUploadDTO> {
-		// 1. Check storage quota
-		const usage = await this.libraryRepository.getStorageUsage(input.userId);
-
-		if (!usage) {
-			throw new Error("User profile not found");
-		}
-
-		const limit = STORAGE_TIER_LIMITS[usage.tier];
-		const projectedUsage = usage.usedBytes + input.sizeBytes;
-
-		if (projectedUsage > limit) {
-			throw new StorageQuotaExceededError(
-				`Upload would exceed storage quota. Used: ${usage.usedBytes}, Limit: ${limit}, File size: ${input.sizeBytes}`,
-			);
-		}
-
-		// 2. Generate unique file ID and R2 key
+		// Generate unique file ID and R2 key
 		const fileId = crypto.randomUUID();
 		const r2Key = buildUserR2Key({
 			userId: input.userId,
@@ -62,30 +59,41 @@ export class GenerateUploadUrlUseCase {
 			filename: input.filename,
 		});
 
-		// 3. Create pending file record
-		await this.libraryRepository.createPendingFile({
-			id: fileId,
-			userId: input.userId,
-			r2Key,
-			originalFilename: input.filename,
-			mimeType: input.mimeType,
-			sizeBytes: input.sizeBytes,
-			subjectId: input.subjectId ?? null,
-			taskId: input.taskId ?? null,
-		});
+		try {
+			// Use UploadGuardService for policy check and presigned URL generation
+			const { uploadUrl } =
+				await this.uploadGuardService.generatePresignedUpload({
+					userId: input.userId,
+					r2Key,
+					mimeType: input.mimeType,
+					sizeBytes: input.sizeBytes,
+					bucketType: "persistent",
+					bucket: this.options.bucket,
+					expiresInSeconds: this.options.expiresInSeconds,
+				});
 
-		// 4. Generate presigned PUT URL
-		const uploadUrl = await this.storageRepository.generatePresignedPutUrl(
-			this.options.bucket,
-			r2Key,
-			input.mimeType,
-			this.options.expiresInSeconds,
-		);
+			// Create pending file record for library tracking
+			await this.libraryRepository.createPendingFile({
+				id: fileId,
+				userId: input.userId,
+				r2Key,
+				originalFilename: input.filename,
+				mimeType: input.mimeType,
+				sizeBytes: input.sizeBytes,
+				subjectId: input.subjectId ?? null,
+				taskId: input.taskId ?? null,
+			});
 
-		return {
-			uploadUrl,
-			fileId,
-			r2Key,
-		};
+			return {
+				uploadUrl,
+				fileId,
+				r2Key,
+			};
+		} catch (error) {
+			if (error instanceof UploadPolicyViolationError) {
+				throw new StorageQuotaExceededError(error.message);
+			}
+			throw error;
+		}
 	}
 }

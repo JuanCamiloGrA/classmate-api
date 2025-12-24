@@ -1,7 +1,6 @@
 import { contentJson, OpenAPIRoute } from "chanfana";
 import type { Context } from "hono";
 import { z } from "zod";
-import { ConfirmUploadUseCase } from "../../../application/library/confirm-upload.usecase";
 import { DeleteLibraryItemUseCase } from "../../../application/library/delete-library-item.usecase";
 import {
 	GenerateUploadUrlUseCase,
@@ -9,6 +8,7 @@ import {
 } from "../../../application/library/generate-upload-url.usecase";
 import { GetStorageUsageUseCase } from "../../../application/library/get-storage-usage.usecase";
 import { ListLibraryItemsUseCase } from "../../../application/library/list-library-items.usecase";
+import { ConfirmUploadService } from "../../../application/storage/confirm-upload.service";
 import {
 	type Bindings,
 	resolveSecretBinding,
@@ -19,6 +19,7 @@ import type { LibraryFilters } from "../../../domain/repositories/library.reposi
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1LibraryRepository } from "../../../infrastructure/database/repositories/library.repository";
+import { D1StorageAccountingRepository } from "../../../infrastructure/database/repositories/storage-accounting.repository";
 import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
 import {
 	handleError,
@@ -223,7 +224,9 @@ async function generateUploadUrl(c: LibraryContext) {
 
 		const { filename, mimeType, sizeBytes, subjectId, taskId } = result.data;
 
-		const repository = getLibraryRepository(c);
+		const db = DatabaseFactory.create(c.env.DB);
+		const repository = new D1LibraryRepository(db);
+		const storageAccountingRepository = new D1StorageAccountingRepository(db);
 		const storageAdapter = await getStorageAdapter(c);
 		const bucket = await getBucketName(c);
 
@@ -231,10 +234,15 @@ async function generateUploadUrl(c: LibraryContext) {
 			? Number.parseInt(c.env.R2_PRESIGNED_URL_EXPIRATION_SECONDS, 10)
 			: 3600;
 
-		const useCase = new GenerateUploadUrlUseCase(repository, storageAdapter, {
-			bucket,
-			expiresInSeconds,
-		});
+		const useCase = new GenerateUploadUrlUseCase(
+			repository,
+			storageAccountingRepository,
+			storageAdapter,
+			{
+				bucket,
+				expiresInSeconds,
+			},
+		);
 
 		const uploadResult = await useCase.execute({
 			userId,
@@ -276,13 +284,32 @@ async function confirmUpload(c: LibraryContext) {
 
 		const { fileId } = result.data;
 
-		const repository = getLibraryRepository(c);
-		const useCase = new ConfirmUploadUseCase(repository);
-		const confirmed = await useCase.execute({ fileId, userId });
+		// Get file to obtain r2Key
+		const db = DatabaseFactory.create(c.env.DB);
+		const repository = new D1LibraryRepository(db);
+		const file = await repository.getFileById(fileId, userId);
 
-		if (!confirmed) {
+		if (!file) {
 			throw new NotFoundError("File not found or not owned by user");
 		}
+
+		// Use ConfirmUploadService
+		const storageAccountingRepository = new D1StorageAccountingRepository(db);
+		const storageAdapter = await getStorageAdapter(c);
+		const bucket = await getBucketName(c);
+
+		const confirmService = new ConfirmUploadService(
+			storageAccountingRepository,
+			repository,
+			storageAdapter,
+		);
+
+		await confirmService.confirmUpload({
+			r2Key: file.r2Key,
+			bucket,
+			bucketType: "persistent",
+			userId,
+		});
 
 		return c.json(
 			{

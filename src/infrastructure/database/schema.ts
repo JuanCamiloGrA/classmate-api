@@ -201,6 +201,31 @@ export const userFiles = sqliteTable(
 	(table) => [index("idx_user_files_user_id").on(table.userId)],
 );
 
+export const userStorageObjects = sqliteTable(
+	"user_storage_objects",
+	{
+		id: text("id").primaryKey(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => profiles.id, { onDelete: "cascade" }),
+		r2Key: text("r2_key").notNull(),
+		bucketType: text("bucket_type", { enum: ["persistent", "temporal"] })
+			.notNull()
+			.default("persistent"),
+		status: text("status", { enum: ["pending", "confirmed", "deleted"] })
+			.notNull()
+			.default("pending"),
+		sizeBytes: integer("size_bytes").notNull().default(0),
+		confirmedAt: text("confirmed_at"),
+		createdAt: text("created_at").notNull().default(timestampDefault),
+		updatedAt: text("updated_at").notNull().default(timestampDefault),
+	},
+	(table) => [
+		index("idx_user_storage_objects_user_id").on(table.userId),
+		uniqueIndex("idx_user_storage_objects_r2_key").on(table.r2Key),
+	],
+);
+
 export const taskResources = sqliteTable(
 	"task_resources",
 	{
@@ -322,7 +347,7 @@ export const scribeProjects = sqliteTable("scribe_projects", {
 		.notNull()
 		.default("processing"),
 	rubricContent: text("rubric_content"),
-	rubricFileUrl: text("rubric_file_url"),
+	rubricFileR2Key: text("rubric_file_r2_key"),
 	rubricMimeType: text("rubric_mime_type"),
 	/** JSON schema for the dynamic form (needs_input) */
 	formSchema: text("form_schema", { mode: "json" }),
@@ -405,6 +430,12 @@ export type UserFile = typeof userFiles.$inferSelect;
 export type NewUserFile = typeof userFiles.$inferInsert;
 export const userFileSchema = createSelectSchema(userFiles);
 export const newUserFileSchema = createInsertSchema(userFiles);
+
+export type UserStorageObject = typeof userStorageObjects.$inferSelect;
+export type NewUserStorageObject = typeof userStorageObjects.$inferInsert;
+export const userStorageObjectSchema = createSelectSchema(userStorageObjects);
+export const newUserStorageObjectSchema =
+	createInsertSchema(userStorageObjects);
 
 export type TaskResource = typeof taskResources.$inferSelect;
 export type NewTaskResource = typeof taskResources.$inferInsert;

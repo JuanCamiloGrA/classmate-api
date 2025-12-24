@@ -11,6 +11,8 @@ import { validateEnv } from "../../../config/env";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ClassRepository } from "../../../infrastructure/database/repositories/class.repository";
+import { D1LibraryRepository } from "../../../infrastructure/database/repositories/library.repository";
+import { D1StorageAccountingRepository } from "../../../infrastructure/database/repositories/storage-accounting.repository";
 import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
 import {
 	handleError,
@@ -57,10 +59,12 @@ async function generateUploadUrl(c: ClassContext) {
 			);
 		}
 
-		const { file_name, content_type } = validationResult.data;
+		const { file_name, content_type, size_bytes } = validationResult.data;
 
 		const db = DatabaseFactory.create(c.env.DB);
 		const classRepository = new D1ClassRepository(db);
+		const libraryRepository = new D1LibraryRepository(db);
+		const storageAccountingRepository = new D1StorageAccountingRepository(db);
 
 		const endpoint = await resolveSecretBinding(
 			c.env.R2_S3_API_ENDPOINT,
@@ -93,6 +97,8 @@ async function generateUploadUrl(c: ClassContext) {
 
 		const useCase = new GenerateClassAudioUploadUrlUseCase(
 			classRepository,
+			libraryRepository,
+			storageAccountingRepository,
 			storageRepository,
 			{
 				bucket: bucketName,
@@ -105,6 +111,7 @@ async function generateUploadUrl(c: ClassContext) {
 			classId,
 			fileName: file_name,
 			contentType: content_type,
+			sizeBytes: size_bytes,
 		});
 
 		return c.json(

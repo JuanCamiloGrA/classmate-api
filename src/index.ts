@@ -66,6 +66,7 @@ import {
 	SoftDeleteTermEndpoint,
 	UpdateTermEndpoint,
 } from "./interfaces/http/routes/terms";
+import { ConfirmUploadByKeyEndpoint } from "./interfaces/http/routes/uploads";
 import {
 	CreateProfileEndpoint,
 	UpdateProfileFromClerkEndpoint,
@@ -165,6 +166,9 @@ export default {
 		apiApp.post("/library/upload/presigned", GenerateUploadUrlEndpoint);
 		apiApp.post("/library/upload/confirm", ConfirmUploadEndpoint);
 		apiApp.delete("/library/:id", DeleteLibraryItemEndpoint);
+
+		// Generic uploads endpoints
+		apiApp.post("/uploads/confirm", ConfirmUploadByKeyEndpoint);
 
 		// Notification endpoints
 		apiApp.get("/notifications", ListNotificationsEndpoint);

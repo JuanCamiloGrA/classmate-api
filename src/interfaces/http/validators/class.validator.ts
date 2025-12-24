@@ -131,6 +131,7 @@ export const ListClassesSchema = z.object({
  * Validation schema for generating presigned upload URL.
  * - file_name: required, non-empty string
  * - content_type: required, must be a valid MIME type for audio
+ * - size_bytes: required, positive integer representing file size
  */
 export const GenerateUploadUrlSchema = z.object({
 	file_name: z.string().min(1, "File name is required"),
@@ -141,6 +142,7 @@ export const GenerateUploadUrlSchema = z.object({
 			(val) => val.startsWith("audio/"),
 			"Content type must be an audio MIME type",
 		),
+	size_bytes: z.number().int().positive("File size must be positive"),
 });
 
 /**

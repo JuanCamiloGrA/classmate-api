@@ -11,4 +11,13 @@ export interface StorageRepository {
 		key: string,
 		expiresInSeconds: number,
 	): Promise<string>;
+
+	/**
+	 * Get object metadata (size, etag, etc.) without downloading the object.
+	 * Returns null if object doesn't exist.
+	 */
+	headObject(
+		bucket: string,
+		key: string,
+	): Promise<{ sizeBytes: number; etag: string } | null>;
 }

@@ -1,0 +1,1 @@
+ALTER TABLE `scribe_projects` RENAME COLUMN "rubric_file_url" TO "rubric_file_r2_key";

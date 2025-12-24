@@ -99,6 +99,20 @@
 			"when": 1766358133728,
 			"tag": "0013_abandoned_junta",
 			"breakpoints": true
+		},
+		{
+			"idx": 14,
+			"version": "6",
+			"when": 1766550318694,
+			"tag": "0014_modern_mimic",
+			"breakpoints": true
+		},
+		{
+			"idx": 15,
+			"version": "6",
+			"when": 1766552077360,
+			"tag": "0015_late_terrax",
+			"breakpoints": true
 		}
 	]
 }

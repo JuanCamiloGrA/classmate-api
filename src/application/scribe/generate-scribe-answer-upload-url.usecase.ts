@@ -1,9 +1,12 @@
+import type { LibraryRepository } from "../../domain/repositories/library.repository";
 import type { ScribeProjectRepository } from "../../domain/repositories/scribe-project.repository";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
+import type { StorageAccountingRepository } from "../../domain/repositories/storage-accounting.repository";
 import {
 	buildUserR2Key,
 	sanitizeFilename,
 } from "../../domain/services/r2-path.service";
+import { UploadGuardService } from "../storage/upload-guard.service";
 
 export class ScribeProjectNotAccessibleError extends Error {
 	constructor(message = "Scribe project not found or not accessible") {
@@ -18,6 +21,7 @@ export interface GenerateScribeAnswerUploadUrlInput {
 	questionId: string;
 	fileName: string;
 	contentType: string;
+	sizeBytes: number;
 }
 
 export interface GenerateScribeAnswerUploadUrlOptions {
@@ -37,11 +41,21 @@ export interface GenerateScribeAnswerUploadUrlResult {
  * answer payload and later send back to Scribe.
  */
 export class GenerateScribeAnswerUploadUrlUseCase {
+	private readonly uploadGuardService: UploadGuardService;
+
 	constructor(
 		private readonly scribeProjectRepository: ScribeProjectRepository,
+		private readonly libraryRepository: LibraryRepository,
+		private readonly storageAccountingRepository: StorageAccountingRepository,
 		private readonly storageRepository: StorageRepository,
 		private readonly options: GenerateScribeAnswerUploadUrlOptions,
-	) {}
+	) {
+		this.uploadGuardService = new UploadGuardService(
+			libraryRepository,
+			storageAccountingRepository,
+			storageRepository,
+		);
+	}
 
 	async execute(
 		input: GenerateScribeAnswerUploadUrlInput,
@@ -63,13 +77,18 @@ export class GenerateScribeAnswerUploadUrlUseCase {
 			filename: sanitizeFilename(`${input.questionId}-${input.fileName}`),
 		});
 
-		const signedUrl = await this.storageRepository.generatePresignedPutUrl(
-			this.options.bucket,
-			key,
-			input.contentType,
-			this.options.expiresInSeconds,
+		const { uploadUrl } = await this.uploadGuardService.generatePresignedUpload(
+			{
+				userId: input.userId,
+				r2Key: key,
+				mimeType: input.contentType,
+				sizeBytes: input.sizeBytes,
+				bucketType: "persistent",
+				bucket: this.options.bucket,
+				expiresInSeconds: this.options.expiresInSeconds,
+			},
 		);
 
-		return { signedUrl, file_route: key };
+		return { signedUrl: uploadUrl, file_route: key };
 	}
 }
