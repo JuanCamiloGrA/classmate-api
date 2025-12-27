@@ -1,4 +1,9 @@
-import type { D1Database, Workflow } from "@cloudflare/workers-types";
+import type {
+	D1Database,
+	DurableObjectNamespace,
+	Workflow,
+} from "@cloudflare/workers-types";
+import type { ClassmateAgent } from "../infrastructure/agents/classmate-agent";
 import type { Database } from "../infrastructure/database/client";
 
 type SecretsStoreBinding =
@@ -34,6 +39,8 @@ export type Bindings = {
 	SCRIBE_HEAVY_API_URL: SecretsStoreBinding;
 	SUMMARIZE_CLASS_WORKFLOW: Workflow;
 	ASSETS: Fetcher;
+	// AI Chat Agent (Durable Object)
+	ClassmateAgent: DurableObjectNamespace<ClassmateAgent>;
 };
 
 export type Variables = {

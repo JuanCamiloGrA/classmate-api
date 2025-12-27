@@ -138,5 +138,28 @@
 			"binding": "SUMMARIZE_CLASS_WORKFLOW",
 			"class_name": "SummarizeClassWorkflow"
 		}
+	],
+	/**
+	 * Durable Objects
+	 * ClassmateAgent is an AI chat agent that uses SQLite for state persistence
+	 * https://developers.cloudflare.com/durable-objects/
+	 */
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "ClassmateAgent",
+				"class_name": "ClassmateAgent"
+			}
+		]
+	},
+	/**
+	 * Durable Object Migrations
+	 * Required for SQLite-backed Durable Objects (AIChatAgent uses SQLite)
+	 */
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["ClassmateAgent"]
+		}
 	]
 }

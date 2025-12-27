@@ -1,7 +1,9 @@
 import { fromHono } from "chanfana";
 
 import type { Bindings } from "./config/bindings";
+import { ClassmateAgent } from "./infrastructure/agents/classmate-agent";
 import { createApp } from "./interfaces";
+import { createChatRoutes } from "./interfaces/http/routes/chat";
 import {
 	CreateClassEndpoint,
 	GetClassEndpoint,
@@ -179,9 +181,17 @@ export default {
 		apiApp.post("/notifications/read-all", MarkAllNotificationsReadEndpoint);
 		apiApp.delete("/notifications/:id", DeleteNotificationEndpoint);
 
+		// Chat routes (WebSocket for ClassmateAgent)
+		// Mount chat routes - handles /agents/classmate-agent/:conversationId
+		const chatRoutes = createChatRoutes();
+		honoApp.route("/", chatRoutes);
+
 		return apiApp.fetch(request, env, ctx);
 	},
 };
 
 // Export workflow for Cloudflare Workers
 export { SummarizeClassWorkflow };
+
+// Export ClassmateAgent Durable Object for Cloudflare Workers
+export { ClassmateAgent };
