@@ -1,0 +1,686 @@
+# ClassmateAgent Documentation
+
+> **Status**: Initial Implementation (Mock Tools)  
+> **Version**: 1.0.0  
+> **Last Updated**: December 2024
+
+The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SDK with Vercel AI SDK integration. It provides a stateful, WebSocket-based conversational interface with mode-specific behavior and Human-in-the-Loop (HITL) support for sensitive operations.
+
+---
+
+## Table of Contents
+
+1. [Architecture Overview](#architecture-overview)
+2. [File Structure](#file-structure)
+3. [Core Concepts](#core-concepts)
+4. [Configuration](#configuration)
+5. [Adding New Tools](#adding-new-tools)
+6. [Adding New Modes](#adding-new-modes)
+7. [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
+8. [Client Integration](#client-integration)
+9. [Development Guide](#development-guide)
+10. [Pending Implementation](#pending-implementation)
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Client (Web/Mobile)                       │
+│                    useChat() from @ai-sdk/react                  │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ WebSocket
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Hono HTTP Layer                               │
+│              /agents/classmate-agent/:conversationId             │
+│                     (chat.ts route)                              │
+│                                                                  │
+│  • Clerk Authentication                                          │
+│  • userId/orgId injection via query params                       │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │ routeAgentRequest()
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                ClassmateAgent (Durable Object)                   │
+│                extends AIChatAgent<Env, State>                   │
+│                                                                  │
+│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐              │
+│  │  onConnect  │  │onChatMessage│  │   State     │              │
+│  │             │  │             │  │  (SQLite)   │              │
+│  └─────────────┘  └─────────────┘  └─────────────┘              │
+│                          │                                       │
+│                          ▼                                       │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                    ModeManager                           │    │
+│  │  • Loads system prompts from assets                      │    │
+│  │  • Selects tools per mode                                │    │
+│  │  • Configures model per mode                             │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                          │                                       │
+│                          ▼                                       │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │                   Vercel AI SDK                          │    │
+│  │  streamText() → AI Gateway → LLM Provider                │    │
+│  └─────────────────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Technologies
+
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Agent Runtime | Cloudflare Agents SDK (`agents`) | Durable Object-based stateful agents |
+| AI Orchestration | Vercel AI SDK (`ai@^6.0.0`) | Tool calling, streaming, message handling |
+| State Persistence | Durable Object SQLite | Conversation history, agent state |
+| Authentication | Clerk | User identity verification |
+| Model Access | Cloudflare AI Gateway | Unified API for multiple LLM providers |
+
+---
+
+## File Structure
+
+```
+src/
+├── infrastructure/
+│   ├── agents/
+│   │   └── classmate-agent.ts      # Main agent class
+│   └── ai/
+│       ├── config/
+│       │   └── modes.ts            # Mode configuration & ModeManager
+│       └── tools/
+│           ├── definitions.ts      # Types, interfaces, helpers
+│           ├── class-tools.ts      # Class-related tools (mock)
+│           └── tool-registry.ts    # Mode-to-tools mapping
+├── interfaces/
+│   └── http/
+│       └── routes/
+│           └── chat.ts             # WebSocket route handler
+└── index.ts                        # Agent export & route mounting
+
+assets/
+└── agents/
+    └── classmate/
+        ├── mode-default.txt        # DEFAULT mode system prompt
+        ├── mode-exam.txt           # EXAM mode system prompt
+        ├── mode-study.txt          # STUDY mode system prompt
+        └── mode-review.txt         # REVIEW mode system prompt
+
+wrangler.jsonc                      # Durable Object bindings
+```
+
+---
+
+## Core Concepts
+
+### Agent State
+
+The agent maintains state in Durable Object SQLite storage:
+
+```typescript
+interface ClassmateAgentState {
+  userId: string;           // Authenticated user ID from Clerk
+  organizationId?: string;  // Optional organization context
+  currentMode: AgentMode;   // Current operating mode
+  currentContextId?: string;// Optional context (class, subject, etc.)
+  createdAt: number;        // Timestamp of agent creation
+  lastActiveAt: number;     // Last activity timestamp
+}
+```
+
+### Modes
+
+Modes define the agent's behavior, available tools, and system prompt:
+
+| Mode | Purpose | Model | Tools |
+|------|---------|-------|-------|
+| `DEFAULT` | General academic assistant | gemini-3-flash | All tools |
+| `EXAM` | Exam preparation & practice | gemini-3-flash | Read-only tools |
+| `STUDY` | Deep learning & comprehension | gemini-3-flash | Focused tools |
+| `REVIEW` | Quick review & summarization | gemini-2.5-flash-lite | Read-only tools |
+
+### Tools
+
+Tools are functions the AI can call to interact with the system:
+
+| Tool | Category | HITL | Description |
+|------|----------|------|-------------|
+| `readClassContent` | class | No | Retrieve full class content |
+| `listClasses` | class | No | List user's classes |
+| `getClassSummary` | class | No | Get brief class summary |
+| `removeClass` | class | **Yes** | Delete a class (requires approval) |
+
+---
+
+## Configuration
+
+### Wrangler Configuration
+
+The agent requires Durable Object bindings in `wrangler.jsonc`:
+
+```jsonc
+{
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "ClassmateAgent",
+        "class_name": "ClassmateAgent"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ClassmateAgent"]
+    }
+  ]
+}
+```
+
+### Environment Bindings
+
+Required bindings in `src/config/bindings.ts`:
+
+```typescript
+export type Bindings = {
+  // ... other bindings
+  AI_GATEWAY_API_KEY: SecretsStoreBinding;  // For LLM access
+  ASSETS: Fetcher;                           // For loading prompts
+  ClassmateAgent: DurableObjectNamespace<ClassmateAgent>;
+};
+```
+
+### Export Requirements
+
+In `src/index.ts`, the agent must be exported:
+
+```typescript
+import { ClassmateAgent } from "./infrastructure/agents/classmate-agent";
+
+// Export for Cloudflare Workers
+export { ClassmateAgent };
+```
+
+---
+
+## Adding New Tools
+
+### Step 1: Define Tool Metadata
+
+In `src/infrastructure/ai/tools/definitions.ts`, add the tool name to the union type:
+
+```typescript
+export type ClassmateToolName =
+  | "readClassContent"
+  | "removeClass"
+  | "listClasses"
+  | "getClassSummary"
+  | "newToolName";  // Add your tool
+```
+
+### Step 2: Create Tool Implementation
+
+Create a new file or add to an existing category file (e.g., `class-tools.ts`):
+
+```typescript
+// src/infrastructure/ai/tools/my-tools.ts
+
+import { tool } from "ai";
+import { z } from "zod";
+import { successResult, errorResult, type ToolMetadata } from "./definitions";
+
+// 1. Define metadata
+export const myNewToolMeta: ToolMetadata = {
+  name: "myNewTool",
+  description: "Description of what this tool does",
+  requiresConfirmation: false,  // Set true for HITL
+  category: "class",            // class | task | subject | profile | general
+};
+
+// 2. Create the tool
+export const myNewTool = tool({
+  description: myNewToolMeta.description,
+  inputSchema: z.object({
+    param1: z.string().describe("Description for the AI"),
+    param2: z.number().optional().describe("Optional parameter"),
+  }),
+  // Include execute for automatic tools
+  execute: async ({ param1, param2 }) => {
+    try {
+      // Your implementation here
+      const result = await someService.doSomething(param1, param2);
+      return successResult(result);
+    } catch (error) {
+      return errorResult(`Failed: ${error.message}`);
+    }
+  },
+});
+
+// 3. Export collection
+export const myTools = {
+  myNewTool,
+};
+
+export const myToolsMeta: ToolMetadata[] = [myNewToolMeta];
+```
+
+### Step 3: Register in Tool Registry
+
+Update `src/infrastructure/ai/tools/tool-registry.ts`:
+
+```typescript
+import { myTools, myToolsMeta } from "./my-tools";
+
+// Add to mode tool sets
+const DEFAULT_TOOLS: ClassmateToolName[] = [
+  // ... existing tools
+  "myNewTool",
+];
+
+// Update getToolsForMode to include new tools
+export function getToolsForMode(mode: AgentMode) {
+  const toolNames = MODE_TOOLS_MAP[mode] || MODE_TOOLS_MAP.DEFAULT;
+  
+  const tools: Record<string, any> = {};
+  
+  for (const name of toolNames) {
+    if (name in classTools) {
+      tools[name] = classTools[name as keyof typeof classTools];
+    }
+    // Add new tool category
+    if (name in myTools) {
+      tools[name] = myTools[name as keyof typeof myTools];
+    }
+  }
+  
+  return tools;
+}
+```
+
+### Step 4: Update Tool Metadata Registry
+
+```typescript
+// In tool-registry.ts, update metadata functions
+export function getToolMetadataForMode(mode: AgentMode): ToolMetadata[] {
+  const toolNames = MODE_TOOLS_MAP[mode] || MODE_TOOLS_MAP.DEFAULT;
+  
+  const allMeta = [...classToolsMeta, ...myToolsMeta];  // Add new metadata
+  
+  return allMeta.filter((meta) =>
+    toolNames.includes(meta.name as ClassmateToolName)
+  );
+}
+```
+
+---
+
+## Adding New Modes
+
+### Step 1: Define Mode Type
+
+In `src/infrastructure/ai/tools/definitions.ts`:
+
+```typescript
+export type AgentMode = "DEFAULT" | "EXAM" | "STUDY" | "REVIEW" | "NEWMODE";
+```
+
+### Step 2: Create System Prompt
+
+Create `assets/agents/classmate/mode-newmode.txt`:
+
+```text
+You are Classmate in NEWMODE mode, specialized for [purpose].
+
+## Mode Purpose
+
+This mode is optimized for:
+- [Specific use case 1]
+- [Specific use case 2]
+
+## Behavior Guidelines
+
+1. [Guideline 1]
+2. [Guideline 2]
+
+## Response Style
+
+- [Style instruction 1]
+- [Style instruction 2]
+```
+
+### Step 3: Configure Mode
+
+In `src/infrastructure/ai/config/modes.ts`:
+
+```typescript
+const MODE_CONFIGS: Record<AgentMode, ModeConfig> = {
+  // ... existing modes
+  NEWMODE: {
+    mode: "NEWMODE",
+    displayName: "New Mode Name",
+    promptPath: "agents/classmate/mode-newmode.txt",
+    modelId: "google/gemini-3-flash",  // Choose appropriate model
+    description: "Description of this mode's purpose",
+  },
+};
+```
+
+### Step 4: Define Mode Tools
+
+In `src/infrastructure/ai/tools/tool-registry.ts`:
+
+```typescript
+const NEWMODE_TOOLS: ClassmateToolName[] = [
+  "readClassContent",
+  "getClassSummary",
+  // Add tools appropriate for this mode
+];
+
+const MODE_TOOLS_MAP: Record<AgentMode, ClassmateToolName[]> = {
+  // ... existing modes
+  NEWMODE: NEWMODE_TOOLS,
+};
+```
+
+---
+
+## Human-in-the-Loop (HITL)
+
+HITL tools require user confirmation before execution. This is essential for destructive operations like deleting data.
+
+### Creating a HITL Tool
+
+The key is to **omit the `execute` function**:
+
+```typescript
+export const dangerousActionTool = tool({
+  description: "Perform a dangerous action that requires confirmation",
+  inputSchema: z.object({
+    targetId: z.string().describe("ID of the item to affect"),
+    reason: z.string().optional().describe("Reason for this action"),
+  }),
+  // NO execute function = HITL tool
+  // The stream will pause, waiting for client approval
+});
+```
+
+### Client-Side Handling
+
+The client receives tool calls and must approve them:
+
+```typescript
+// Using @ai-sdk/react useChat hook
+const { addToolResult } = useChat({
+  // ... options
+});
+
+// When user approves
+const handleApprove = (toolCallId: string, result: any) => {
+  addToolResult({
+    toolCallId,
+    result: JSON.stringify(result),
+  });
+};
+
+// When user denies
+const handleDeny = (toolCallId: string) => {
+  addToolResult({
+    toolCallId,
+    result: JSON.stringify({ denied: true, reason: "User declined" }),
+  });
+};
+```
+
+### Metadata Configuration
+
+Mark tools requiring confirmation in metadata:
+
+```typescript
+export const removeClassMeta: ToolMetadata = {
+  name: "removeClass",
+  description: "Permanently delete a class",
+  requiresConfirmation: true,  // <-- Important flag
+  category: "class",
+};
+```
+
+---
+
+## Client Integration
+
+### WebSocket Connection
+
+Connect to the agent via WebSocket:
+
+```
+wss://api.classmate.studio/agents/classmate-agent/{conversationId}
+```
+
+The `conversationId` is used to:
+- Resume existing conversations
+- Create new conversation instances
+- Isolate state between conversations
+
+### Using @ai-sdk/react
+
+```typescript
+import { useChat } from "@ai-sdk/react";
+
+function ChatComponent() {
+  const { 
+    messages, 
+    input, 
+    handleInputChange, 
+    handleSubmit,
+    addToolResult 
+  } = useChat({
+    api: "/agents/classmate-agent/conv-123",
+    // Send mode in message metadata
+    body: {
+      metadata: {
+        mode: "STUDY",
+        contextId: "class-abc",
+        contextType: "class",
+      },
+    },
+  });
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {messages.map((m) => (
+        <div key={m.id}>
+          {m.role}: {m.content}
+          {/* Handle tool calls for HITL */}
+          {m.toolInvocations?.map((tool) => (
+            <ToolApproval 
+              key={tool.toolCallId}
+              tool={tool}
+              onApprove={(result) => addToolResult({
+                toolCallId: tool.toolCallId,
+                result: JSON.stringify(result),
+              })}
+            />
+          ))}
+        </div>
+      ))}
+      <input value={input} onChange={handleInputChange} />
+      <button type="submit">Send</button>
+    </form>
+  );
+}
+```
+
+### Message Metadata
+
+Send mode and context information with each message:
+
+```typescript
+interface ChatMessageMetadata {
+  mode?: "DEFAULT" | "EXAM" | "STUDY" | "REVIEW";
+  contextId?: string;      // e.g., class ID being discussed
+  contextType?: "class" | "subject" | "task";
+}
+```
+
+---
+
+## Development Guide
+
+### Running Locally
+
+```bash
+# Start development server
+bun run dev
+
+# Generate types after wrangler.jsonc changes
+bun run cf-typegen
+
+# Run tests
+bun run test
+
+# Lint and format
+bun run check
+```
+
+### Testing the Agent
+
+1. Start the dev server: `bun run dev`
+2. Connect via WebSocket client or test with curl:
+
+```bash
+# The agent uses WebSocket, test with wscat or similar
+wscat -c "ws://localhost:8787/agents/classmate-agent/test-conv"
+```
+
+### Debugging
+
+Enable console logging in the agent:
+
+```typescript
+console.log(`[ClassmateAgent] Connected: userId=${userId}`);
+console.log(`[TOOL] myTool called with:`, params);
+```
+
+View logs in the Wrangler dev console.
+
+### Adding Repository Dependencies
+
+To inject actual repositories into tools:
+
+```typescript
+// In definitions.ts, expand ToolExecutionContext
+export interface ToolExecutionContext {
+  userId: string;
+  contextId?: string;
+  mode: string;
+  // Add repository injections
+  classRepository?: ClassRepository;
+  taskRepository?: TaskRepository;
+}
+```
+
+Then pass context to tools in the agent's `onChatMessage`.
+
+---
+
+## Pending Implementation
+
+The following items are planned but not yet implemented:
+
+### High Priority
+
+- [ ] **Real Tool Implementations**: Replace mock tools with actual repository calls
+- [ ] **Tool Context Injection**: Pass repositories to tool execute functions
+- [ ] **Error Handling**: Comprehensive error boundaries and user-friendly messages
+- [ ] **Rate Limiting**: Per-user rate limiting for chat messages
+
+### Medium Priority
+
+- [ ] **Conversation History API**: REST endpoints to fetch past conversations
+- [ ] **Mode Switching UI**: Client-side mode selector integration
+- [ ] **Tool Result Caching**: Cache frequently accessed data
+- [ ] **Streaming Progress**: Show tool execution progress to users
+
+### Low Priority
+
+- [ ] **Analytics Integration**: Track tool usage and conversation metrics
+- [ ] **Multi-language Support**: Localized system prompts
+- [ ] **Custom Model Selection**: User-configurable model preferences
+- [ ] **Conversation Export**: Export chat history as PDF/markdown
+
+---
+
+## API Reference
+
+### Agent Class
+
+```typescript
+class ClassmateAgent extends AIChatAgent<Env, ClassmateAgentState> {
+  // Lifecycle
+  onConnect(connection: Connection, ctx: ConnectionContext): Promise<void>
+  onChatMessage(onFinish: any, options?: { abortSignal?: AbortSignal }): Promise<Response>
+  
+  // State
+  state: ClassmateAgentState
+  setState(newState: Partial<ClassmateAgentState>): void
+  
+  // Messages (inherited)
+  messages: UIMessage[]
+}
+```
+
+### ModeManager
+
+```typescript
+class ModeManager {
+  getConfiguration(mode: AgentMode): Promise<LoadedModeConfiguration>
+  getModeConfig(mode: AgentMode): ModeConfig
+  getAvailableModes(): ModeConfig[]
+  isValidMode(mode: string): mode is AgentMode
+  clearCache(): void
+}
+```
+
+### Tool Registry Functions
+
+```typescript
+function getToolsForMode(mode: AgentMode): Record<string, Tool>
+function getToolMetadataForMode(mode: AgentMode): ToolMetadata[]
+function getToolsRequiringConfirmationForMode(mode: AgentMode): string[]
+function toolRequiresConfirmation(toolName: string): boolean
+function getAllToolNames(): ClassmateToolName[]
+```
+
+---
+
+## Troubleshooting
+
+### "Services failed to initialize"
+
+**Cause**: AI Gateway API key not configured.  
+**Fix**: Ensure `AI_GATEWAY_API_KEY` is set in `.dev.vars` or Cloudflare secrets.
+
+### WebSocket Connection Rejected
+
+**Cause**: Missing or invalid Clerk authentication.  
+**Fix**: Ensure the client sends valid Clerk session token in headers.
+
+### Tool Not Executing
+
+**Cause**: Tool may be a HITL tool requiring approval.  
+**Fix**: Check if `requiresConfirmation: true` in metadata. Client must call `addToolResult`.
+
+### Mode Not Changing
+
+**Cause**: Mode not sent in message metadata.  
+**Fix**: Include `metadata: { mode: "EXAM" }` in the chat request body.
+
+---
+
+## Further Reading
+
+- [Cloudflare Agents SDK](https://developers.cloudflare.com/agents/)
+- [Vercel AI SDK Documentation](https://sdk.vercel.ai/docs)
+- [Durable Objects Guide](https://developers.cloudflare.com/durable-objects/)
+- [Clerk Authentication](https://clerk.com/docs)
