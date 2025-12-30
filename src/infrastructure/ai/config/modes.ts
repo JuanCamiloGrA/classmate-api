@@ -1,6 +1,6 @@
 /**
  * Mode Configuration Manager
- * Manages agent modes, skills (system prompts), and model selection
+ * Manages agent modes, skills composition, and model selection
  */
 
 import type { PromptService } from "../../../domain/services/prompt.service";
@@ -9,6 +9,12 @@ import {
 	getToolsForMode,
 	getToolsRequiringConfirmationForMode,
 } from "../tools/tool-registry";
+import {
+	createSkillLoader,
+	MODE_SKILLS_MAP,
+	type SkillId,
+	type SkillLoader,
+} from "./skills";
 
 // ============================================
 // MODEL CONFIGURATION
@@ -32,8 +38,8 @@ export interface ModeConfig {
 	mode: AgentMode;
 	/** Display name for the mode */
 	displayName: string;
-	/** Path to system prompt file in assets/agents/classmate/ */
-	promptPath: string;
+	/** Skills to compose into system prompt */
+	skills: SkillId[];
 	/** Model to use for this mode */
 	modelId: ModelId;
 	/** Description of what this mode does */
@@ -41,34 +47,34 @@ export interface ModeConfig {
 }
 
 /**
- * Mode configurations
+ * Mode configurations with skills composition
  */
 const MODE_CONFIGS: Record<AgentMode, ModeConfig> = {
 	DEFAULT: {
 		mode: "DEFAULT",
 		displayName: "General Assistant",
-		promptPath: "agents/classmate/mode-default.txt",
+		skills: MODE_SKILLS_MAP.DEFAULT,
 		modelId: "google/gemini-3-flash",
 		description: "General-purpose assistant for all academic tasks",
 	},
 	EXAM: {
 		mode: "EXAM",
 		displayName: "Exam Preparation",
-		promptPath: "agents/classmate/mode-exam.txt",
+		skills: MODE_SKILLS_MAP.EXAM,
 		modelId: "google/gemini-3-flash",
 		description: "Focused exam preparation and practice questions",
 	},
 	STUDY: {
 		mode: "STUDY",
 		displayName: "Study Mode",
-		promptPath: "agents/classmate/mode-study.txt",
+		skills: MODE_SKILLS_MAP.STUDY,
 		modelId: "google/gemini-3-flash",
 		description: "Deep learning and concept exploration",
 	},
 	REVIEW: {
 		mode: "REVIEW",
 		displayName: "Review Mode",
-		promptPath: "agents/classmate/mode-review.txt",
+		skills: MODE_SKILLS_MAP.REVIEW,
 		modelId: "google/gemini-2.5-flash-lite", // Lighter model for review
 		description: "Quick review and summarization of content",
 	},
@@ -82,6 +88,7 @@ export interface LoadedModeConfiguration {
 	mode: AgentMode;
 	modelId: ModelId;
 	systemPrompt: string;
+	skills: SkillId[];
 	tools: ReturnType<typeof getToolsForMode>;
 	toolsRequiringConfirmation: string[];
 }
@@ -92,25 +99,24 @@ export interface LoadedModeConfiguration {
 
 /**
  * Manages loading and providing mode configurations
+ * Uses SkillLoader to compose skills into system prompts
  */
 export class ModeManager {
-	private promptCache: Map<string, string> = new Map();
+	private skillLoader: SkillLoader;
 
-	constructor(private readonly promptService: PromptService) {}
+	constructor(promptService: PromptService) {
+		this.skillLoader = createSkillLoader(promptService);
+	}
 
 	/**
 	 * Get the full configuration for a mode
-	 * Loads system prompt from assets and prepares tools
+	 * Composes skills into system prompt and prepares tools
 	 */
 	async getConfiguration(mode: AgentMode): Promise<LoadedModeConfiguration> {
 		const config = MODE_CONFIGS[mode] || MODE_CONFIGS.DEFAULT;
 
-		// Load system prompt (with caching)
-		let systemPrompt = this.promptCache.get(config.promptPath);
-		if (!systemPrompt) {
-			systemPrompt = await this.promptService.getPrompt(config.promptPath);
-			this.promptCache.set(config.promptPath, systemPrompt);
-		}
+		// Compose skills into system prompt
+		const systemPrompt = await this.skillLoader.getSystemPromptForMode(mode);
 
 		// Get tools for this mode
 		const tools = getToolsForMode(mode);
@@ -121,13 +127,14 @@ export class ModeManager {
 			mode: config.mode,
 			modelId: config.modelId,
 			systemPrompt,
+			skills: config.skills,
 			tools,
 			toolsRequiringConfirmation,
 		};
 	}
 
 	/**
-	 * Get mode config without loading prompt (for metadata only)
+	 * Get mode config without loading prompts (for metadata only)
 	 */
 	getModeConfig(mode: AgentMode): ModeConfig {
 		return MODE_CONFIGS[mode] || MODE_CONFIGS.DEFAULT;
@@ -148,10 +155,17 @@ export class ModeManager {
 	}
 
 	/**
-	 * Clear the prompt cache (useful for development)
+	 * Get skills for a specific mode
+	 */
+	getSkillsForMode(mode: AgentMode): SkillId[] {
+		return MODE_SKILLS_MAP[mode] || MODE_SKILLS_MAP.DEFAULT;
+	}
+
+	/**
+	 * Clear the skill cache (useful for development)
 	 */
 	clearCache(): void {
-		this.promptCache.clear();
+		this.skillLoader.clearCache();
 	}
 }
 
@@ -171,3 +185,7 @@ export function createModeManager(promptService: PromptService): ModeManager {
 // ============================================
 
 export { MODE_CONFIGS };
+
+// Re-export skill types for convenience
+export type { SkillId, SkillLoader };
+export { BASE_AGENT_SKILLS, MODE_SKILLS_MAP } from "./skills";

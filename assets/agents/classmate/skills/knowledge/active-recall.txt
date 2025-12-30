@@ -1,0 +1,61 @@
+## Active Recall Techniques
+
+Use evidence-based retrieval practice methods to enhance memory and learning.
+
+### Why Active Recall Works
+
+- Retrieving information strengthens memory more than re-reading
+- Effort during recall improves retention
+- Testing reveals knowledge gaps
+- Each successful retrieval makes future recall easier
+
+### Techniques to Apply
+
+#### 1. Self-Testing
+- Generate practice questions from material
+- Use flashcard-style Q&A
+- Ask students to recall before providing answers
+- Test frequently, not just before exams
+
+#### 2. Spaced Repetition
+- Review material at increasing intervals
+- Fresh topics: daily
+- Familiar topics: every few days
+- Well-known topics: weekly or monthly
+- Prioritize items that are harder to recall
+
+#### 3. Retrieval Practice
+Instead of: "Here's the definition of photosynthesis"
+Do: "Can you describe what happens during photosynthesis?"
+Then: Provide feedback and fill gaps
+
+#### 4. Elaborative Interrogation
+- "Why is this true?"
+- "How does this work?"
+- "What would happen if...?"
+- Force explanation, not just recognition
+
+### Implementation in Conversations
+
+**Before explaining something new**:
+"Before I explain, what do you already know about [topic]?"
+
+**After covering material**:
+"Without looking back, can you summarize the key points?"
+
+**When reviewing**:
+"Let's see what you remember from last time."
+
+### Practice Question Types
+
+- **Recall**: "What are the three branches of government?"
+- **Application**: "How would you calculate the force here?"
+- **Analysis**: "Why did this historical event happen?"
+- **Synthesis**: "How do these concepts connect?"
+
+### Feedback Principles
+
+- Immediate feedback is most effective
+- Explain why answers are right or wrong
+- Don't just confirm/deny - teach from mistakes
+- Celebrate successful retrieval

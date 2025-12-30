@@ -1,10 +1,10 @@
 # ClassmateAgent Documentation
 
 > **Status**: Initial Implementation (Mock Tools)  
-> **Version**: 1.0.0  
+> **Version**: 2.0.0  
 > **Last Updated**: December 2025
 
-The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SDK with Vercel AI SDK integration. It provides a stateful, WebSocket-based conversational interface with mode-specific behavior and Human-in-the-Loop (HITL) support for sensitive operations.
+The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SDK with Vercel AI SDK integration. It provides a stateful, WebSocket-based conversational interface with mode-specific behavior, composable skills system, and Human-in-the-Loop (HITL) support for sensitive operations.
 
 ---
 
@@ -13,13 +13,15 @@ The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SD
 1. [Architecture Overview](#architecture-overview)
 2. [File Structure](#file-structure)
 3. [Core Concepts](#core-concepts)
-4. [Configuration](#configuration)
-5. [Adding New Tools](#adding-new-tools)
-6. [Adding New Modes](#adding-new-modes)
-7. [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
-8. [Client Integration](#client-integration)
-9. [Development Guide](#development-guide)
-10. [Pending Implementation](#pending-implementation)
+4. [Skills System](#skills-system)
+5. [Configuration](#configuration)
+6. [Adding New Tools](#adding-new-tools)
+7. [Adding New Skills](#adding-new-skills)
+8. [Adding New Modes](#adding-new-modes)
+9. [Human-in-the-Loop (HITL)](#human-in-the-loop-hitl)
+10. [Client Integration](#client-integration)
+11. [Development Guide](#development-guide)
+12. [Pending Implementation](#pending-implementation)
 
 ---
 
@@ -54,7 +56,7 @@ The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SD
 │                          ▼                                       │
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                    ModeManager                           │    │
-│  │  • Loads system prompts from assets                      │    │
+│  │  • Composes skills into system prompts                   │    │
 │  │  • Selects tools per mode                                │    │
 │  │  • Configures model per mode                             │    │
 │  └─────────────────────────────────────────────────────────┘    │
@@ -88,7 +90,8 @@ src/
 │   │   └── classmate-agent.ts      # Main agent class
 │   └── ai/
 │       ├── config/
-│       │   └── modes.ts            # Mode configuration & ModeManager
+│       │   ├── modes.ts            # Mode configuration & ModeManager
+│       │   └── skills.ts           # Skills registry & SkillLoader
 │       └── tools/
 │           ├── definitions.ts      # Types, interfaces, helpers
 │           ├── class-tools.ts      # Class-related tools (mock)
@@ -102,10 +105,24 @@ src/
 assets/
 └── agents/
     └── classmate/
-        ├── mode-default.txt        # DEFAULT mode system prompt
-        ├── mode-exam.txt           # EXAM mode system prompt
-        ├── mode-study.txt          # STUDY mode system prompt
-        └── mode-review.txt         # REVIEW mode system prompt
+        └── skills/                 # Composable skill fragments
+            ├── tools/              # Tool usage instructions
+            │   ├── multi-tool-calling.txt
+            │   ├── tool-confirmation.txt
+            │   └── tool-error-handling.txt
+            ├── personalities/      # Agent personality traits
+            │   ├── base-personality.txt
+            │   ├── serious-personality.txt
+            │   └── supportive-personality.txt
+            ├── knowledge/          # Domain knowledge
+            │   ├── memory-palace.txt
+            │   ├── pedagogy-fundamentals.txt
+            │   └── active-recall.txt
+            └── modes/              # Mode-specific behavior
+                ├── mode-default.txt
+                ├── mode-exam.txt
+                ├── mode-study.txt
+                └── mode-review.txt
 
 wrangler.jsonc                      # Durable Object bindings
 ```
@@ -131,14 +148,14 @@ interface ClassmateAgentState {
 
 ### Modes
 
-Modes define the agent's behavior, available tools, and system prompt:
+Modes define the agent's behavior, available tools, and composed skills:
 
-| Mode | Purpose | Model | Tools |
-|------|---------|-------|-------|
-| `DEFAULT` | General academic assistant | gemini-3-flash | All tools |
-| `EXAM` | Exam preparation & practice | gemini-3-flash | Read-only tools |
-| `STUDY` | Deep learning & comprehension | gemini-3-flash | Focused tools |
-| `REVIEW` | Quick review & summarization | gemini-2.5-flash-lite | Read-only tools |
+| Mode | Purpose | Model | Skills |
+|------|---------|-------|--------|
+| `DEFAULT` | General academic assistant | gemini-3-flash | Base + Personality + Default Mode |
+| `EXAM` | Exam preparation & practice | gemini-3-flash | Base + Serious + Active Recall + Exam Mode |
+| `STUDY` | Deep learning & comprehension | gemini-3-flash | Base + Supportive + Pedagogy + Memory Palace + Study Mode |
+| `REVIEW` | Quick review & summarization | gemini-2.5-flash-lite | Base + Active Recall + Review Mode |
 
 ### Tools
 
@@ -186,7 +203,7 @@ Required bindings in `src/config/bindings.ts`:
 export type Bindings = {
   // ... other bindings
   AI_GATEWAY_API_KEY: SecretsStoreBinding;  // For LLM access
-  ASSETS: Fetcher;                           // For loading prompts
+  ASSETS: Fetcher;                           // For loading skills
   ClassmateAgent: DurableObjectNamespace<ClassmateAgent>;
 };
 ```
@@ -201,6 +218,84 @@ import { ClassmateAgent } from "./infrastructure/agents/classmate-agent";
 // Export for Cloudflare Workers
 export { ClassmateAgent };
 ```
+
+---
+
+## Skills System
+
+Skills are composable prompt fragments that can be combined to create system prompts. This architecture allows for:
+- **Reusability**: Share common behaviors across modes
+- **Maintainability**: Update one skill file to affect all modes using it
+- **Flexibility**: Easily customize modes by adding/removing skills
+
+### Skill Categories
+
+| Category | Purpose | Examples |
+|----------|---------|----------|
+| `tools` | Tool usage instructions | Multi-tool calling, error handling |
+| `personalities` | Agent personality traits | Base, Serious, Supportive |
+| `knowledge` | Domain expertise | Memory palace, pedagogy, active recall |
+| `modes` | Mode-specific behavior | Default, Exam, Study, Review |
+
+### Skill Compositions
+
+Skills are composed hierarchically:
+
+```typescript
+// Base skills shared by ALL modes
+const BASE_AGENT_SKILLS = [
+  "multi-tool-calling",    // Parallel tool execution
+  "tool-confirmation",     // HITL guidelines
+  "tool-error-handling",   // Error communication
+];
+
+// Mode-specific compositions
+const DEFAULT_MODE_SKILLS = [
+  ...BASE_AGENT_SKILLS,
+  "base-personality",
+  "mode-default",
+];
+
+const EXAM_MODE_SKILLS = [
+  ...BASE_AGENT_SKILLS,
+  "base-personality",
+  "serious-personality",
+  "active-recall",
+  "mode-exam",
+];
+
+const STUDY_MODE_SKILLS = [
+  ...BASE_AGENT_SKILLS,
+  "base-personality",
+  "supportive-personality",
+  "pedagogy-fundamentals",
+  "memory-palace",
+  "mode-study",
+];
+
+const REVIEW_MODE_SKILLS = [
+  ...BASE_AGENT_SKILLS,
+  "base-personality",
+  "active-recall",
+  "mode-review",
+];
+```
+
+### Multi-Tool Calling
+
+The `multi-tool-calling` skill enables efficient parallel tool execution:
+
+```text
+You can call multiple tools in a single response. If you intend to call 
+multiple tools and there are no dependencies between them, make all 
+independent tool calls in parallel. Maximize use of parallel tool calls 
+where possible to increase efficiency.
+```
+
+This is powered by the Vercel AI SDK's native multi-tool capability, which:
+1. Allows LLMs to return multiple tool calls in a single response
+2. Executes independent tools concurrently via `Promise.all()`
+3. Tracks each tool call by unique ID for proper result correlation
 
 ---
 
@@ -315,6 +410,80 @@ export function getToolMetadataForMode(mode: AgentMode): ToolMetadata[] {
 
 ---
 
+## Adding New Skills
+
+### Step 1: Create Skill File
+
+Create a `.txt` file in the appropriate category folder:
+
+```
+assets/agents/classmate/skills/
+├── tools/          # Tool usage instructions
+├── personalities/  # Agent personality traits
+├── knowledge/      # Domain expertise
+└── modes/          # Mode-specific behavior
+```
+
+Example skill file `assets/agents/classmate/skills/knowledge/new-technique.txt`:
+
+```text
+## New Learning Technique
+
+Description of the technique and when to apply it.
+
+### How to Apply
+
+1. Step one
+2. Step two
+3. Step three
+
+### Best Practices
+
+- Practice tip 1
+- Practice tip 2
+```
+
+### Step 2: Register Skill in Registry
+
+In `src/infrastructure/ai/config/skills.ts`:
+
+```typescript
+// 1. Add to SkillId union type
+export type SkillId =
+  | "multi-tool-calling"
+  // ... existing skills
+  | "new-technique";  // Add your skill
+
+// 2. Add to SKILL_REGISTRY
+export const SKILL_REGISTRY: Record<SkillId, SkillDefinition> = {
+  // ... existing skills
+  "new-technique": {
+    id: "new-technique",
+    category: "knowledge",
+    name: "New Technique",
+    description: "Description of the new technique",
+    path: "skills/knowledge/new-technique.txt",
+  },
+};
+```
+
+### Step 3: Add to Mode Compositions (Optional)
+
+If the skill should be included in specific modes:
+
+```typescript
+// In skills.ts
+export const STUDY_MODE_SKILLS: SkillId[] = [
+  ...BASE_AGENT_SKILLS,
+  "base-personality",
+  "supportive-personality",
+  "new-technique",  // Add your skill
+  "mode-study",
+];
+```
+
+---
+
 ## Adding New Modes
 
 ### Step 1: Define Mode Type
@@ -325,31 +494,67 @@ In `src/infrastructure/ai/tools/definitions.ts`:
 export type AgentMode = "DEFAULT" | "EXAM" | "STUDY" | "REVIEW" | "NEWMODE";
 ```
 
-### Step 2: Create System Prompt
+### Step 2: Create Mode Skill File
 
-Create `assets/agents/classmate/mode-newmode.txt`:
+Create `assets/agents/classmate/skills/modes/mode-newmode.txt`:
 
 ```text
-You are Classmate in NEWMODE mode, specialized for [purpose].
+## New Mode Behavior
 
-## Mode Purpose
+You are in NEWMODE mode, specialized for [purpose].
+
+### Mode Purpose
 
 This mode is optimized for:
 - [Specific use case 1]
 - [Specific use case 2]
 
-## Behavior Guidelines
+### Behavior Guidelines
 
 1. [Guideline 1]
 2. [Guideline 2]
 
-## Response Style
+### Response Style
 
 - [Style instruction 1]
 - [Style instruction 2]
 ```
 
-### Step 3: Configure Mode
+### Step 3: Register Mode Skill
+
+In `src/infrastructure/ai/config/skills.ts`:
+
+```typescript
+// Add to SkillId
+export type SkillId = 
+  // ... existing
+  | "mode-newmode";
+
+// Add to SKILL_REGISTRY
+"mode-newmode": {
+  id: "mode-newmode",
+  category: "modes",
+  name: "New Mode Behavior",
+  description: "New mode specific behavior",
+  path: "skills/modes/mode-newmode.txt",
+},
+
+// Create skill composition
+export const NEWMODE_SKILLS: SkillId[] = [
+  ...BASE_AGENT_SKILLS,
+  "base-personality",
+  // Add other skills as needed
+  "mode-newmode",
+];
+
+// Add to MODE_SKILLS_MAP
+export const MODE_SKILLS_MAP: Record<AgentMode, SkillId[]> = {
+  // ... existing
+  NEWMODE: NEWMODE_SKILLS,
+};
+```
+
+### Step 4: Configure Mode
 
 In `src/infrastructure/ai/config/modes.ts`:
 
@@ -359,14 +564,14 @@ const MODE_CONFIGS: Record<AgentMode, ModeConfig> = {
   NEWMODE: {
     mode: "NEWMODE",
     displayName: "New Mode Name",
-    promptPath: "agents/classmate/mode-newmode.txt",
-    modelId: "google/gemini-3-flash",  // Choose appropriate model
+    skills: MODE_SKILLS_MAP.NEWMODE,
+    modelId: "google/gemini-3-flash",
     description: "Description of this mode's purpose",
   },
 };
 ```
 
-### Step 4: Define Mode Tools
+### Step 5: Define Mode Tools
 
 In `src/infrastructure/ai/tools/tool-registry.ts`:
 

@@ -150,6 +150,7 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 					return {
 						mode,
 						modelId: config.modelId,
+						skills: config.skills,
 						timestamp: Date.now(),
 					};
 				}

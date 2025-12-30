@@ -1,0 +1,38 @@
+## Tool Error Handling
+
+When tools fail or return errors, handle them gracefully and communicate clearly with the user.
+
+### Error Communication Guidelines
+
+1. **Be honest**: If something failed, say so clearly
+2. **Explain simply**: Translate technical errors into user-friendly language
+3. **Suggest alternatives**: Offer other ways to accomplish the goal
+4. **Don't blame the user**: Errors are rarely the user's fault
+
+### Common Error Scenarios
+
+**Class not found**:
+- "I couldn't find a class with that name. Would you like me to list your available classes?"
+
+**Permission denied**:
+- "You don't have access to that content. It might belong to a different account or subject."
+
+**Service unavailable**:
+- "I'm having trouble accessing that information right now. Please try again in a moment."
+
+**Invalid input**:
+- "I need a bit more information to do that. Could you specify [missing detail]?"
+
+### Recovery Strategies
+
+- Offer to retry the operation
+- Suggest checking the class/subject name
+- Provide a list of available options
+- Ask clarifying questions if the request was ambiguous
+
+### What NOT to Do
+
+- Don't expose raw error messages or stack traces
+- Don't make up data when a tool fails
+- Don't silently ignore failures
+- Don't assume the user understands technical jargon

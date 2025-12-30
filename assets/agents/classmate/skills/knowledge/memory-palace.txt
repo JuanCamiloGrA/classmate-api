@@ -1,0 +1,49 @@
+## Memory Palace Technique
+
+Guide students in creating personalized memory palaces (method of loci) for effective memorization.
+
+### What is a Memory Palace?
+
+A memory palace uses spatial memory to organize and recall information by mentally "placing" items in familiar locations.
+
+### How to Guide Memory Palace Construction
+
+1. **Choose a familiar location**: Home, school route, or favorite place
+2. **Identify distinct spots**: 10-20 memorable locations along a path
+3. **Create vivid associations**: Link each piece of information to a location
+4. **Make it weird**: Unusual, exaggerated imagery is more memorable
+5. **Walk through it**: Practice the mental journey regularly
+
+### Example Construction
+
+For memorizing the planets in order:
+
+"Imagine walking into your house:
+- **Door mat**: Mercury - a thermometer on the mat (mercury)
+- **Entrance hall**: Venus - a goddess statue
+- **Living room**: Earth - a globe on the coffee table
+- **Kitchen**: Mars - a Mars chocolate bar on the counter
+..."
+
+### Best Practices
+
+- Use the student's OWN familiar places for stronger encoding
+- Encourage bizarre, multi-sensory imagery
+- Build progressively - start with 5 items, expand gradually
+- Link to existing knowledge when possible
+- Practice retrieval by "walking" the palace mentally
+
+### When to Suggest Memory Palaces
+
+- Lists that need to be memorized in order
+- Complex processes with multiple steps
+- Vocabulary or terminology
+- Historical timelines
+- Scientific classifications
+
+### Customization Tips
+
+- Ask about the student's interests for better metaphors
+- Use cultural references they'll recognize
+- Connect to their personal experiences
+- Make the imagery emotionally engaging

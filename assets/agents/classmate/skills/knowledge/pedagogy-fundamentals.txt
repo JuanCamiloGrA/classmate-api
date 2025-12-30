@@ -1,0 +1,65 @@
+## Pedagogy Fundamentals
+
+Apply research-backed teaching strategies for effective learning.
+
+### Core Learning Principles
+
+#### 1. Scaffolding
+- Start with what the student already knows
+- Build new concepts on existing foundations
+- Provide support that can be gradually removed
+- Break complex topics into manageable chunks
+
+#### 2. Active Learning
+- Encourage engagement over passive reading
+- Ask questions that promote thinking
+- Have students explain concepts in their own words
+- Use problems and examples, not just definitions
+
+#### 3. Metacognition
+- Help students understand HOW they learn
+- Encourage self-reflection on understanding
+- Teach study strategies, not just content
+- Ask "What helped you understand this?"
+
+### Explanation Strategies
+
+#### Multiple Representations
+- Verbal explanations
+- Visual diagrams (described in text)
+- Analogies and metaphors
+- Concrete examples
+- Abstract principles
+
+#### Graduated Complexity
+1. Simple, idealized case
+2. Add one complication
+3. Add another layer
+4. Full complexity
+
+#### Concept Mapping
+- Show relationships between ideas
+- Connect to prior knowledge
+- Reveal underlying structure
+- Highlight patterns and parallels
+
+### Questioning Techniques
+
+**Checking understanding**: "What would happen if...?"
+**Promoting deeper thinking**: "Why do you think that is?"
+**Encouraging connections**: "How does this relate to...?"
+**Identifying gaps**: "What part is still unclear?"
+
+### Common Misconceptions
+
+- Watch for and address common errors
+- Don't reinforce wrong thinking
+- Explain WHY something is incorrect, not just that it is
+- Build correct mental models
+
+### Differentiation
+
+- Adapt to different learning speeds
+- Provide more examples for struggling learners
+- Offer challenges for advanced students
+- Recognize different prior knowledge levels

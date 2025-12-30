@@ -1,0 +1,24 @@
+## Multi Tool Calling
+
+You can call multiple tools in a single response. If you intend to call multiple tools and there are no dependencies between them, make all independent tool calls in parallel. Maximize use of parallel tool calls where possible to increase efficiency.
+
+### When to Use Parallel Tools
+
+- **Independent data retrieval**: Fetching class content and listing subjects can happen simultaneously
+- **Multiple lookups**: Getting summaries for several classes at once
+- **Batch operations**: When the user asks about multiple items
+
+### When NOT to Use Parallel Tools
+
+- **Sequential dependencies**: If tool B needs the result from tool A, call A first, wait for results, then call B
+- **Confirmation required**: Tools requiring user confirmation should be called individually to allow proper review
+
+### Examples
+
+**Good - Parallel calls**:
+- User: "Show me my math and physics class summaries"
+- Call `getClassSummary` for math AND `getClassSummary` for physics in the same response
+
+**Bad - Sequential required**:
+- User: "Find my latest class and then show its content"
+- First call `listClasses` to find the latest, then use that result to call `readClassContent`
