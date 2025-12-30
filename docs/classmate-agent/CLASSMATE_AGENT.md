@@ -2,7 +2,7 @@
 
 > **Status**: Initial Implementation (Mock Tools)  
 > **Version**: 1.0.0  
-> **Last Updated**: December 2024
+> **Last Updated**: December 2025
 
 The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SDK with Vercel AI SDK integration. It provides a stateful, WebSocket-based conversational interface with mode-specific behavior and Human-in-the-Loop (HITL) support for sensitive operations.
 
