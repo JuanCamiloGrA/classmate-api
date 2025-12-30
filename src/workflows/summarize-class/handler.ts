@@ -114,12 +114,6 @@ export class SummarizeClassWorkflowHandler {
 
 		// Check if input is a URL (needs processing) or already an R2 file
 		if ("sourceUrl" in input) {
-			console.log("🔄 [WORKFLOW] Processing URL input", {
-				classId,
-				sourceUrl: input.sourceUrl,
-				timestamp: new Date().toISOString(),
-			});
-
 			// Delegate heavy processing to Cloud Run service
 			const fileInput = await this.processingService.processUrl(
 				input.sourceUrl,
@@ -127,20 +121,10 @@ export class SummarizeClassWorkflowHandler {
 				classId,
 			);
 
-			console.log("✅ [WORKFLOW] URL processed successfully", {
-				classId,
-				r2Key: fileInput.r2Key,
-			});
-
 			return fileInput;
 		}
 
 		// Input is already an R2 file, pass through
-		console.log("✅ [WORKFLOW] Using pre-uploaded R2 file", {
-			classId,
-			r2Key: input.r2Key,
-		});
-
 		return input;
 	}
 
@@ -156,13 +140,6 @@ export class SummarizeClassWorkflowHandler {
 			filename,
 		);
 
-		console.log("📥 [WORKFLOW] Generating summary", {
-			classId,
-			r2Key,
-			isAudio: isAudioFile,
-			timestamp: new Date().toISOString(),
-		});
-
 		// Load prompt template
 		const prompt = await this.promptService.loadPrompt();
 
@@ -172,12 +149,6 @@ export class SummarizeClassWorkflowHandler {
 			r2Key,
 			300, // 5 minutes
 		);
-
-		console.log("🔗 [WORKFLOW] Generated presigned URL for file", {
-			classId,
-			r2Key,
-			urlLength: fileUrl.length,
-		});
 
 		// Pass URL directly to AI service - Gemini will download the file
 		const summary = await this.aiService.generateSummaryFromUrl(
@@ -189,11 +160,6 @@ export class SummarizeClassWorkflowHandler {
 		if (!summary || typeof summary !== "string") {
 			throw new Error("AI service returned empty response");
 		}
-
-		console.log("✅ [WORKFLOW] Summary generated successfully", {
-			classId,
-			summaryLength: summary.length,
-		});
 
 		return summary;
 	}
@@ -207,28 +173,12 @@ export class SummarizeClassWorkflowHandler {
 		// Convert markdown to HTML
 		const htmlSummary = this.markdownService.parse(summaryMarkdown);
 
-		console.log("🔄 [WORKFLOW] Converted markdown to HTML", {
-			originalLength: summaryMarkdown.length,
-			convertedLength: htmlSummary.length,
-			classId,
-		});
-
 		// Save to database
 		await this.summaryRepository.save(classId, userId, htmlSummary);
-
-		console.log("✅ [WORKFLOW] Summary saved to database", { classId });
 	}
 
 	private async cleanupTempFile(file: FileInput): Promise<void> {
-		console.log("🗑️ [WORKFLOW] Cleaning up temporary file", {
-			r2Key: file.r2Key,
-		});
-
 		await this.storageService.deleteFile(file.r2Key);
-
-		console.log("✅ [WORKFLOW] Temporary file deleted", {
-			r2Key: file.r2Key,
-		});
 	}
 
 	private async updateAiStatus(
