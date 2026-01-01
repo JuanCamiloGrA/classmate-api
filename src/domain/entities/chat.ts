@@ -55,6 +55,8 @@ export interface Chat {
  * Data required to create a new chat.
  */
 export interface ChatCreateData {
+	/** Optional ID for the chat (for auto-provisioning from DO) */
+	id?: string;
 	userId: string;
 	title?: string | null;
 	model?: string | null;

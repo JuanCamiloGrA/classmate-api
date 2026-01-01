@@ -6,7 +6,8 @@
 
 import type { MessageSyncBatch } from "../../domain/entities/chat";
 import type { ChatRepository } from "../../domain/repositories/chat.repository";
-import type { ChatTitleGenerator } from "../../domain/services/chat-title.service";
+import type { AsyncChatTitleGenerator } from "../../domain/services/chat-title.service";
+import { DEFAULT_CHAT_TITLE } from "../../domain/services/chat-title.service";
 
 export interface SyncMessagesInput {
 	batch: MessageSyncBatch;
@@ -17,16 +18,18 @@ export interface SyncMessagesOutput {
 	chatId: string;
 	/** True if this was the first sync (chat title may have been generated) */
 	isFirstSync: boolean;
+	/** Generated title if title was generated */
+	generatedTitle?: string;
 }
 
 /**
  * Use case for syncing messages from Durable Object to D1.
- * Handles batched writes and optional title generation.
+ * Handles batched writes and AI-powered title generation.
  */
 export class SyncMessagesUseCase {
 	constructor(
 		private chatRepository: ChatRepository,
-		private titleGenerator?: ChatTitleGenerator,
+		private titleGenerator?: AsyncChatTitleGenerator,
 	) {}
 
 	async execute(input: SyncMessagesInput): Promise<SyncMessagesOutput> {
@@ -36,12 +39,50 @@ export class SyncMessagesUseCase {
 		// Sync messages to D1
 		const synced = await this.chatRepository.syncMessages(batch);
 
-		// Generate title from first user message if this is first sync
-		if (isFirstSync && this.titleGenerator && synced > 0) {
-			const firstUserMessage = batch.messages.find((m) => m.role === "user");
-			if (firstUserMessage) {
-				const title = this.titleGenerator.generate(firstUserMessage.content);
-				await this.chatRepository.update(batch.userId, batch.chatId, { title });
+		let generatedTitle: string | undefined;
+
+		// Generate title if we have a title generator and messages were synced
+		if (this.titleGenerator && synced > 0) {
+			// Check if chat already has a title
+			const chat = await this.chatRepository.findById(
+				batch.userId,
+				batch.chatId,
+			);
+
+			// If the chat cannot be loaded, we cannot safely update its title.
+			if (!chat) {
+				// Log this as a data consistency issue to aid debugging.
+				console.error(
+					"SyncMessagesUseCase: Chat not found after successful message sync",
+					{
+						userId: batch.userId,
+						chatId: batch.chatId,
+						synced,
+						isFirstSync,
+						lastSyncedSequence: batch.lastSyncedSequence,
+					},
+				);
+				return {
+					synced,
+					chatId: batch.chatId,
+					isFirstSync,
+					generatedTitle,
+				};
+			}
+
+			const needsTitle = !chat.title || chat.title === DEFAULT_CHAT_TITLE;
+
+			if (needsTitle) {
+				// Find the first user message to generate title from
+				const firstUserMessage = batch.messages.find((m) => m.role === "user");
+				if (firstUserMessage) {
+					generatedTitle = await this.titleGenerator.generateAsync(
+						firstUserMessage.content,
+					);
+					await this.chatRepository.update(batch.userId, batch.chatId, {
+						title: generatedTitle,
+					});
+				}
 			}
 		}
 
@@ -49,6 +90,7 @@ export class SyncMessagesUseCase {
 			synced,
 			chatId: batch.chatId,
 			isFirstSync,
+			generatedTitle,
 		};
 	}
 }

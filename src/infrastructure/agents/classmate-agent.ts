@@ -36,6 +36,8 @@ import { AssetsPromptService } from "../prompt/assets.prompt.service";
 /** Debounce time for D1 sync (10 seconds) */
 const SYNC_DEBOUNCE_MS = 10_000;
 
+const DEFAULT_DEV_API_BASE_URL = "http://127.0.0.1:8787";
+
 // ============================================
 // AGENT STATE TYPE
 // ============================================
@@ -446,10 +448,11 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 
 		// Build the API URL for internal sync endpoint
 		const apiBaseUrl = this.getApiBaseUrl();
+		const syncUrl = `${apiBaseUrl}/internal/chats/sync`;
 
 		try {
 			// Sync messages to D1 (chat was pre-provisioned via POST /chats)
-			const response = await fetch(`${apiBaseUrl}/internal/chats/sync`, {
+			const response = await fetch(syncUrl, {
 				method: "POST",
 				headers: {
 					"Content-Type": "application/json",
@@ -471,10 +474,11 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 
 			if (!response.ok) {
 				const errorText = await response.text();
-				// If chat not found (404), log error but don't crash - chat may have been deleted
+
+				// If chat not found (404), log warning but don't crash - chat may have been deleted
 				if (response.status === 404) {
-					console.error(
-						`[ClassmateAgent] Chat not found in D1 (may be deleted): ${chatId}`,
+					console.warn(
+						`[ClassmateAgent] Chat ${chatId} not found in D1 (may be deleted)`,
 					);
 					return;
 				}
@@ -538,16 +542,23 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 	}
 
 	/**
-	 * Get the API base URL from environment
+	 * Get the API base URL from environment.
+	 * Priority: API_BASE_URL > WORKER_URL > environment-based default.
 	 */
 	private getApiBaseUrl(): string {
-		// In production, use the worker's own URL
-		// This allows the DO to call back to the main worker
-		return (
-			this.env.API_BASE_URL ||
-			this.env.WORKER_URL ||
-			"https://api.classmate.studio"
-		);
+		if (this.env.API_BASE_URL) {
+			return this.env.API_BASE_URL;
+		}
+		if (this.env.WORKER_URL) {
+			return this.env.WORKER_URL;
+		}
+
+		// Environment-based default: localhost for dev, production URL otherwise
+		if (this.env.ENVIRONMENT === "development") {
+			return DEFAULT_DEV_API_BASE_URL;
+		}
+
+		return "https://api.classmate.studio";
 	}
 
 	/**

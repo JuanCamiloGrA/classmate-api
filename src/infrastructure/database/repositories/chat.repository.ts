@@ -35,7 +35,7 @@ export class D1ChatRepository implements ChatRepository {
 	// ============================================
 
 	async create(data: ChatCreateData): Promise<Chat> {
-		const id = crypto.randomUUID();
+		const id = data.id ?? crypto.randomUUID();
 		const now = new Date().toISOString();
 
 		const newChat = await this.db
@@ -328,10 +328,15 @@ export class D1ChatRepository implements ChatRepository {
 
 		const now = new Date().toISOString();
 
-		// Use transaction for atomicity
-		const insertedCount = await this.db.transaction(async (tx) => {
-			// Insert messages in batch
-			await tx.insert(messages).values(
+		// NOTE: Avoiding db.transaction() due to D1 + Durable Objects local dev issue.
+		// Idempotency is achieved via unique(chat_id, sequence) + onConflictDoNothing.
+		// This ensures retries won't create duplicates even if the previous attempt
+		// partially succeeded.
+
+		// Insert messages in batch (ignore duplicates on retry)
+		const insertedMessages = await this.db
+			.insert(messages)
+			.values(
 				messagesToInsert.map((m) => ({
 					id: crypto.randomUUID(),
 					chatId: m.chatId,
@@ -347,23 +352,37 @@ export class D1ChatRepository implements ChatRepository {
 					toolCalls: m.toolCalls ?? null,
 					createdAt: now,
 				})),
+			)
+			.onConflictDoNothing()
+			.returning({ sequence: messages.sequence });
+
+		// Compute sync position so retries can still advance the DO cursor.
+		// Fast path: when no conflicts happened, we can derive the last sequence from RETURNING.
+		// Slow path: if conflicts occurred (likely retry/partial success), query DB for the truth.
+		let lastSequenceInDb: number;
+		if (insertedMessages.length === messagesToInsert.length) {
+			const maxInsertedSequence = insertedMessages.reduce(
+				(maxSeq, row) => (row.sequence > maxSeq ? row.sequence : maxSeq),
+				lastSyncedSequence,
 			);
+			lastSequenceInDb = Math.max(lastSyncedSequence, maxInsertedSequence);
+		} else {
+			lastSequenceInDb = await this.getLastSequence(chatId);
+		}
 
-			// Update chat metadata
-			const lastMessage = messagesToInsert[messagesToInsert.length - 1];
-			await tx
-				.update(chats)
-				.set({
-					lastMessageAt: now,
-					messageCount: lastSyncedSequence + messagesToInsert.length,
-					updatedAt: now,
-				})
-				.where(eq(chats.id, chatId));
+		const synced = Math.max(0, lastSequenceInDb - lastSyncedSequence);
 
-			return messagesToInsert.length;
-		});
+		// Update chat metadata
+		await this.db
+			.update(chats)
+			.set({
+				lastMessageAt: now,
+				messageCount: lastSequenceInDb,
+				updatedAt: now,
+			})
+			.where(eq(chats.id, chatId));
 
-		return insertedCount;
+		return synced;
 	}
 
 	// ============================================
