@@ -54,7 +54,7 @@ describe("SKILL_REGISTRY", () => {
 
 	it("should have valid paths for all skills", () => {
 		for (const skill of Object.values(SKILL_REGISTRY)) {
-			expect(skill.path).toMatch(/^skills\//);
+			expect(skill.path).toMatch(/^agents\/classmate\/skills\//);
 			expect(skill.path).toMatch(/\.txt$/);
 		}
 	});
@@ -227,11 +227,15 @@ describe("SkillLoader", () => {
 
 	beforeEach(() => {
 		mockPromptService = createMockPromptService({
-			"skills/tools/multi-tool-calling.txt": "Multi-tool content",
-			"skills/tools/tool-confirmation.txt": "Tool confirmation content",
-			"skills/tools/tool-error-handling.txt": "Error handling content",
-			"skills/personalities/base-personality.txt": "Base personality content",
-			"skills/modes/mode-default.txt": "Default mode content",
+			"agents/classmate/skills/tools/multi-tool-calling.txt":
+				"Multi-tool content",
+			"agents/classmate/skills/tools/tool-confirmation.txt":
+				"Tool confirmation content",
+			"agents/classmate/skills/tools/tool-error-handling.txt":
+				"Error handling content",
+			"agents/classmate/skills/personalities/base-personality.txt":
+				"Base personality content",
+			"agents/classmate/skills/modes/mode-default.txt": "Default mode content",
 		});
 		skillLoader = createSkillLoader(mockPromptService);
 	});
@@ -245,7 +249,7 @@ describe("SkillLoader", () => {
 		it("should call promptService with correct path", async () => {
 			await skillLoader.loadSkill("multi-tool-calling");
 			expect(mockPromptService.getPrompt).toHaveBeenCalledWith(
-				"skills/tools/multi-tool-calling.txt",
+				"agents/classmate/skills/tools/multi-tool-calling.txt",
 			);
 		});
 
@@ -433,7 +437,7 @@ describe("createSkillLoader", () => {
 
 	it("should use provided prompt service", async () => {
 		const mockPromptService = createMockPromptService({
-			"skills/tools/multi-tool-calling.txt": "Custom content",
+			"agents/classmate/skills/tools/multi-tool-calling.txt": "Custom content",
 		});
 		const loader = createSkillLoader(mockPromptService);
 

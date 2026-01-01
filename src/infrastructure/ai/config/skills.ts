@@ -56,6 +56,9 @@ export interface SkillDefinition {
 /**
  * Central registry of all available skills
  */
+/** Base path for all skill assets */
+const SKILLS_BASE = "agents/classmate/skills";
+
 export const SKILL_REGISTRY: Record<SkillId, SkillDefinition> = {
 	// Tool Skills
 	"multi-tool-calling": {
@@ -63,21 +66,21 @@ export const SKILL_REGISTRY: Record<SkillId, SkillDefinition> = {
 		category: "tools",
 		name: "Multi Tool Calling",
 		description: "Instructions for parallel tool execution",
-		path: "skills/tools/multi-tool-calling.txt",
+		path: `${SKILLS_BASE}/tools/multi-tool-calling.txt`,
 	},
 	"tool-confirmation": {
 		id: "tool-confirmation",
 		category: "tools",
 		name: "Tool Confirmation",
 		description: "Guidelines for HITL tool confirmations",
-		path: "skills/tools/tool-confirmation.txt",
+		path: `${SKILLS_BASE}/tools/tool-confirmation.txt`,
 	},
 	"tool-error-handling": {
 		id: "tool-error-handling",
 		category: "tools",
 		name: "Tool Error Handling",
 		description: "How to handle and communicate tool errors",
-		path: "skills/tools/tool-error-handling.txt",
+		path: `${SKILLS_BASE}/tools/tool-error-handling.txt`,
 	},
 
 	// Personality Skills
@@ -86,21 +89,21 @@ export const SKILL_REGISTRY: Record<SkillId, SkillDefinition> = {
 		category: "personalities",
 		name: "Classmate Base Personality",
 		description: "Core personality traits and response style",
-		path: "skills/personalities/base-personality.txt",
+		path: `${SKILLS_BASE}/personalities/base-personality.txt`,
 	},
 	"serious-personality": {
 		id: "serious-personality",
 		category: "personalities",
 		name: "Serious Personality",
 		description: "Professional and focused demeanor",
-		path: "skills/personalities/serious-personality.txt",
+		path: `${SKILLS_BASE}/personalities/serious-personality.txt`,
 	},
 	"supportive-personality": {
 		id: "supportive-personality",
 		category: "personalities",
 		name: "Supportive Friend Personality",
 		description: "Emotional support and encouragement",
-		path: "skills/personalities/supportive-personality.txt",
+		path: `${SKILLS_BASE}/personalities/supportive-personality.txt`,
 	},
 
 	// Knowledge Skills
@@ -109,21 +112,21 @@ export const SKILL_REGISTRY: Record<SkillId, SkillDefinition> = {
 		category: "knowledge",
 		name: "Memory Palace Technique",
 		description: "Personalized memory palace construction",
-		path: "skills/knowledge/memory-palace.txt",
+		path: `${SKILLS_BASE}/knowledge/memory-palace.txt`,
 	},
 	"pedagogy-fundamentals": {
 		id: "pedagogy-fundamentals",
 		category: "knowledge",
 		name: "Pedagogy Fundamentals",
 		description: "Advanced pedagogical techniques",
-		path: "skills/knowledge/pedagogy-fundamentals.txt",
+		path: `${SKILLS_BASE}/knowledge/pedagogy-fundamentals.txt`,
 	},
 	"active-recall": {
 		id: "active-recall",
 		category: "knowledge",
 		name: "Active Recall Techniques",
 		description: "Spaced repetition and recall methods",
-		path: "skills/knowledge/active-recall.txt",
+		path: `${SKILLS_BASE}/knowledge/active-recall.txt`,
 	},
 
 	// Mode-Specific Skills
@@ -132,28 +135,28 @@ export const SKILL_REGISTRY: Record<SkillId, SkillDefinition> = {
 		category: "modes",
 		name: "Default Mode Behavior",
 		description: "General assistant behavior",
-		path: "skills/modes/mode-default.txt",
+		path: `${SKILLS_BASE}/modes/mode-default.txt`,
 	},
 	"mode-exam": {
 		id: "mode-exam",
 		category: "modes",
 		name: "Exam Mode Behavior",
 		description: "Exam preparation focus",
-		path: "skills/modes/mode-exam.txt",
+		path: `${SKILLS_BASE}/modes/mode-exam.txt`,
 	},
 	"mode-study": {
 		id: "mode-study",
 		category: "modes",
 		name: "Study Mode Behavior",
 		description: "Deep learning focus",
-		path: "skills/modes/mode-study.txt",
+		path: `${SKILLS_BASE}/modes/mode-study.txt`,
 	},
 	"mode-review": {
 		id: "mode-review",
 		category: "modes",
 		name: "Review Mode Behavior",
 		description: "Quick review and consolidation",
-		path: "skills/modes/mode-review.txt",
+		path: `${SKILLS_BASE}/modes/mode-review.txt`,
 	},
 };
 

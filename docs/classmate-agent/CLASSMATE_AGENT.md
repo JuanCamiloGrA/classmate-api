@@ -1,7 +1,7 @@
 # ClassmateAgent Documentation
 
-> **Status**: Initial Implementation (Mock Tools)  
-> **Version**: 2.0.0  
+> **Status**: Production Ready (Chat Provisioning + Hard Gating)  
+> **Version**: 3.0.0  
 > **Last Updated**: December 2025
 
 The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SDK with Vercel AI SDK integration. It provides a stateful, WebSocket-based conversational interface with mode-specific behavior, composable skills system, and Human-in-the-Loop (HITL) support for sensitive operations.
@@ -32,17 +32,33 @@ The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SD
 │                        Client (Web/Mobile)                       │
 │                    useChat() from @ai-sdk/react                  │
 └─────────────────────────┬───────────────────────────────────────┘
-                          │ WebSocket
+                          │
+                          │ 1. POST /chats (provision chat)
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                    Hono HTTP Layer                               │
-│              /agents/classmate-agent/:conversationId             │
-│                     (chat.ts route)                              │
-│                                                                  │
-│  • Clerk Authentication                                          │
-│  • userId/orgId injection via query params                       │
+│                    Hono HTTP Layer (Public API)                  │
+│  • POST /chats - Create chat with quota enforcement              │
+│  • GET /chats - List user's chats                                │
+│  • GET /chats/:id/messages - Retrieve chat history              │
 └─────────────────────────┬───────────────────────────────────────┘
-                          │ routeAgentRequest()
+                          │ Returns {chatId} (UUID)
+                          │
+                          │ 2. WebSocket to /agents/:name/:chatId
+                          ▼
+┌─────────────────────────────────────────────────────────────────┐
+│                    Worker Entry Point (index.ts)                 │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │ HARD GATE (before routeAgentRequest)                      │   │
+│  │  1. Clerk Authentication                                  │   │
+│  │  2. UUID Validation (INVALID_CHAT_ID if not UUID)        │   │
+│  │  3. D1 Ownership Check (CHAT_FORBIDDEN if not owned)     │   │
+│  └──────────────────────────────────────────────────────────┘   │
+│                          │                                       │
+│                          ▼                                       │
+│                    routeAgentRequest()                           │
+└─────────────────────────┬───────────────────────────────────────┘
+                          │
                           ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │                ClassmateAgent (Durable Object)                   │
@@ -65,6 +81,14 @@ The ClassmateAgent is an AI-powered chat agent built on the Cloudflare Agents SD
 │  ┌─────────────────────────────────────────────────────────┐    │
 │  │                   Vercel AI SDK                          │    │
 │  │  streamText() → AI Gateway → LLM Provider                │    │
+│  └─────────────────────────────────────────────────────────┘    │
+│                          │                                       │
+│                          │ 3. Periodic sync alarm                │
+│                          ▼                                       │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  POST /internal/chats/sync (X-Internal-Key auth)        │    │
+│  │  • Syncs messages to D1 in batches                       │    │
+│  │  • Generates chat titles from first message              │    │
 │  └─────────────────────────────────────────────────────────┘    │
 └─────────────────────────────────────────────────────────────────┘
 ```
@@ -89,12 +113,15 @@ src/
 │   ├── agents/
 │   │   └── classmate-agent.ts      # Main agent class
 │   └── ai/
+│       ├── shared.ts               # APPROVAL constants (shared with frontend)
+│       ├── utils.ts                # processToolCalls, cleanupMessages
 │       ├── config/
 │       │   ├── modes.ts            # Mode configuration & ModeManager
 │       │   └── skills.ts           # Skills registry & SkillLoader
 │       └── tools/
 │           ├── definitions.ts      # Types, interfaces, helpers
 │           ├── class-tools.ts      # Class-related tools (mock)
+│           ├── executions.ts       # HITL tool execution implementations
 │           └── tool-registry.ts    # Mode-to-tools mapping
 ├── interfaces/
 │   └── http/
@@ -143,8 +170,40 @@ interface ClassmateAgentState {
   currentContextId?: string;// Optional context (class, subject, etc.)
   createdAt: number;        // Timestamp of agent creation
   lastActiveAt: number;     // Last activity timestamp
+  lastSyncedSequence: number; // Last message sequence synced to D1
 }
 ```
+
+### Chat Provisioning & Security
+
+**Important**: Chats must be provisioned via `POST /chats` before connecting to the agent. This prevents unlimited Durable Object creation and enforces subscription-based quotas.
+
+#### Tiered Chat Quotas
+
+| Tier | Max Active Chats |
+|------|------------------|
+| Free | 50 |
+| Pro | 500 |
+| Premium | 2000 |
+
+#### Hard Gating
+
+All `/agents/*` traffic is validated before reaching the Durable Object:
+
+1. **Clerk Authentication** - Valid session token required
+2. **UUID Validation** - `conversationId` must be a valid UUID
+3. **D1 Ownership Check** - Chat must exist, belong to user, and not be deleted
+
+If any check fails, the connection is rejected with a `403` error and the Durable Object is **never created**.
+
+#### Error Codes
+
+| Code | HTTP | Meaning |
+|------|------|---------|
+| `CHAT_QUOTA_EXCEEDED` | 403 | User has reached tier chat limit |
+| `CHAT_FORBIDDEN` | 403 | Chat doesn't exist or not owned |
+| `INVALID_CHAT_ID` | 403 | conversationId is not a valid UUID |
+| `UNAUTHORIZED` | 401 | Missing or invalid Clerk token |
 
 ### Modes
 
@@ -594,11 +653,24 @@ const MODE_TOOLS_MAP: Record<AgentMode, ClassmateToolName[]> = {
 
 HITL tools require user confirmation before execution. This is essential for destructive operations like deleting data.
 
+### Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. AI calls tool (no execute fn)  →  Tool call sent to client  │
+│ 2. Client shows confirmation UI   →  User approves/denies      │
+│ 3. Client sends addToolResult()   →  APPROVAL.YES or APPROVAL.NO│
+│ 4. Server processToolCalls()      →  Executes if approved      │
+│ 5. Result streamed back to client →  AI continues conversation │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ### Creating a HITL Tool
 
 The key is to **omit the `execute` function**:
 
 ```typescript
+// src/infrastructure/ai/tools/class-tools.ts
 export const dangerousActionTool = tool({
   description: "Perform a dangerous action that requires confirmation",
   inputSchema: z.object({
@@ -610,21 +682,35 @@ export const dangerousActionTool = tool({
 });
 ```
 
-### Client-Side Handling
+### Add Server-Side Execution
 
-The client receives tool calls and must approve them:
+Add the actual execution logic in `executions.ts`:
 
 ```typescript
-// Using @ai-sdk/react useChat hook
-const { addToolResult } = useChat({
-  // ... options
-});
+// src/infrastructure/ai/tools/executions.ts
+import type { ToolExecutions } from "../utils";
+
+export const executions: ToolExecutions = {
+  dangerousAction: async ({ targetId, reason }) => {
+    // Actual implementation runs AFTER user approval
+    const result = await repository.delete(targetId);
+    return { success: true, deletedId: targetId };
+  },
+};
+```
+
+### Client-Side Handling
+
+The client receives tool calls and must approve them using the shared APPROVAL constants:
+
+```typescript
+import { APPROVAL } from "@/shared"; // Must match server's shared.ts
 
 // When user approves
-const handleApprove = (toolCallId: string, result: any) => {
+const handleApprove = (toolCallId: string) => {
   addToolResult({
     toolCallId,
-    result: JSON.stringify(result),
+    result: APPROVAL.YES,  // "Yes, confirmed."
   });
 };
 
@@ -632,9 +718,24 @@ const handleApprove = (toolCallId: string, result: any) => {
 const handleDeny = (toolCallId: string) => {
   addToolResult({
     toolCallId,
-    result: JSON.stringify({ denied: true, reason: "User declined" }),
+    result: APPROVAL.NO,   // "No, denied."
   });
 };
+```
+
+### Server-Side Processing
+
+The agent automatically processes approvals via `processToolCalls()`:
+
+```typescript
+// In classmate-agent.ts onChatMessage()
+const cleanedMessages = cleanupMessages(this.messages);
+const processedMessages = await processToolCalls({
+  messages: cleanedMessages,
+  dataStream: writer,
+  tools: config.tools,
+  executions,  // From tools/executions.ts
+});
 ```
 
 ### Metadata Configuration
@@ -798,11 +899,12 @@ The following items are planned but not yet implemented:
 - [ ] **Real Tool Implementations**: Replace mock tools with actual repository calls
 - [ ] **Tool Context Injection**: Pass repositories to tool execute functions
 - [ ] **Error Handling**: Comprehensive error boundaries and user-friendly messages
-- [ ] **Rate Limiting**: Per-user rate limiting for chat messages
 
 ### Medium Priority
 
-- [ ] **Conversation History API**: REST endpoints to fetch past conversations
+- [x] ~~**Conversation History API**~~: ✅ Implemented (`GET /chats`, `GET /chats/:id/messages`)
+- [x] ~~**Chat Provisioning**~~: ✅ Implemented with tiered quotas
+- [x] ~~**Hard Gating**~~: ✅ D1 ownership checks before DO access
 - [ ] **Mode Switching UI**: Client-side mode selector integration
 - [ ] **Tool Result Caching**: Cache frequently accessed data
 - [ ] **Streaming Progress**: Show tool execution progress to users
@@ -813,6 +915,15 @@ The following items are planned but not yet implemented:
 - [ ] **Multi-language Support**: Localized system prompts
 - [ ] **Custom Model Selection**: User-configurable model preferences
 - [ ] **Conversation Export**: Export chat history as PDF/markdown
+
+### Recently Completed (v3.0.0)
+
+- [x] **Chat Provisioning System**: Server-side chat creation with UUID-only IDs
+- [x] **Tiered Quotas**: Subscription-based limits (free=50, pro=500, premium=2000)
+- [x] **Hard Agent Gating**: D1 ownership validation before DO creation
+- [x] **Public Chat API**: Full CRUD endpoints for chat management
+- [x] **Internal Sync Endpoint**: Secure DO → Worker message synchronization
+- [x] **Message History**: REST endpoints to retrieve past conversations
 
 ---
 

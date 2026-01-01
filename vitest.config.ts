@@ -1,13 +1,21 @@
-import { defineConfig } from "vitest/config";
+import { defineWorkersConfig } from "@cloudflare/vitest-pool-workers/config";
 
-export default defineConfig({
+export default defineWorkersConfig({
 	test: {
 		globals: true,
-		environment: "node",
 		include: ["src/**/*.test.ts"],
-		coverage: {
-			provider: "v8",
-			reporter: ["text", "json", "html"],
+		// Exclude integration tests that need full DO support for now
+		exclude: ["src/**/*.integration.test.ts", "node_modules"],
+		poolOptions: {
+			workers: {
+				wrangler: { configPath: "./wrangler.jsonc" },
+				main: "./src/index.ts",
+				miniflare: {
+					durableObjects: {
+						ClassmateAgent: "ClassmateAgent",
+					},
+				},
+			},
 		},
 	},
 });

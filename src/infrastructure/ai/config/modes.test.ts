@@ -91,23 +91,31 @@ describe("ModeManager", () => {
 
 	beforeEach(() => {
 		mockPromptService = createMockPromptService({
-			"skills/tools/multi-tool-calling.txt": "## Multi Tool Calling\n\nContent",
-			"skills/tools/tool-confirmation.txt": "## Tool Confirmation\n\nContent",
-			"skills/tools/tool-error-handling.txt": "## Error Handling\n\nContent",
-			"skills/personalities/base-personality.txt":
+			"agents/classmate/skills/tools/multi-tool-calling.txt":
+				"## Multi Tool Calling\n\nContent",
+			"agents/classmate/skills/tools/tool-confirmation.txt":
+				"## Tool Confirmation\n\nContent",
+			"agents/classmate/skills/tools/tool-error-handling.txt":
+				"## Error Handling\n\nContent",
+			"agents/classmate/skills/personalities/base-personality.txt":
 				"## Base Personality\n\nContent",
-			"skills/personalities/serious-personality.txt":
+			"agents/classmate/skills/personalities/serious-personality.txt":
 				"## Serious Personality\n\nContent",
-			"skills/personalities/supportive-personality.txt":
+			"agents/classmate/skills/personalities/supportive-personality.txt":
 				"## Supportive Personality\n\nContent",
-			"skills/knowledge/memory-palace.txt": "## Memory Palace\n\nContent",
-			"skills/knowledge/pedagogy-fundamentals.txt":
+			"agents/classmate/skills/knowledge/memory-palace.txt":
+				"## Memory Palace\n\nContent",
+			"agents/classmate/skills/knowledge/pedagogy-fundamentals.txt":
 				"## Pedagogy Fundamentals\n\nContent",
-			"skills/knowledge/active-recall.txt": "## Active Recall\n\nContent",
-			"skills/modes/mode-default.txt": "## Default Mode\n\nContent",
-			"skills/modes/mode-exam.txt": "## Exam Mode\n\nContent",
-			"skills/modes/mode-study.txt": "## Study Mode\n\nContent",
-			"skills/modes/mode-review.txt": "## Review Mode\n\nContent",
+			"agents/classmate/skills/knowledge/active-recall.txt":
+				"## Active Recall\n\nContent",
+			"agents/classmate/skills/modes/mode-default.txt":
+				"## Default Mode\n\nContent",
+			"agents/classmate/skills/modes/mode-exam.txt": "## Exam Mode\n\nContent",
+			"agents/classmate/skills/modes/mode-study.txt":
+				"## Study Mode\n\nContent",
+			"agents/classmate/skills/modes/mode-review.txt":
+				"## Review Mode\n\nContent",
 		});
 		modeManager = createModeManager(mockPromptService);
 	});
@@ -308,11 +316,15 @@ describe("createModeManager", () => {
 
 	it("should use provided prompt service for skill loading", async () => {
 		const mockPromptService = createMockPromptService({
-			"skills/tools/multi-tool-calling.txt": "Custom multi-tool content",
-			"skills/tools/tool-confirmation.txt": "Custom confirmation",
-			"skills/tools/tool-error-handling.txt": "Custom error handling",
-			"skills/personalities/base-personality.txt": "Custom personality",
-			"skills/modes/mode-default.txt": "Custom default mode",
+			"agents/classmate/skills/tools/multi-tool-calling.txt":
+				"Custom multi-tool content",
+			"agents/classmate/skills/tools/tool-confirmation.txt":
+				"Custom confirmation",
+			"agents/classmate/skills/tools/tool-error-handling.txt":
+				"Custom error handling",
+			"agents/classmate/skills/personalities/base-personality.txt":
+				"Custom personality",
+			"agents/classmate/skills/modes/mode-default.txt": "Custom default mode",
 		});
 		const manager = createModeManager(mockPromptService);
 
@@ -330,26 +342,29 @@ describe("Skills System Integration", () => {
 
 	beforeEach(() => {
 		const mockPromptService = createMockPromptService({
-			"skills/tools/multi-tool-calling.txt":
+			"agents/classmate/skills/tools/multi-tool-calling.txt":
 				"You can call multiple tools in parallel.",
-			"skills/tools/tool-confirmation.txt": "Some tools require confirmation.",
-			"skills/tools/tool-error-handling.txt": "Handle errors gracefully.",
-			"skills/personalities/base-personality.txt":
+			"agents/classmate/skills/tools/tool-confirmation.txt":
+				"Some tools require confirmation.",
+			"agents/classmate/skills/tools/tool-error-handling.txt":
+				"Handle errors gracefully.",
+			"agents/classmate/skills/personalities/base-personality.txt":
 				"You are Classmate, an academic assistant.",
-			"skills/personalities/serious-personality.txt":
+			"agents/classmate/skills/personalities/serious-personality.txt":
 				"Be direct and efficient.",
-			"skills/personalities/supportive-personality.txt":
+			"agents/classmate/skills/personalities/supportive-personality.txt":
 				"Be patient and encouraging.",
-			"skills/knowledge/memory-palace.txt":
+			"agents/classmate/skills/knowledge/memory-palace.txt":
 				"Guide students through memory palace construction.",
-			"skills/knowledge/pedagogy-fundamentals.txt":
+			"agents/classmate/skills/knowledge/pedagogy-fundamentals.txt":
 				"Apply research-backed teaching strategies.",
-			"skills/knowledge/active-recall.txt":
+			"agents/classmate/skills/knowledge/active-recall.txt":
 				"Use retrieval practice for better learning.",
-			"skills/modes/mode-default.txt": "General academic assistance mode.",
-			"skills/modes/mode-exam.txt": "Exam preparation mode.",
-			"skills/modes/mode-study.txt": "Deep learning mode.",
-			"skills/modes/mode-review.txt": "Quick review mode.",
+			"agents/classmate/skills/modes/mode-default.txt":
+				"General academic assistance mode.",
+			"agents/classmate/skills/modes/mode-exam.txt": "Exam preparation mode.",
+			"agents/classmate/skills/modes/mode-study.txt": "Deep learning mode.",
+			"agents/classmate/skills/modes/mode-review.txt": "Quick review mode.",
 		});
 		modeManager = createModeManager(mockPromptService);
 	});

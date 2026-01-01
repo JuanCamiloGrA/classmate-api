@@ -1,9 +1,21 @@
+import { routeAgentRequest } from "agents";
 import { fromHono } from "chanfana";
 
 import type { Bindings } from "./config/bindings";
+import { resolveSecretBinding } from "./config/bindings";
 import { ClassmateAgent } from "./infrastructure/agents/classmate-agent";
+import { DatabaseFactory } from "./infrastructure/database/client";
+import { D1ChatRepository } from "./infrastructure/database/repositories/chat.repository";
 import { createApp } from "./interfaces";
-import { createChatRoutes } from "./interfaces/http/routes/chat";
+import { verifyClerkAuth } from "./interfaces/http/routes/chat";
+import {
+	CreateChatEndpoint,
+	DeleteChatEndpoint,
+	GetChatEndpoint,
+	GetChatMessagesEndpoint,
+	ListChatsEndpoint,
+	UpdateChatEndpoint,
+} from "./interfaces/http/routes/chats";
 import {
 	CreateClassEndpoint,
 	GetClassEndpoint,
@@ -16,6 +28,7 @@ import { GenerateClassAudioUploadUrlEndpoint } from "./interfaces/http/routes/cl
 import { ProcessClassAudioEndpoint } from "./interfaces/http/routes/classes-process-audio";
 import { ProcessClassUrlEndpoint } from "./interfaces/http/routes/classes-process-url";
 import { CreateFeedbackEndpoint } from "./interfaces/http/routes/feedback";
+import { SyncChatMessagesEndpoint } from "./interfaces/http/routes/internal-chats";
 import {
 	ConfirmUploadEndpoint,
 	DeleteLibraryItemEndpoint,
@@ -73,10 +86,224 @@ import {
 	CreateProfileEndpoint,
 	UpdateProfileFromClerkEndpoint,
 } from "./interfaces/http/routes/webhooks-clerk";
+import { UUID_REGEX } from "./interfaces/http/validators/chat.validator";
 import { SummarizeClassWorkflow } from "./workflows/summarize-class";
+
+type GetMessagesEdgeLimitEntry = {
+	windowStartMs: number;
+	count: number;
+	lastAtMs: number;
+	penaltyUntilMs: number;
+};
+
+// Best-effort guardrail to avoid infinite polling loops on /get-messages.
+// Note: this is in-memory per isolate; it's still valuable to protect local dev
+// and reduce accidental runaway loops in production.
+const getMessagesEdgeLimiter = new Map<string, GetMessagesEdgeLimitEntry>();
+
+function getClientIp(request: Request): string {
+	return (
+		request.headers.get("CF-Connecting-IP") ||
+		request.headers.get("X-Forwarded-For")?.split(",")[0]?.trim() ||
+		request.headers.get("X-Client-IP") ||
+		"unknown"
+	);
+}
 
 export default {
 	async fetch(request: Request, env: Bindings, ctx: ExecutionContext) {
+		const url = new URL(request.url);
+
+		// ============================================
+		// AGENT ROUTES - Handle BEFORE Hono/Chanfana
+		// These need direct access to routeAgentRequest
+		// ============================================
+		if (url.pathname.startsWith("/agents/")) {
+			// Edge guardrail: if the frontend falls back to polling and starts spamming
+			// GET .../get-messages (often across many random conversation IDs), stop the
+			// runaway loop quickly with 429.
+			if (request.method === "GET" && url.pathname.endsWith("/get-messages")) {
+				const clientIp = getClientIp(request);
+				const key = `agents:get-messages:${clientIp}`;
+
+				const nowMs = Date.now();
+				const windowMs = 10_000;
+				const maxPerWindow = 60;
+				const minIntervalMs = 150;
+				const penaltyMs = 2_000;
+
+				const entry = getMessagesEdgeLimiter.get(key) ?? {
+					windowStartMs: nowMs,
+					count: 0,
+					lastAtMs: 0,
+					penaltyUntilMs: 0,
+				};
+
+				if (nowMs - entry.windowStartMs >= windowMs) {
+					entry.windowStartMs = nowMs;
+					entry.count = 0;
+					entry.penaltyUntilMs = 0;
+				}
+
+				const deltaMs = entry.lastAtMs ? nowMs - entry.lastAtMs : Infinity;
+				entry.lastAtMs = nowMs;
+				entry.count += 1;
+
+				if (deltaMs < minIntervalMs || entry.count > maxPerWindow) {
+					entry.penaltyUntilMs = Math.max(
+						entry.penaltyUntilMs,
+						nowMs + penaltyMs,
+					);
+				}
+
+				getMessagesEdgeLimiter.set(key, entry);
+
+				if (entry.penaltyUntilMs > nowMs) {
+					// CORS headers are computed a bit later; return a minimal safe response here.
+					return new Response(
+						JSON.stringify({
+							error: "Too Many Requests",
+							message:
+								"Polling too frequently (GET /get-messages). A stable WebSocket connection should be used.",
+						}),
+						{
+							status: 429,
+							headers: {
+								"Content-Type": "application/json",
+								"Retry-After": "2",
+								"Cache-Control": "no-store",
+							},
+						},
+					);
+				}
+			}
+
+			// Get allowed origin for CORS with credentials
+			const requestOrigin = request.headers.get("Origin");
+			const allowedOriginSecret = await resolveSecretBinding(
+				env.ALLOWED_ORIGIN,
+				"ALLOWED_ORIGIN",
+			);
+			const allowedOrigins = allowedOriginSecret
+				.split(",")
+				.map((v) => v.trim())
+				.filter(Boolean);
+
+			// Check if request origin is allowed
+			const isOriginAllowed =
+				requestOrigin &&
+				(allowedOrigins.includes("*") ||
+					allowedOrigins.includes(requestOrigin));
+			const corsOrigin = isOriginAllowed ? requestOrigin : allowedOrigins[0];
+
+			// CORS headers for credentials
+			const requestAllowedHeaders = request.headers.get(
+				"Access-Control-Request-Headers",
+			);
+
+			const corsHeaders = {
+				"Access-Control-Allow-Origin": corsOrigin || "*",
+				"Access-Control-Allow-Credentials": "true",
+				"Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+				"Access-Control-Allow-Headers":
+					requestAllowedHeaders || "Content-Type, Authorization",
+				"Access-Control-Max-Age": "86400",
+				Vary: "Origin",
+			};
+
+			// Handle CORS preflight
+			if (request.method === "OPTIONS") {
+				return new Response(null, {
+					status: 204,
+					headers: corsHeaders,
+				});
+			}
+
+			// Verify Clerk authentication
+			const auth = await verifyClerkAuth(request, env);
+			if (!auth) {
+				return new Response(JSON.stringify({ error: "Unauthorized" }), {
+					status: 401,
+					headers: {
+						"Content-Type": "application/json",
+						...corsHeaders,
+					},
+				});
+			}
+
+			// ============================================
+			// HARD GATE: Verify chat ownership in D1
+			// ============================================
+			// Parse URL: /agents/:agentName/:conversationId/...
+			const pathParts = url.pathname.split("/").filter(Boolean);
+			// pathParts[0] = "agents", pathParts[1] = agentName, pathParts[2] = conversationId
+			const conversationId = pathParts[2];
+
+			// 1. Reject if not UUID
+			if (!conversationId || !UUID_REGEX.test(conversationId)) {
+				return new Response(
+					JSON.stringify({
+						error: "Forbidden",
+						code: "INVALID_CHAT_ID",
+					}),
+					{
+						status: 403,
+						headers: {
+							"Content-Type": "application/json",
+							...corsHeaders,
+						},
+					},
+				);
+			}
+
+			// 2. Check D1 ownership (chat exists AND owned by user AND not deleted)
+			const db = DatabaseFactory.create(env.DB);
+			const chatRepo = new D1ChatRepository(db);
+			const chatExists = await chatRepo.exists(auth.userId, conversationId);
+
+			if (!chatExists) {
+				return new Response(
+					JSON.stringify({
+						error: "Forbidden",
+						code: "CHAT_FORBIDDEN",
+					}),
+					{
+						status: 403,
+						headers: {
+							"Content-Type": "application/json",
+							...corsHeaders,
+						},
+					},
+				);
+			}
+
+			// 3. Only NOW call routeAgentRequest() - chat is verified
+
+			// Route to the agent (handles both WebSocket and HTTP).
+			// IMPORTANT: Do not re-create/wrap the Request for WebSocket upgrades.
+			// Some platforms will strip forbidden headers (like Upgrade) when
+			// constructing a new Request, causing the client to fall back to polling.
+			const response = await routeAgentRequest(request, env, {
+				cors: corsHeaders,
+			});
+
+			if (response) return response;
+
+			// If we reach here, the agent didn't respond.
+
+			// Agent not found
+			return new Response(JSON.stringify({ error: "Agent not found" }), {
+				status: 404,
+				headers: {
+					"Content-Type": "application/json",
+					...corsHeaders,
+				},
+			});
+		}
+
+		// ============================================
+		// REGULAR API ROUTES - Via Hono/Chanfana
+		// ============================================
 		const honoApp = createApp({});
 
 		// Setup OpenAPI registry
@@ -181,10 +408,16 @@ export default {
 		apiApp.post("/notifications/read-all", MarkAllNotificationsReadEndpoint);
 		apiApp.delete("/notifications/:id", DeleteNotificationEndpoint);
 
-		// Chat routes (WebSocket for ClassmateAgent)
-		// Mount chat routes - handles /agents/classmate-agent/:conversationId
-		const chatRoutes = createChatRoutes();
-		honoApp.route("/", chatRoutes);
+		// Chat endpoints (public)
+		apiApp.post("/chats", CreateChatEndpoint);
+		apiApp.get("/chats", ListChatsEndpoint);
+		apiApp.get("/chats/:id", GetChatEndpoint);
+		apiApp.get("/chats/:id/messages", GetChatMessagesEndpoint);
+		apiApp.put("/chats/:id", UpdateChatEndpoint);
+		apiApp.delete("/chats/:id", DeleteChatEndpoint);
+
+		// Internal endpoints (DO → Worker)
+		apiApp.post("/internal/chats/sync", SyncChatMessagesEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},

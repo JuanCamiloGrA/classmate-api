@@ -1,96 +1,102 @@
 /**
- * Chat WebSocket Route
- * Handles WebSocket connections for ClassmateAgent
+ * Chat Route Utilities
+ * Handles authentication for ClassmateAgent requests
  *
  * Route: /agents/classmate-agent/:conversationId
- * Protocol: WebSocket (via Cloudflare Agents SDK)
+ * Protocol: HTTP POST / WebSocket (via Cloudflare Agents SDK)
  */
 
-import { routeAgentRequest } from "agents";
-import { Hono } from "hono";
-import type { Bindings, Variables } from "../../../config/bindings";
-import { getAuth } from "../../../infrastructure/auth";
-
-type HonoContext = { Bindings: Bindings; Variables: Variables };
+import { createClerkClient, verifyToken } from "@clerk/backend";
+import type { Bindings } from "../../../config/bindings";
+import { resolveSecretBinding } from "../../../config/bindings";
 
 /**
- * Create the chat routes for ClassmateAgent
- * Must be mounted at the root level to handle /agents/* paths
+ * Verify Clerk authentication from request headers or query parameters
+ * Used before routing to the agent
+ *
+ * For WebSocket connections with cross-origin auth, the token may be passed
+ * as a query parameter (_clerk_session_token) instead of in cookies/headers.
  */
-export function createChatRoutes() {
-	const app = new Hono<HonoContext>();
+export async function verifyClerkAuth(
+	request: Request,
+	env: Bindings,
+): Promise<{ userId: string; orgId?: string } | null> {
+	try {
+		// Get Clerk keys
+		const secretKey = await resolveSecretBinding(
+			env.CLERK_SECRET_KEY,
+			"CLERK_SECRET_KEY",
+		);
+		const publishableKey = await resolveSecretBinding(
+			env.CLERK_PUBLISHABLE_KEY,
+			"CLERK_PUBLISHABLE_KEY",
+		);
 
-	/**
-	 * WebSocket upgrade handler for ClassmateAgent
-	 *
-	 * The Agents SDK expects routes in the format:
-	 * /agents/{agent-name}/{agent-id}
-	 *
-	 * Auth is checked here before upgrade, then userId is passed
-	 * to the agent via query params
-	 */
-	app.all("/agents/classmate-agent/:conversationId", async (c) => {
-		// Check authentication via Clerk
-		const auth = getAuth(c);
+		// Check for token in query parameters (used for WebSocket connections)
+		const url = new URL(request.url);
+		const queryToken = url.searchParams.get("_clerk_session_token");
 
-		if (!auth?.userId) {
-			return c.json({ error: "Unauthorized" }, 401);
+		if (queryToken) {
+			// Verify the JWT token directly for WebSocket/cross-origin requests
+			try {
+				const session = await verifyToken(queryToken, {
+					secretKey,
+				});
+
+				return {
+					userId: session.sub,
+					orgId: session.org_id ?? undefined,
+				};
+			} catch (tokenError) {
+				console.error(
+					"[Chat Auth] Failed to verify token from query params:",
+					tokenError,
+				);
+				return null;
+			}
 		}
 
-		const userId = auth.userId;
-		const orgId = auth.orgId || undefined;
-
-		// Clone the request and add userId/orgId to URL params
-		// The agent will read these in onConnect
-		const url = new URL(c.req.url);
-		url.searchParams.set("userId", userId);
-		if (orgId) {
-			url.searchParams.set("orgId", orgId);
-		}
-
-		// Create a new request with the modified URL
-		const modifiedRequest = new Request(url.toString(), {
-			method: c.req.raw.method,
-			headers: c.req.raw.headers,
-			body: c.req.raw.body,
+		// Fall back to standard cookie/header-based auth for regular requests
+		const clerk = createClerkClient({
+			secretKey,
+			publishableKey,
 		});
 
-		// Route to the agent - this handles WebSocket upgrade internally
-		const response = await routeAgentRequest(modifiedRequest, c.env);
+		// Verify the request
+		const authResult = await clerk.authenticateRequest(request);
 
-		if (response) {
-			return response;
+		if (!authResult.isSignedIn) {
+			return null;
 		}
 
-		// If routeAgentRequest returns null, the route didn't match
-		return c.json({ error: "Agent not found" }, 404);
-	});
-
-	return app;
+		return {
+			userId: authResult.toAuth().userId,
+			orgId: authResult.toAuth().orgId ?? undefined,
+		};
+	} catch (error) {
+		console.error("[Chat Auth] Failed to verify Clerk auth:", error);
+		return null;
+	}
 }
 
 /**
- * Direct handler for use in main worker fetch
- * Can be used when not going through Hono middleware
+ * Add user info to request URL for agent consumption
  */
-export async function handleAgentRequest(
+export function addUserInfoToRequest(
 	request: Request,
-	env: Bindings,
 	userId: string,
 	orgId?: string,
-): Promise<Response | null> {
-	// Add auth info to the request URL
+): Request {
 	const url = new URL(request.url);
 	url.searchParams.set("userId", userId);
 	if (orgId) {
 		url.searchParams.set("orgId", orgId);
 	}
 
-	const modifiedRequest = new Request(url.toString(), {
+	return new Request(url.toString(), {
 		method: request.method,
 		headers: request.headers,
 		body: request.body,
-	});
-
-	return routeAgentRequest(modifiedRequest, env);
+		duplex: "half", // Required for streaming body
+	} as RequestInit);
 }
