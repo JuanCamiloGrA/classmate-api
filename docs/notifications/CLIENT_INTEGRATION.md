@@ -3,300 +3,43 @@
 > Quick reference for frontend integration with the Notifications API.
 
 ## Base URL
-
 ```
 https://api.classmate.studio
 ```
-
-All endpoints require authentication via Clerk JWT in the `Authorization` header:
-```
-Authorization: Bearer <clerk_session_token>
-```
+*Requires Clerk JWT in `Authorization: Bearer <token>`.*
 
 ---
 
-## Endpoints Summary
+## 🚀 Quick Start (Cheat Sheet)
 
-| Method | Endpoint                          | Description                          | Auth Required |
-|--------|-----------------------------------|--------------------------------------|---------------|
-| GET    | `/notifications`                  | List notifications (paginated)       | ✅            |
-| GET    | `/notifications/unread-count`     | Get unread notification count        | ✅            |
-| GET    | `/notifications/:id`              | Get a single notification            | ✅            |
-| POST   | `/notifications`                  | Create a notification                | ✅            |
-| POST   | `/notifications/:id/read`         | Mark notification as read            | ✅            |
-| POST   | `/notifications/read-all`         | Mark all notifications as read       | ✅            |
-| DELETE | `/notifications/:id`              | Delete a notification                | ✅            |
+### 1. List Unread Notifications
+`GET /notifications?is_read=false&limit=10`
 
-> All endpoints require Clerk authentication. The `user_id` is automatically extracted from the JWT token.
+### 2. Mark One as Read
+`POST /notifications/:id/read`
 
----
+### 3. Mark ALL as Read
+`POST /notifications/read-all`
 
-## Notification Types
-
-The `type` field determines which UI component to render:
-
-| Type                  | Description                          | Payload Example                                     |
-|-----------------------|--------------------------------------|-----------------------------------------------------|
-| `class_summary_ready` | Class summary has been generated     | `{ "classId": "abc", "className": "Neuroscience" }` |
-| `task_due_soon`       | Task deadline approaching            | `{ "taskId": "xyz", "taskTitle": "Essay", "dueDate": "2024-12-10" }` |
-| `grade_posted`        | Grade has been posted for a task     | `{ "taskId": "xyz", "grade": 95, "taskTitle": "Final Exam" }` |
-| `system_alert`        | System-wide announcement             | `{ "title": "Maintenance", "message": "..." }`      |
+### 4. Get Unread Count (for badges)
+`GET /notifications/unread-count`
 
 ---
 
-## List Notifications
+## 📂 Notification Types
 
-```http
-GET /notifications?is_read=false&limit=20&offset=0
-```
-
-### Query Parameters
-
-| Param       | Type   | Default | Description                                      |
-|-------------|--------|---------|--------------------------------------------------|
-| `type`      | string | —       | Comma-separated types to filter                  |
-| `is_read`   | string | —       | `true`, `false`, `1`, or `0`                     |
-| `limit`     | number | 20      | Max items per page (1-100)                       |
-| `offset`    | number | 0       | Pagination offset                                |
-| `sort_order`| string | `desc`  | `asc` or `desc` by `created_at`                  |
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "data": [
-      {
-        "id": "notif-123",
-        "type": "class_summary_ready",
-        "payload": { "classId": "abc", "className": "Neuroscience" },
-        "is_read": 0,
-        "action_url": "/classes/abc",
-        "created_at": "2024-12-05T10:30:00.000Z"
-      }
-    ],
-    "meta": {
-      "total": 42,
-      "unread_count": 5,
-      "limit": 20,
-      "offset": 0
-    }
-  }
-}
-```
+| Type | UI Component | Description |
+| :--- | :--- | :--- |
+| `class_summary_ready` | Summary Widget | Class summary generated. Payload: `{ "classId", "className" }` |
+| `task_due_soon` | Reminder Card | Task deadline. Payload: `{ "taskId", "taskTitle", "dueDate" }` |
+| `grade_posted` | Grade Widget | Grade posted. Payload: `{ "taskId", "grade", "taskTitle" }` |
+| `system_alert` | Banner / Modal | System announcement. Payload: `{ "title", "message" }` |
 
 ---
 
-## Get Unread Count
+## 🛠️ Production-Ready Hooks (React Query)
 
-Quick endpoint for badge counters:
-
-```http
-GET /notifications/unread-count
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "unread_count": 5
-  }
-}
-```
-
----
-
-## Get Single Notification
-
-```http
-GET /notifications/:id
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "id": "notif-123",
-    "user_id": "user_abc",
-    "type": "task_due_soon",
-    "payload": { "taskId": "xyz", "taskTitle": "Essay" },
-    "is_read": 1,
-    "read_at": "2024-12-05T11:00:00.000Z",
-    "action_url": "/tasks/xyz",
-    "created_at": "2024-12-05T10:30:00.000Z"
-  }
-}
-```
-
----
-
-## Mark Notification as Read
-
-```http
-POST /notifications/:id/read
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "id": "notif-123",
-    "is_read": 1,
-    "read_at": "2024-12-05T11:00:00.000Z"
-  }
-}
-```
-
----
-
-## Mark All as Read
-
-```http
-POST /notifications/read-all
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "marked_count": 5
-  }
-}
-```
-
----
-
-## Delete Notification
-
-```http
-DELETE /notifications/:id
-```
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "id": "notif-123"
-  }
-}
-```
-
----
-
-## Create Notification
-
-Create a notification for the authenticated user.
-
-```http
-POST /notifications
-Content-Type: application/json
-
-{
-  "type": "class_summary_ready",
-  "payload": { "classId": "abc", "className": "Neuroscience" },
-  "action_url": "/classes/abc"
-}
-```
-
-### Request Body
-
-| Field        | Type   | Required | Description                                |
-|--------------|--------|----------|--------------------------------------------|
-| `type`       | string | ✅       | One of the notification types (see above)  |
-| `payload`    | object | ❌       | Dynamic data for the widget (default: `{}`) |
-| `action_url` | string | ❌       | URL to navigate when clicking notification |
-
-### Response
-
-```json
-{
-  "success": true,
-  "result": {
-    "id": "notif-456",
-    "user_id": "user_abc",
-    "type": "class_summary_ready",
-    "payload": { "classId": "abc", "className": "Neuroscience" },
-    "is_read": 0,
-    "read_at": null,
-    "action_url": "/classes/abc",
-    "created_at": "2024-12-05T12:00:00.000Z"
-  }
-}
-```
-
----
-
-## Error Responses
-
-All errors follow this format:
-
-```json
-{
-  "error": "Error message",
-  "name": "ErrorType"
-}
-```
-
-| Status | Error Type        | Description              |
-|--------|-------------------|--------------------------|
-| 400    | ValidationError   | Invalid request params   |
-| 401    | UnauthorizedError | Missing/invalid auth     |
-| 404    | NotFoundError     | Notification not found   |
-| 500    | Internal error    | Server error             |
-
----
-
-## TypeScript Types
-
-```typescript
-type NotificationType = 
-  | "class_summary_ready" 
-  | "task_due_soon" 
-  | "grade_posted" 
-  | "system_alert";
-
-interface NotificationListItem {
-  id: string;
-  type: NotificationType;
-  payload: Record<string, unknown>;
-  is_read: number; // 0 = unread, 1 = read
-  action_url: string | null;
-  created_at: string; // ISO 8601
-}
-
-interface NotificationDetail extends NotificationListItem {
-  user_id: string;
-  read_at: string | null; // ISO 8601
-}
-
-interface ListNotificationsResponse {
-  success: true;
-  result: {
-    data: NotificationListItem[];
-    meta: {
-      total: number;
-      unread_count: number;
-      limit: number;
-      offset: number;
-    };
-  };
-}
-```
-
----
-
-## React Query Example
+Use these hooks for a robust integration.
 
 ```typescript
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -304,28 +47,12 @@ import { useAuth } from '@clerk/clerk-react';
 
 const API_BASE = 'https://api.classmate.studio';
 
-export function useNotifications(filters?: { isRead?: boolean; limit?: number }) {
-  const { getToken } = useAuth();
-  
-  return useQuery({
-    queryKey: ['notifications', filters],
-    queryFn: async () => {
-      const token = await getToken();
-      const params = new URLSearchParams();
-      if (filters?.isRead !== undefined) params.set('is_read', String(filters.isRead));
-      if (filters?.limit) params.set('limit', String(filters.limit));
-      
-      const res = await fetch(`${API_BASE}/notifications?${params}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
-      return res.json();
-    },
-  });
-}
-
+/**
+ * 1. Fetch unread count for the navbar badge.
+ * Recommended polling: 30-60 seconds.
+ */
 export function useUnreadCount() {
   const { getToken } = useAuth();
-  
   return useQuery({
     queryKey: ['notifications', 'unread-count'],
     queryFn: async () => {
@@ -333,31 +60,38 @@ export function useUnreadCount() {
       const res = await fetch(`${API_BASE}/notifications/unread-count`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      return res.json();
+      const data = await res.json();
+      return data.result.unread_count;
     },
-    refetchInterval: 30000, // Poll every 30s
+    refetchInterval: 60000,
   });
 }
 
-export function useMarkAsRead() {
-  const queryClient = useQueryClient();
+/**
+ * 2. List notifications with pagination and filtering.
+ */
+export function useNotifications(isRead?: boolean, limit = 20) {
   const { getToken } = useAuth();
-  
-  return useMutation({
-    mutationFn: async (notificationId: string) => {
+  return useQuery({
+    queryKey: ['notifications', { isRead, limit }],
+    queryFn: async () => {
       const token = await getToken();
-      const res = await fetch(`${API_BASE}/notifications/${notificationId}/read`, {
-        method: 'POST',
+      const params = new URLSearchParams();
+      if (isRead !== undefined) params.set('is_read', String(isRead));
+      params.set('limit', String(limit));
+      
+      const res = await fetch(`${API_BASE}/notifications?${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      const data = await res.json();
+      return data.result; // Returns { data: [...], meta: {...} }
     },
   });
 }
 
+/**
+ * 3. Mark all as read with Optimistic UI updates.
+ */
 export function useMarkAllAsRead() {
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
@@ -365,57 +99,32 @@ export function useMarkAllAsRead() {
   return useMutation({
     mutationFn: async () => {
       const token = await getToken();
-      const res = await fetch(`${API_BASE}/notifications/read-all`, {
+      await fetch(`${API_BASE}/notifications/read-all`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       });
-      return res.json();
     },
     onSuccess: () => {
+      // Refresh both the list and the unread count
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }
 
-export function useCreateNotification() {
+/**
+ * 4. Mark single notification as read.
+ */
+export function useMarkAsRead() {
   const queryClient = useQueryClient();
   const { getToken } = useAuth();
   
   return useMutation({
-    mutationFn: async (data: { 
-      type: NotificationType; 
-      payload?: Record<string, unknown>; 
-      action_url?: string;
-    }) => {
+    mutationFn: async (id: string) => {
       const token = await getToken();
-      const res = await fetch(`${API_BASE}/notifications`, {
+      await fetch(`${API_BASE}/notifications/${id}/read`, {
         method: 'POST',
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      });
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['notifications'] });
-    },
-  });
-}
-
-export function useDeleteNotification() {
-  const queryClient = useQueryClient();
-  const { getToken } = useAuth();
-  
-  return useMutation({
-    mutationFn: async (notificationId: string) => {
-      const token = await getToken();
-      const res = await fetch(`${API_BASE}/notifications/${notificationId}`, {
-        method: 'DELETE',
         headers: { Authorization: `Bearer ${token}` },
       });
-      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notifications'] });
@@ -426,23 +135,29 @@ export function useDeleteNotification() {
 
 ---
 
-## Payload Rendering Guide
+## 💡 Integration Tips
 
-Use the `type` field to determine which component renders the notification:
+1. **Badge Polling**: Use `useUnreadCount` with a `refetchInterval` to keep the notification badge updated without refreshing the whole page.
+2. **Optimistic UI**: When "Marking All as Read", you can manually update the cache for `unread_count` to `0` for an instant feel.
+3. **Action URLs**: Most notifications include an `action_url`. Use your router's `push` or `Link` component to navigate there when the user clicks the notification.
+4. **Polling vs WebSockets**: Currently, the API uses polling. For high-frequency updates, keep the polling interval around 30-60 seconds to avoid unnecessary server load.
 
-```tsx
-function NotificationItem({ notification }: { notification: NotificationListItem }) {
-  switch (notification.type) {
-    case 'class_summary_ready':
-      return <ClassSummaryNotification payload={notification.payload} />;
-    case 'task_due_soon':
-      return <TaskDueNotification payload={notification.payload} />;
-    case 'grade_posted':
-      return <GradePostedNotification payload={notification.payload} />;
-    case 'system_alert':
-      return <SystemAlertNotification payload={notification.payload} />;
-    default:
-      return <GenericNotification notification={notification} />;
-  }
+---
+
+## 🔍 API Reference Details
+
+### Parameters for `GET /notifications`
+- `type`: Comma-separated types (e.g., `class_summary_ready,task_due_soon`).
+- `is_read`: `true`/`false` or `1`/`0`.
+- `limit`: `1-100` (default: 20).
+- `offset`: For pagination.
+- `sort_order`: `asc` or `desc` (default: `desc`).
+
+### Error Format
+```json
+{
+  "error": "Detailed error message",
+  "name": "ErrorType"
 }
 ```
+*Common types: `ValidationError`, `UnauthorizedError`, `NotFoundError`.*
