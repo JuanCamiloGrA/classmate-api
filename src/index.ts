@@ -28,7 +28,10 @@ import { GenerateClassAudioUploadUrlEndpoint } from "./interfaces/http/routes/cl
 import { ProcessClassAudioEndpoint } from "./interfaces/http/routes/classes-process-audio";
 import { ProcessClassUrlEndpoint } from "./interfaces/http/routes/classes-process-url";
 import { CreateFeedbackEndpoint } from "./interfaces/http/routes/feedback";
-import { SyncChatMessagesEndpoint } from "./interfaces/http/routes/internal-chats";
+import {
+	CleanupEmptyChatEndpoint,
+	SyncChatMessagesEndpoint,
+} from "./interfaces/http/routes/internal-chats";
 import {
 	ConfirmUploadEndpoint,
 	DeleteLibraryItemEndpoint,
@@ -418,6 +421,7 @@ export default {
 
 		// Internal endpoints (DO → Worker)
 		apiApp.post("/internal/chats/sync", SyncChatMessagesEndpoint);
+		apiApp.post("/internal/chats/cleanup-empty", CleanupEmptyChatEndpoint);
 
 		return apiApp.fetch(request, env, ctx);
 	},

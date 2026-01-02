@@ -4,7 +4,10 @@
  */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ClassRepository } from "../../../domain/repositories/class.repository";
+import type { TaskRepository } from "../../../domain/repositories/task.repository";
 import type { PromptService } from "../../../domain/services/prompt.service";
+import type { ToolDependencies } from "../tools/definitions";
 import {
 	createModeManager,
 	type LoadedModeConfiguration,
@@ -14,7 +17,7 @@ import {
 import { MODE_SKILLS_MAP } from "./skills";
 
 // ============================================
-// MOCK PROMPT SERVICE
+// MOCK FACTORIES
 // ============================================
 
 function createMockPromptService(
@@ -28,6 +31,37 @@ function createMockPromptService(
 			}
 			return `Mock content for: ${path}`;
 		}),
+	};
+}
+
+function createMockClassRepository(): ClassRepository {
+	return {
+		create: vi.fn(),
+		findByIdAndUserId: vi.fn(),
+		findAll: vi.fn(),
+		update: vi.fn(),
+		softDelete: vi.fn(),
+		hardDelete: vi.fn(),
+	};
+}
+
+function createMockTaskRepository(): TaskRepository {
+	return {
+		create: vi.fn(),
+		findByIdAndUserId: vi.fn(),
+		findBySubjectIdAndUserId: vi.fn(),
+		findAll: vi.fn(),
+		update: vi.fn(),
+		softDelete: vi.fn(),
+		hardDelete: vi.fn(),
+	};
+}
+
+function createMockDependencies(): ToolDependencies {
+	return {
+		userId: "test-user-id",
+		classRepository: createMockClassRepository(),
+		taskRepository: createMockTaskRepository(),
 	};
 }
 
@@ -87,6 +121,7 @@ describe("MODE_CONFIGS", () => {
 
 describe("ModeManager", () => {
 	let mockPromptService: PromptService;
+	let mockDeps: ToolDependencies;
 	let modeManager: ModeManager;
 
 	beforeEach(() => {
@@ -117,12 +152,13 @@ describe("ModeManager", () => {
 			"agents/classmate/skills/modes/mode-review.txt":
 				"## Review Mode\n\nContent",
 		});
+		mockDeps = createMockDependencies();
 		modeManager = createModeManager(mockPromptService);
 	});
 
 	describe("getConfiguration", () => {
 		it("should return configuration for DEFAULT mode", async () => {
-			const config = await modeManager.getConfiguration("DEFAULT");
+			const config = await modeManager.getConfiguration("DEFAULT", mockDeps);
 
 			expect(config.mode).toBe("DEFAULT");
 			expect(config.modelId).toBe("google/gemini-3-flash");
@@ -133,7 +169,7 @@ describe("ModeManager", () => {
 		});
 
 		it("should return configuration for EXAM mode", async () => {
-			const config = await modeManager.getConfiguration("EXAM");
+			const config = await modeManager.getConfiguration("EXAM", mockDeps);
 
 			expect(config.mode).toBe("EXAM");
 			expect(config.skills).toEqual(MODE_SKILLS_MAP.EXAM);
@@ -143,7 +179,7 @@ describe("ModeManager", () => {
 		});
 
 		it("should return configuration for STUDY mode", async () => {
-			const config = await modeManager.getConfiguration("STUDY");
+			const config = await modeManager.getConfiguration("STUDY", mockDeps);
 
 			expect(config.mode).toBe("STUDY");
 			expect(config.skills).toEqual(MODE_SKILLS_MAP.STUDY);
@@ -154,7 +190,7 @@ describe("ModeManager", () => {
 		});
 
 		it("should return configuration for REVIEW mode", async () => {
-			const config = await modeManager.getConfiguration("REVIEW");
+			const config = await modeManager.getConfiguration("REVIEW", mockDeps);
 
 			expect(config.mode).toBe("REVIEW");
 			expect(config.modelId).toBe("google/gemini-2.5-flash-lite");
@@ -167,7 +203,7 @@ describe("ModeManager", () => {
 			const modes = ["DEFAULT", "EXAM", "STUDY", "REVIEW"] as const;
 
 			for (const mode of modes) {
-				const config = await modeManager.getConfiguration(mode);
+				const config = await modeManager.getConfiguration(mode, mockDeps);
 				expect(config.systemPrompt).toContain("Multi Tool Calling");
 			}
 		});
@@ -176,26 +212,29 @@ describe("ModeManager", () => {
 			const modes = ["DEFAULT", "EXAM", "STUDY", "REVIEW"] as const;
 
 			for (const mode of modes) {
-				const config = await modeManager.getConfiguration(mode);
+				const config = await modeManager.getConfiguration(mode, mockDeps);
 				expect(config.systemPrompt).toContain("Base Personality");
 			}
 		});
 
 		it("should default to DEFAULT config for unknown mode", async () => {
-			const config = await modeManager.getConfiguration("UNKNOWN" as any);
+			const config = await modeManager.getConfiguration(
+				"UNKNOWN" as any,
+				mockDeps,
+			);
 
 			expect(config.mode).toBe("DEFAULT");
 			expect(config.skills).toEqual(MODE_SKILLS_MAP.DEFAULT);
 		});
 
 		it("should return tools for the mode", async () => {
-			const config = await modeManager.getConfiguration("DEFAULT");
+			const config = await modeManager.getConfiguration("DEFAULT", mockDeps);
 
 			expect(typeof config.tools).toBe("object");
 		});
 
 		it("should return tools requiring confirmation", async () => {
-			const config = await modeManager.getConfiguration("DEFAULT");
+			const config = await modeManager.getConfiguration("DEFAULT", mockDeps);
 
 			expect(Array.isArray(config.toolsRequiringConfirmation)).toBe(true);
 		});
@@ -284,14 +323,14 @@ describe("ModeManager", () => {
 	describe("clearCache", () => {
 		it("should clear skill cache", async () => {
 			// Load configuration to populate cache
-			await modeManager.getConfiguration("DEFAULT");
+			await modeManager.getConfiguration("DEFAULT", mockDeps);
 			const callsAfterFirst = (
 				mockPromptService.getPrompt as ReturnType<typeof vi.fn>
 			).mock.calls.length;
 
 			// Clear cache and load again
 			modeManager.clearCache();
-			await modeManager.getConfiguration("DEFAULT");
+			await modeManager.getConfiguration("DEFAULT", mockDeps);
 			const callsAfterSecond = (
 				mockPromptService.getPrompt as ReturnType<typeof vi.fn>
 			).mock.calls.length;
@@ -326,9 +365,10 @@ describe("createModeManager", () => {
 				"Custom personality",
 			"agents/classmate/skills/modes/mode-default.txt": "Custom default mode",
 		});
+		const mockDeps = createMockDependencies();
 		const manager = createModeManager(mockPromptService);
 
-		const config = await manager.getConfiguration("DEFAULT");
+		const config = await manager.getConfiguration("DEFAULT", mockDeps);
 		expect(config.systemPrompt).toContain("Custom multi-tool content");
 	});
 });
@@ -339,6 +379,7 @@ describe("createModeManager", () => {
 
 describe("Skills System Integration", () => {
 	let modeManager: ModeManager;
+	let mockDeps: ToolDependencies;
 
 	beforeEach(() => {
 		const mockPromptService = createMockPromptService({
@@ -366,11 +407,12 @@ describe("Skills System Integration", () => {
 			"agents/classmate/skills/modes/mode-study.txt": "Deep learning mode.",
 			"agents/classmate/skills/modes/mode-review.txt": "Quick review mode.",
 		});
+		mockDeps = createMockDependencies();
 		modeManager = createModeManager(mockPromptService);
 	});
 
 	it("should compose DEFAULT mode with correct skills", async () => {
-		const config = await modeManager.getConfiguration("DEFAULT");
+		const config = await modeManager.getConfiguration("DEFAULT", mockDeps);
 
 		// Should have tool skills
 		expect(config.systemPrompt).toContain("multiple tools in parallel");
@@ -389,7 +431,7 @@ describe("Skills System Integration", () => {
 	});
 
 	it("should compose EXAM mode with focused skills", async () => {
-		const config = await modeManager.getConfiguration("EXAM");
+		const config = await modeManager.getConfiguration("EXAM", mockDeps);
 
 		// Should have tool skills (base)
 		expect(config.systemPrompt).toContain("multiple tools in parallel");
@@ -406,7 +448,7 @@ describe("Skills System Integration", () => {
 	});
 
 	it("should compose STUDY mode with deep learning skills", async () => {
-		const config = await modeManager.getConfiguration("STUDY");
+		const config = await modeManager.getConfiguration("STUDY", mockDeps);
 
 		// Should have supportive personality (not serious)
 		expect(config.systemPrompt).toContain("patient and encouraging");
@@ -418,7 +460,7 @@ describe("Skills System Integration", () => {
 	});
 
 	it("should compose REVIEW mode with efficient skills", async () => {
-		const config = await modeManager.getConfiguration("REVIEW");
+		const config = await modeManager.getConfiguration("REVIEW", mockDeps);
 
 		// Should have active recall
 		expect(config.systemPrompt).toContain("retrieval practice");
@@ -434,11 +476,12 @@ describe("Skills System Integration", () => {
 	it("should cache skills across mode configurations", async () => {
 		const promptService = createMockPromptService();
 		const manager = createModeManager(promptService);
+		const deps = createMockDependencies();
 
 		// Load multiple modes
-		await manager.getConfiguration("DEFAULT");
-		await manager.getConfiguration("EXAM");
-		await manager.getConfiguration("STUDY");
+		await manager.getConfiguration("DEFAULT", deps);
+		await manager.getConfiguration("EXAM", deps);
+		await manager.getConfiguration("STUDY", deps);
 
 		// Base skills should only be loaded once
 		const calls = (promptService.getPrompt as ReturnType<typeof vi.fn>).mock

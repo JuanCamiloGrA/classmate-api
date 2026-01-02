@@ -3,6 +3,8 @@
  * Common interfaces and types for ClassmateAgent tools
  */
 import type { z } from "zod";
+import type { ClassRepository } from "../../../domain/repositories/class.repository";
+import type { TaskRepository } from "../../../domain/repositories/task.repository";
 
 /**
  * Context passed to tool execution functions
@@ -12,7 +14,16 @@ export interface ToolExecutionContext {
 	userId: string;
 	contextId?: string;
 	mode: string;
-	// Add service injections as needed (repositories, etc.)
+}
+
+/**
+ * Dependencies required for tool creation
+ * Injected at runtime from the agent
+ */
+export interface ToolDependencies {
+	userId: string;
+	classRepository: ClassRepository;
+	taskRepository: TaskRepository;
 }
 
 /**
@@ -44,12 +55,22 @@ export type ToolInputSchema<T extends z.ZodTypeAny> = T;
 
 /**
  * Available tool names (union type for type safety)
+ * Classes: list, get, create, delete, update
+ * Tasks: list, get, create, delete, update
  */
 export type ClassmateToolName =
-	| "readClassContent"
-	| "removeClass"
+	// Class tools
 	| "listClasses"
-	| "getClassSummary";
+	| "getClass"
+	| "createClass"
+	| "deleteClass"
+	| "updateClass"
+	// Task tools
+	| "listTasks"
+	| "getTask"
+	| "createTask"
+	| "deleteTask"
+	| "updateTask";
 
 /**
  * Mode identifiers

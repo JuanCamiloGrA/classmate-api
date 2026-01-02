@@ -25,6 +25,7 @@ function createMockChatRepository(): ChatRepository & {
 		update: vi.fn(),
 		softDelete: vi.fn(),
 		restore: vi.fn(),
+		hardDelete: vi.fn().mockResolvedValue(true),
 		getMessages: vi.fn(),
 		getLastSequence: vi.fn(),
 		syncMessages: vi.fn().mockResolvedValue(2),

@@ -4,7 +4,7 @@
  */
 
 import type { PromptService } from "../../../domain/services/prompt.service";
-import type { AgentMode } from "../tools/definitions";
+import type { AgentMode, ToolDependencies } from "../tools/definitions";
 import {
 	getToolsForMode,
 	getToolsRequiringConfirmationForMode,
@@ -111,15 +111,21 @@ export class ModeManager {
 	/**
 	 * Get the full configuration for a mode
 	 * Composes skills into system prompt and prepares tools
+	 *
+	 * @param mode - The agent mode to load configuration for
+	 * @param deps - Tool dependencies (userId, repositories)
 	 */
-	async getConfiguration(mode: AgentMode): Promise<LoadedModeConfiguration> {
+	async getConfiguration(
+		mode: AgentMode,
+		deps: ToolDependencies,
+	): Promise<LoadedModeConfiguration> {
 		const config = MODE_CONFIGS[mode] || MODE_CONFIGS.DEFAULT;
 
 		// Compose skills into system prompt
 		const systemPrompt = await this.skillLoader.getSystemPromptForMode(mode);
 
-		// Get tools for this mode
-		const tools = getToolsForMode(mode);
+		// Get tools for this mode with injected dependencies
+		const tools = getToolsForMode(mode, deps);
 		const toolsRequiringConfirmation =
 			getToolsRequiringConfirmationForMode(mode);
 

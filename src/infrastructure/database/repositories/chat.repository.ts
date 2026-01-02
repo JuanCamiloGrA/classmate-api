@@ -276,6 +276,19 @@ export class D1ChatRepository implements ChatRepository {
 		return this.mapToChat(restored);
 	}
 
+	async hardDelete(userId: string, chatId: string): Promise<boolean> {
+		// First delete all messages associated with the chat
+		await this.db.delete(messages).where(eq(messages.chatId, chatId));
+
+		// Then delete the chat itself
+		const result = await this.db
+			.delete(chats)
+			.where(and(eq(chats.id, chatId), eq(chats.userId, userId)))
+			.returning({ id: chats.id });
+
+		return result.length > 0;
+	}
+
 	// ============================================
 	// MESSAGE OPERATIONS
 	// ============================================

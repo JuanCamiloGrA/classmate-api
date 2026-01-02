@@ -24,9 +24,16 @@ import type { Connection, ConnectionContext } from "partyserver";
 import { resolveSecretBinding } from "../../config/bindings";
 import type { MessageRole } from "../../domain/entities/chat";
 import { createModeManager, type ModeManager } from "../ai/config/modes";
-import type { AgentMode, ChatMessageMetadata } from "../ai/tools/definitions";
-import { executions } from "../ai/tools/executions";
+import type {
+	AgentMode,
+	ChatMessageMetadata,
+	ToolDependencies,
+} from "../ai/tools/definitions";
+import { createExecutions } from "../ai/tools/executions";
 import { cleanupMessages, processToolCalls } from "../ai/utils";
+import { DatabaseFactory } from "../database/client";
+import { D1ClassRepository } from "../database/repositories/class.repository";
+import { D1TaskRepository } from "../database/repositories/task.repository";
 import { AssetsPromptService } from "../prompt/assets.prompt.service";
 
 // ============================================
@@ -254,7 +261,7 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 
 	/**
 	 * Called when WebSocket connection is closed
-	 * Triggers immediate sync to D1 before disconnecting
+	 * Triggers immediate sync to D1 or cleanup of empty chats
 	 */
 	override async onClose(
 		_connection: Connection,
@@ -266,7 +273,17 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 			`[ClassmateAgent] Connection closed: code=${code}, reason=${reason}`,
 		);
 
-		// Trigger immediate sync on disconnect
+		// If no messages were sent, cleanup the empty chat from D1
+		if (this.state?.userId && this.messages.length === 0) {
+			try {
+				await this.cleanupEmptyChat();
+			} catch (error) {
+				console.error("[ClassmateAgent] Failed to cleanup empty chat:", error);
+			}
+			return;
+		}
+
+		// Trigger immediate sync on disconnect if there are messages
 		if (this.state?.userId && this.messages.length > 0) {
 			try {
 				await this.syncToD1();
@@ -318,8 +335,14 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 			throw new Error("Services failed to initialize");
 		}
 
-		// Load configuration for current mode
-		const config = await this.modeManager.getConfiguration(mode);
+		// Create tool dependencies with repositories
+		const toolDeps = this.createToolDependencies();
+
+		// Load configuration for current mode with tool dependencies
+		const config = await this.modeManager.getConfiguration(mode, toolDeps);
+
+		// Create executions for HITL tools with same dependencies
+		const executions = createExecutions(toolDeps);
 
 		// Create AI Gateway model
 		const model = this.gateway(config.modelId);
@@ -504,6 +527,55 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 	}
 
 	/**
+	 * Cleanup an empty chat from D1 database
+	 * Called when connection closes without any messages being sent
+	 */
+	private async cleanupEmptyChat(): Promise<void> {
+		if (!this.state?.userId) {
+			console.log("[ClassmateAgent] No userId, skipping cleanup");
+			return;
+		}
+
+		const chatId = this.name; // Durable Object name is the chat ID
+		const userId = this.state.userId;
+
+		// Build the API URL for internal cleanup endpoint
+		const apiBaseUrl = this.getApiBaseUrl();
+		const cleanupUrl = `${apiBaseUrl}/internal/chats/cleanup-empty`;
+
+		try {
+			const response = await fetch(cleanupUrl, {
+				method: "POST",
+				headers: {
+					"Content-Type": "application/json",
+					"X-Internal-Key": await this.getInternalApiKey(),
+				},
+				body: JSON.stringify({
+					chatId,
+					userId,
+				}),
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(`Cleanup failed: ${response.status} - ${errorText}`);
+			}
+
+			const result = (await response.json()) as {
+				deleted: boolean;
+				reason: string;
+			};
+
+			console.log(
+				`[ClassmateAgent] Cleanup result for chat ${chatId}: deleted=${result.deleted}, reason=${result.reason}`,
+			);
+		} catch (error) {
+			console.error("[ClassmateAgent] Empty chat cleanup error:", error);
+			throw error;
+		}
+	}
+
+	/**
 	 * Convert UI messages to sync-friendly format with sequence numbers
 	 */
 	private convertMessagesForSync(): ConvertedMessage[] {
@@ -574,6 +646,22 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 	// ============================================
 	// HELPER METHODS
 	// ============================================
+
+	/**
+	 * Create tool dependencies with repositories for the current user
+	 * Used for tool execution and HITL execution
+	 */
+	private createToolDependencies(): ToolDependencies {
+		const db = DatabaseFactory.create(this.env.DB);
+		const classRepository = new D1ClassRepository(db);
+		const taskRepository = new D1TaskRepository(db);
+
+		return {
+			userId: this.state.userId,
+			classRepository,
+			taskRepository,
+		};
+	}
 
 	/**
 	 * Extract metadata from the last user message

@@ -2,10 +2,56 @@
  * ClassmateAgent Unit Tests
  * Tests for the agent's core functionality
  */
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { ClassRepository } from "../../domain/repositories/class.repository";
+import type { TaskRepository } from "../../domain/repositories/task.repository";
 import { APPROVAL } from "../ai/shared";
-import { executions, hitlToolNames } from "../ai/tools/executions";
+import type { ToolDependencies } from "../ai/tools/definitions";
+import { createExecutions, hitlToolNames } from "../ai/tools/executions";
 import { cleanupMessages } from "../ai/utils";
+
+// ============================================
+// MOCK FACTORIES
+// ============================================
+
+function createMockClassRepository(): ClassRepository {
+	return {
+		create: vi.fn(),
+		findByIdAndUserId: vi.fn(),
+		findAll: vi.fn(),
+		update: vi.fn(),
+		softDelete: vi.fn(),
+		hardDelete: vi
+			.fn()
+			.mockResolvedValue({ id: "test-id", title: "Test Class" }),
+	};
+}
+
+function createMockTaskRepository(): TaskRepository {
+	return {
+		create: vi.fn(),
+		findByIdAndUserId: vi.fn(),
+		findBySubjectIdAndUserId: vi.fn(),
+		findAll: vi.fn(),
+		update: vi.fn(),
+		softDelete: vi.fn(),
+		hardDelete: vi
+			.fn()
+			.mockResolvedValue({ id: "test-id", title: "Test Task" }),
+	};
+}
+
+function createMockDependencies(): ToolDependencies {
+	return {
+		userId: "test-user-id",
+		classRepository: createMockClassRepository(),
+		taskRepository: createMockTaskRepository(),
+	};
+}
+
+// ============================================
+// TESTS
+// ============================================
 
 describe("ClassmateAgent HITL Flow", () => {
 	describe("cleanupMessages", () => {
@@ -17,7 +63,7 @@ describe("ClassmateAgent HITL Flow", () => {
 					content: "",
 					parts: [
 						{
-							type: "tool-removeClass",
+							type: "tool-deleteClass",
 							state: "input-streaming",
 							toolCallId: "call-1",
 							input: { classId: "123" },
@@ -41,7 +87,7 @@ describe("ClassmateAgent HITL Flow", () => {
 					content: "",
 					parts: [
 						{
-							type: "tool-removeClass",
+							type: "tool-deleteClass",
 							state: "input-available",
 							toolCallId: "call-1",
 							input: { classId: "123" },
@@ -65,7 +111,7 @@ describe("ClassmateAgent HITL Flow", () => {
 					content: "",
 					parts: [
 						{
-							type: "tool-removeClass",
+							type: "tool-deleteClass",
 							state: "output-available",
 							toolCallId: "call-1",
 							input: { classId: "123" },
@@ -93,23 +139,34 @@ describe("ClassmateAgent HITL Flow", () => {
 	});
 
 	describe("Tool Executions Registry", () => {
-		it("should have removeClass registered", () => {
-			expect(hitlToolNames).toContain("removeClass");
+		it("should have deleteClass registered", () => {
+			expect(hitlToolNames).toContain("deleteClass");
 		});
 
-		it("should execute removeClass successfully", async () => {
+		it("should have updateClass registered", () => {
+			expect(hitlToolNames).toContain("updateClass");
+		});
+
+		it("should have deleteTask registered", () => {
+			expect(hitlToolNames).toContain("deleteTask");
+		});
+
+		it("should have updateTask registered", () => {
+			expect(hitlToolNames).toContain("updateTask");
+		});
+
+		it("should execute deleteClass successfully", async () => {
+			const deps = createMockDependencies();
+			const executions = createExecutions(deps);
 			const mockContext = {
 				messages: [],
 				toolCallId: "test-call-id",
 			} as any;
 
-			const result = await executions.removeClass(
-				{
-					classId: "test-id",
-					reason: "Testing",
-				},
+			const result = (await executions.deleteClass(
+				{ classId: "test-id", reason: "Testing" },
 				mockContext,
-			);
+			)) as { success: boolean; deletedId: string };
 
 			expect(result).toHaveProperty("success", true);
 			expect(result).toHaveProperty("deletedId", "test-id");

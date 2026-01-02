@@ -116,6 +116,15 @@ export interface ChatRepository {
 	 */
 	restore(userId: string, chatId: string): Promise<Chat>;
 
+	/**
+	 * Permanently delete a chat and all its messages.
+	 * Used for cleanup of empty/unused chats.
+	 * @param userId - Owner user ID
+	 * @param chatId - Chat ID to delete
+	 * @returns True if deleted, false if not found
+	 */
+	hardDelete(userId: string, chatId: string): Promise<boolean>;
+
 	// ============================================
 	// MESSAGE OPERATIONS
 	// ============================================

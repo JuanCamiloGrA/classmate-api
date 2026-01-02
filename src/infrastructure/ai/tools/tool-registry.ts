@@ -1,14 +1,33 @@
 /**
  * Tool Registry
  * Central registry for loading tools based on agent mode
+ * Uses factory pattern to inject dependencies at runtime
  */
 
 import {
-	classTools,
+	type ClassTools,
 	classToolsMeta,
 	classToolsRequiringConfirmation,
+	createClassTools,
 } from "./class-tools";
-import type { AgentMode, ClassmateToolName, ToolMetadata } from "./definitions";
+import type {
+	AgentMode,
+	ClassmateToolName,
+	ToolDependencies,
+	ToolMetadata,
+} from "./definitions";
+import {
+	createTaskTools,
+	type TaskTools,
+	taskToolsMeta,
+	taskToolsRequiringConfirmation,
+} from "./task-tools";
+
+// ============================================
+// COMBINED TYPES
+// ============================================
+
+export type AllTools = ClassTools & TaskTools;
 
 // ============================================
 // TOOL SETS BY MODE
@@ -16,39 +35,54 @@ import type { AgentMode, ClassmateToolName, ToolMetadata } from "./definitions";
 
 /**
  * Tools available in DEFAULT mode (general assistant)
+ * Full access to all tools including destructive operations
  */
 const DEFAULT_TOOLS: ClassmateToolName[] = [
-	"readClassContent",
+	// Class tools
 	"listClasses",
-	"getClassSummary",
-	"removeClass", // Available but requires confirmation
+	"getClass",
+	"createClass",
+	"deleteClass", // HITL - requires confirmation
+	"updateClass", // HITL - requires confirmation
+	// Task tools
+	"listTasks",
+	"getTask",
+	"createTask",
+	"deleteTask", // HITL - requires confirmation
+	"updateTask", // HITL - requires confirmation
 ];
 
 /**
  * Tools available in EXAM mode (exam preparation)
+ * Read-only access for exam preparation
  */
 const EXAM_TOOLS: ClassmateToolName[] = [
-	"readClassContent",
 	"listClasses",
-	"getClassSummary",
-	// removeClass NOT available in exam mode
+	"getClass",
+	"listTasks",
+	"getTask",
 ];
 
 /**
  * Tools available in STUDY mode (focused learning)
+ * Read-only access for study sessions
  */
 const STUDY_TOOLS: ClassmateToolName[] = [
-	"readClassContent",
-	"getClassSummary",
+	"listClasses",
+	"getClass",
+	"listTasks",
+	"getTask",
 ];
 
 /**
  * Tools available in REVIEW mode (content review)
+ * Read-only access for quick review
  */
 const REVIEW_TOOLS: ClassmateToolName[] = [
-	"readClassContent",
 	"listClasses",
-	"getClassSummary",
+	"getClass",
+	"listTasks",
+	"getTask",
 ];
 
 /**
@@ -62,27 +96,54 @@ const MODE_TOOLS_MAP: Record<AgentMode, ClassmateToolName[]> = {
 };
 
 // ============================================
-// REGISTRY FUNCTIONS
+// TOOL FACTORY
 // ============================================
+
+/**
+ * Create all tools with injected dependencies
+ * Returns combined class and task tools
+ */
+export function createAllTools(deps: ToolDependencies): AllTools {
+	const classTools = createClassTools(deps);
+	const taskTools = createTaskTools(deps);
+
+	return {
+		...classTools,
+		...taskTools,
+	};
+}
 
 /**
  * Get the tool set for a specific mode
  * Returns tools in the format expected by streamText
  */
-export function getToolsForMode(mode: AgentMode) {
+export function getToolsForMode(mode: AgentMode, deps: ToolDependencies) {
 	const toolNames = MODE_TOOLS_MAP[mode] || MODE_TOOLS_MAP.DEFAULT;
+	const allTools = createAllTools(deps);
 
-	const tools: Record<string, (typeof classTools)[keyof typeof classTools]> =
-		{};
+	const tools: Record<string, AllTools[keyof AllTools]> = {};
 
 	for (const name of toolNames) {
-		if (name in classTools) {
-			tools[name] = classTools[name as keyof typeof classTools];
+		if (name in allTools) {
+			tools[name] = allTools[name as keyof AllTools];
 		}
 	}
 
 	return tools;
 }
+
+// ============================================
+// METADATA REGISTRY
+// ============================================
+
+/** All tool metadata combined */
+const allToolsMeta: ToolMetadata[] = [...classToolsMeta, ...taskToolsMeta];
+
+/** All tools requiring confirmation combined */
+const allToolsRequiringConfirmation = [
+	...classToolsRequiringConfirmation,
+	...taskToolsRequiringConfirmation,
+];
 
 /**
  * Get metadata for tools in a specific mode
@@ -90,7 +151,7 @@ export function getToolsForMode(mode: AgentMode) {
 export function getToolMetadataForMode(mode: AgentMode): ToolMetadata[] {
 	const toolNames = MODE_TOOLS_MAP[mode] || MODE_TOOLS_MAP.DEFAULT;
 
-	return classToolsMeta.filter((meta) =>
+	return allToolsMeta.filter((meta) =>
 		toolNames.includes(meta.name as ClassmateToolName),
 	);
 }
@@ -103,7 +164,7 @@ export function getToolsRequiringConfirmationForMode(
 ): string[] {
 	const toolNames = MODE_TOOLS_MAP[mode] || MODE_TOOLS_MAP.DEFAULT;
 
-	return classToolsRequiringConfirmation.filter((name) =>
+	return allToolsRequiringConfirmation.filter((name) =>
 		toolNames.includes(name as ClassmateToolName),
 	);
 }
@@ -112,18 +173,26 @@ export function getToolsRequiringConfirmationForMode(
  * Check if a tool requires confirmation
  */
 export function toolRequiresConfirmation(toolName: string): boolean {
-	return classToolsRequiringConfirmation.includes(toolName);
+	return allToolsRequiringConfirmation.includes(toolName);
 }
 
 /**
  * Get all available tool names across all modes
  */
 export function getAllToolNames(): ClassmateToolName[] {
-	return Object.keys(classTools) as ClassmateToolName[];
+	return [...new Set(Object.values(MODE_TOOLS_MAP).flat())];
 }
 
 // ============================================
 // EXPORTS
 // ============================================
 
-export { classTools, classToolsMeta, classToolsRequiringConfirmation };
+export {
+	classToolsMeta,
+	classToolsRequiringConfirmation,
+	taskToolsMeta,
+	taskToolsRequiringConfirmation,
+	allToolsMeta,
+	allToolsRequiringConfirmation,
+	MODE_TOOLS_MAP,
+};

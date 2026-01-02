@@ -223,3 +223,134 @@ export class SyncChatMessagesEndpoint extends OpenAPIRoute {
 		}
 	}
 }
+
+// ============================================
+// CLEANUP EMPTY CHAT ENDPOINT
+// ============================================
+
+const CleanupEmptyChatRequestSchema = z.object({
+	chatId: UuidSchema,
+	userId: z.string().min(1),
+});
+
+const CleanupSuccessResponseSchema = z.object({
+	success: z.literal(true),
+	deleted: z.boolean(),
+	reason: z.string(),
+});
+
+/**
+ * POST /internal/chats/cleanup-empty
+ * Clean up a chat that has no messages (e.g., user disconnected before sending any message).
+ * Protected by X-Internal-Key authentication.
+ */
+export class CleanupEmptyChatEndpoint extends OpenAPIRoute {
+	schema = {
+		tags: ["Internal"],
+		summary: "Cleanup empty chat (internal)",
+		description:
+			"Permanently deletes a chat if it has no messages. Called by Durable Object on connection close. Protected by X-Internal-Key header.",
+		security: [{ internalKey: [] }],
+		request: {
+			headers: z.object({
+				"X-Internal-Key": z.string(),
+			}),
+			body: {
+				content: {
+					"application/json": {
+						schema: CleanupEmptyChatRequestSchema,
+					},
+				},
+			},
+		},
+		responses: {
+			"200": {
+				description: "Cleanup result",
+				...contentJson(CleanupSuccessResponseSchema),
+			},
+			"401": {
+				description: "Invalid or missing internal key",
+				...contentJson(ErrorResponseSchema),
+			},
+			"400": {
+				description: "Invalid request body",
+				...contentJson(ErrorResponseSchema),
+			},
+		},
+	};
+
+	async handle(c: InternalContext) {
+		try {
+			// 1. Verify internal key
+			const isValid = await verifyInternalKey(c);
+			if (!isValid) {
+				return c.json(
+					{ error: "Unauthorized", code: "INVALID_INTERNAL_KEY" },
+					401,
+				);
+			}
+
+			// 2. Parse and validate request body
+			const body = await c.req.json();
+			const validated = CleanupEmptyChatRequestSchema.parse(body);
+
+			// 3. Setup repository
+			const db = DatabaseFactory.create(c.env.DB);
+			const chatRepository = new D1ChatRepository(db);
+
+			// 4. Check if chat exists and has no messages
+			const chat = await chatRepository.findById(
+				validated.userId,
+				validated.chatId,
+			);
+
+			if (!chat) {
+				return c.json({
+					success: true,
+					deleted: false,
+					reason: "Chat not found or already deleted",
+				});
+			}
+
+			// Only delete if chat has no messages
+			if (chat.messageCount > 0) {
+				return c.json({
+					success: true,
+					deleted: false,
+					reason: `Chat has ${chat.messageCount} messages, not deleting`,
+				});
+			}
+
+			// 5. Hard delete the empty chat
+			const deleted = await chatRepository.hardDelete(
+				validated.userId,
+				validated.chatId,
+			);
+
+			console.log(
+				`[CleanupEmptyChat] Chat ${validated.chatId} deleted: ${deleted}`,
+			);
+
+			return c.json({
+				success: true,
+				deleted,
+				reason: deleted
+					? "Empty chat deleted successfully"
+					: "Failed to delete chat",
+			});
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				return c.json(
+					{
+						error: "Invalid request body",
+						code: "VALIDATION_ERROR",
+					},
+					400,
+				);
+			}
+
+			console.error("[CleanupEmptyChat] Cleanup error:", error);
+			return c.json({ error: "Internal server error" }, 500);
+		}
+	}
+}
