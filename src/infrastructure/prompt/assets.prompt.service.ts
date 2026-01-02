@@ -37,7 +37,7 @@ export class AssetsPromptService implements PromptService {
 				length: promptText.length,
 			});
 			return promptText;
-		} catch (error) {
+		} catch (_error) {
 			return DEFAULT_PROMPT;
 		}
 	}

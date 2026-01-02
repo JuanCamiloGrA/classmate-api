@@ -129,7 +129,7 @@ export class SummarizeClassWorkflowHandler {
 	}
 
 	private async generateSummary(
-		classId: string,
+		_classId: string,
 		file: FileInput,
 	): Promise<string> {
 		const { mimeType, filename, r2Key } = file;

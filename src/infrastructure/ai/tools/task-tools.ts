@@ -5,7 +5,6 @@
  */
 import { tool } from "ai";
 import { z } from "zod";
-import type { TaskRepository } from "../../../domain/repositories/task.repository";
 import {
 	errorResult,
 	successResult,

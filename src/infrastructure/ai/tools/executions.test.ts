@@ -2,6 +2,7 @@
  * Tool Executions Unit Tests
  * Tests for HITL tool execution functions
  */
+/** biome-ignore-all lint/suspicious/noExplicitAny: Test file uses any for mock contexts and type assertions */
 import { describe, expect, it, vi } from "vitest";
 import type { ClassRepository } from "../../../domain/repositories/class.repository";
 import type { TaskRepository } from "../../../domain/repositories/task.repository";

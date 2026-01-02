@@ -14,8 +14,6 @@
  * Factory pattern is used to inject dependencies (repositories, userId)
  */
 
-import type { ClassRepository } from "../../../domain/repositories/class.repository";
-import type { TaskRepository } from "../../../domain/repositories/task.repository";
 import type { ToolExecutions } from "../utils";
 import type { ToolDependencies } from "./definitions";
 

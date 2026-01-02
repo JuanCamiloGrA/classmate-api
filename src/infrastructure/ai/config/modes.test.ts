@@ -2,18 +2,14 @@
  * ModeManager Unit Tests
  * Tests for ModeManager with skills integration
  */
+/** biome-ignore-all lint/suspicious/noExplicitAny: Test file uses any for testing invalid mode types */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ClassRepository } from "../../../domain/repositories/class.repository";
 import type { TaskRepository } from "../../../domain/repositories/task.repository";
 import type { PromptService } from "../../../domain/services/prompt.service";
 import type { ToolDependencies } from "../tools/definitions";
-import {
-	createModeManager,
-	type LoadedModeConfiguration,
-	MODE_CONFIGS,
-	ModeManager,
-} from "./modes";
+import { createModeManager, MODE_CONFIGS, ModeManager } from "./modes";
 import { MODE_SKILLS_MAP } from "./skills";
 
 // ============================================

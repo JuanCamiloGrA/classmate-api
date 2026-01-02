@@ -2,6 +2,7 @@
  * ClassmateAgent Unit Tests
  * Tests for the agent's core functionality
  */
+/** biome-ignore-all lint/suspicious/noExplicitAny: Test file uses any for mock contexts and type assertions */
 import { describe, expect, it, vi } from "vitest";
 import type { ClassRepository } from "../../domain/repositories/class.repository";
 import type { TaskRepository } from "../../domain/repositories/task.repository";

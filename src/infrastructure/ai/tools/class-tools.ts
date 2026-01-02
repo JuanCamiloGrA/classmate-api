@@ -5,7 +5,6 @@
  */
 import { tool } from "ai";
 import { z } from "zod";
-import type { ClassRepository } from "../../../domain/repositories/class.repository";
 import {
 	errorResult,
 	successResult,

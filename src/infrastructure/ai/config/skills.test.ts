@@ -2,6 +2,7 @@
  * Skills System Unit Tests
  * Tests for SkillLoader, skill compositions, and skill registry
  */
+/** biome-ignore-all lint/suspicious/noExplicitAny: Test file uses any for testing invalid mode types */
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PromptService } from "../../../domain/services/prompt.service";
