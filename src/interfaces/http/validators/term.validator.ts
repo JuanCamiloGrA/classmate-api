@@ -23,8 +23,8 @@ export interface UpdateTermInput {
  */
 export const CreateTermSchema = z.object({
 	name: z.string().min(1, "Name is required"),
-	order: z
-		.number({ coerce: true })
+	order: z.coerce
+		.number()
 		.int("Order must be an integer")
 		.min(0, "Order must be non-negative"),
 });
@@ -38,8 +38,8 @@ export const CreateTermSchema = z.object({
 export const UpdateTermSchema = z
 	.object({
 		name: z.string().min(1, "Name is required").optional(),
-		order: z
-			.number({ coerce: true })
+		order: z.coerce
+			.number()
 			.int("Order must be an integer")
 			.min(0, "Order must be non-negative")
 			.optional(),

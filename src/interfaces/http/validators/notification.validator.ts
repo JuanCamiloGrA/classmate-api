@@ -23,9 +23,7 @@ export interface CreateNotificationInput {
  */
 export const CreateNotificationSchema = z.object({
 	type: z.enum(NOTIFICATION_TYPES, {
-		errorMap: () => ({
-			message: `Type must be one of: ${NOTIFICATION_TYPES.join(", ")}`,
-		}),
+		message: `Type must be one of: ${NOTIFICATION_TYPES.join(", ")}`,
 	}),
 	payload: z.record(z.unknown()).default({}),
 	action_url: z.string().nullable().optional(),

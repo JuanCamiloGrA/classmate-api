@@ -1,5 +1,5 @@
 {
-	"$schema": "https://biomejs.dev/schemas/2.2.6/schema.json",
+	"$schema": "https://biomejs.dev/schemas/2.3.10/schema.json",
 	"vcs": {
 		"enabled": false,
 		"clientKind": "git",
@@ -7,7 +7,7 @@
 	},
 	"files": {
 		"ignoreUnknown": false,
-		"includes": ["**", "!worker-configuration.d.ts", "!.wrangler", "!*.test.ts"]
+		"includes": ["**", "!worker-configuration.d.ts", "!.wrangler"]
 	},
 	"formatter": {
 		"enabled": true,
