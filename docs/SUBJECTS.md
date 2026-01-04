@@ -100,19 +100,37 @@ Create a new subject within a term.
 
 ### 3. Update a Subject
 
-**PUT** `/subjects/{id}`
+**PATCH** `/subjects/{id}`
 
-Update the name of an existing subject.
+Update any fields of an existing subject. All fields are optional, but at least one must be provided.
 
 #### Path Parameters
 - `id`: The subject ID to update
 
 #### Request Body
+All fields are optional. At least one must be provided:
 ```json
 {
-  "name": "Calculus I"
+  "name": "Calculus I",
+  "termId": "term-456",
+  "professor": "Dr. Smith",
+  "credits": 4,
+  "location": "Room 101",
+  "scheduleText": "MWF 10:00 AM - 11:30 AM",
+  "syllabusUrl": "https://example.com/syllabus.pdf",
+  "colorTheme": "blue"
 }
 ```
+
+**Field Details:**
+- `name` (string, optional): Subject name
+- `termId` (string, optional): Move subject to a different term
+- `professor` (string, optional): Professor name (nullable)
+- `credits` (number, optional): Credit hours (must be positive integer)
+- `location` (string, optional): Class location (nullable)
+- `scheduleText` (string, optional): Schedule information (nullable)
+- `syllabusUrl` (string, optional): URL to syllabus (must be valid URL if provided, nullable)
+- `colorTheme` (string, optional): Color theme identifier (nullable)
 
 #### Response (200)
 ```json
@@ -121,9 +139,29 @@ Update the name of an existing subject.
   "result": {
     "id": "550e8400-e29b-41d4-a716-446655440002",
     "name": "Calculus I",
-    "termId": "term-123",
+    "termId": "term-456",
+    "professor": "Dr. Smith",
+    "credits": 4,
+    "location": "Room 101",
+    "scheduleText": "MWF 10:00 AM - 11:30 AM",
+    "syllabusUrl": "https://example.com/syllabus.pdf",
+    "colorTheme": "blue",
     "updatedAt": "2024-10-16T11:30:00.000Z"
   }
+}
+```
+
+#### Error Response (400 - No fields provided)
+```json
+{
+  "error": "At least one field must be provided for update"
+}
+```
+
+#### Error Response (400 - Invalid data)
+```json
+{
+  "error": "credits: Credits must be a positive integer"
 }
 ```
 
@@ -251,11 +289,23 @@ curl -X POST "https://api.classmate.studio/subjects" \
   -H "Content-Type: application/json" \
   -d '{"name": "Biology", "termId": "term-123"}'
 
-# Update a subject
-curl -X PUT "https://api.classmate.studio/subjects/550e8400-e29b-41d4-a716-446655440002" \
+# Update a subject (single field)
+curl -X PATCH "https://api.classmate.studio/subjects/550e8400-e29b-41d4-a716-446655440002" \
   -H "Authorization: Bearer <clerk-token>" \
   -H "Content-Type: application/json" \
   -d '{"name": "Advanced Biology"}'
+
+# Update a subject (multiple fields)
+curl -X PATCH "https://api.classmate.studio/subjects/550e8400-e29b-41d4-a716-446655440002" \
+  -H "Authorization: Bearer <clerk-token>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Advanced Biology",
+    "professor": "Dr. Johnson",
+    "credits": 4,
+    "location": "Lab 203",
+    "colorTheme": "green"
+  }'
 
 # Soft delete a subject
 curl -X DELETE "https://api.classmate.studio/subjects/550e8400-e29b-41d4-a716-446655440002" \
@@ -292,11 +342,26 @@ const newSubject = await fetch(`${apiBase}/subjects`, {
   })
 }).then(res => res.json());
 
-// Update subject
+// Update subject (single field)
 const updated = await fetch(`${apiBase}/subjects/${newSubject.result.id}`, {
-  method: "PUT",
+  method: "PATCH",
   headers,
   body: JSON.stringify({ name: "Organic Chemistry" })
+}).then(res => res.json());
+
+// Update subject (multiple fields)
+const fullyUpdated = await fetch(`${apiBase}/subjects/${newSubject.result.id}`, {
+  method: "PATCH",
+  headers,
+  body: JSON.stringify({
+    name: "Organic Chemistry",
+    professor: "Dr. Wilson",
+    credits: 3,
+    location: "Room 205",
+    scheduleText: "TTh 2:00 PM - 3:30 PM",
+    syllabusUrl: "https://example.com/chem-syllabus.pdf",
+    colorTheme: "purple"
+  })
 }).then(res => res.json());
 
 // Soft delete
@@ -320,14 +385,20 @@ await fetch(`${apiBase}/subjects/${newSubject.result.id}/hard`, {
 
 ```typescript
 interface Subject {
-  id: string;              // UUID
-  userId: string;          // Owner (from Clerk)
-  termId: string;          // Parent term
-  name: string;            // Subject name
-  isDeleted: number;       // 0 = active, 1 = soft deleted
-  deletedAt: string | null; // ISO 8601 timestamp
-  createdAt: string;       // ISO 8601 timestamp
-  updatedAt: string;       // ISO 8601 timestamp
+  id: string;                      // UUID
+  userId: string;                  // Owner (from Clerk)
+  termId: string;                  // Parent term
+  name: string;                    // Subject name
+  professor: string | null;        // Professor name
+  credits: number | null;          // Credit hours
+  location: string | null;         // Class location
+  scheduleText: string | null;     // Schedule information
+  syllabusUrl: string | null;      // URL to syllabus
+  colorTheme: string | null;       // Color theme identifier
+  isDeleted: number;               // 0 = active, 1 = soft deleted
+  deletedAt: string | null;        // ISO 8601 timestamp
+  createdAt: string;               // ISO 8601 timestamp
+  updatedAt: string;               // ISO 8601 timestamp
 }
 ```
 
@@ -347,4 +418,5 @@ Currently no rate limiting is enforced, but it's recommended to implement it for
 
 ## Version History
 
+- **v1.1.0** (2026-01-04): Added support for updating all subject fields (professor, credits, location, scheduleText, syllabusUrl, colorTheme, termId)
 - **v1.0.0** (2024-10-17): Initial release with CRUD and cascade delete operations
