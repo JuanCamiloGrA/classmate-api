@@ -43,7 +43,13 @@ export class D1SubjectRepository implements SubjectRepository {
 		const result = await this.db
 			.select()
 			.from(subjects)
-			.where(and(eq(subjects.id, subjectId), eq(subjects.userId, userId)))
+			.where(
+				and(
+					eq(subjects.id, subjectId),
+					eq(subjects.userId, userId),
+					eq(subjects.isDeleted, 0),
+				),
+			)
 			.get();
 
 		return result || null;

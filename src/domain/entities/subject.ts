@@ -68,3 +68,59 @@ export interface SubjectUpdateData {
 	/** Color theme (optional) */
 	colorTheme?: string;
 }
+
+/**
+ * Lightweight class item for subject detail response.
+ * Excludes heavy fields like content, summary, and transcription.
+ * @interface SubjectClassItem
+ */
+export interface SubjectClassItem {
+	/** Unique identifier */
+	id: string;
+	/** Class title */
+	title: string | null;
+	/** Start date */
+	startDate: string | null;
+	/** End date */
+	endDate: string | null;
+	/** Class link */
+	link: string | null;
+	/** Meeting link */
+	meetingLink: string | null;
+	/** Lifecycle status */
+	status: string;
+	/** AI processing status */
+	aiStatus: string;
+	/** Topics covered */
+	topics: string | null;
+	/** Duration in seconds */
+	durationSeconds: number;
+	/** Physical room location */
+	roomLocation: string | null;
+	/** Processing flag */
+	isProcessed: number;
+	/** Creation timestamp */
+	createdAt: string;
+	/** Update timestamp */
+	updatedAt: string;
+}
+
+/**
+ * Subject with paginated classes for detail endpoint.
+ * @interface SubjectWithClasses
+ */
+export interface SubjectWithClasses extends Subject {
+	/** Paginated list of classes */
+	classes: SubjectClassItem[];
+	/** Pagination metadata */
+	pagination: {
+		/** Total number of classes */
+		total: number;
+		/** Current page */
+		page: number;
+		/** Items per page */
+		limit: number;
+		/** Total pages */
+		totalPages: number;
+	};
+}

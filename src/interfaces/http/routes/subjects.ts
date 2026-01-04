@@ -2,6 +2,7 @@ import { contentJson, OpenAPIRoute } from "chanfana";
 import type { Context } from "hono";
 import { z } from "zod";
 import { CreateSubjectUseCase } from "../../../application/subjects/create-subject.usecase";
+import { GetSubjectUseCase } from "../../../application/subjects/get-subject.usecase";
 import { HardDeleteSubjectUseCase } from "../../../application/subjects/hard-delete-subject.usecase";
 import { ListSubjectsUseCase } from "../../../application/subjects/list-subjects.usecase";
 import { SoftDeleteSubjectUseCase } from "../../../application/subjects/soft-delete-subject.usecase";
@@ -9,6 +10,7 @@ import { UpdateSubjectUseCase } from "../../../application/subjects/update-subje
 import type { Bindings, Variables } from "../../../config/bindings";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
+import { D1ClassRepository } from "../../../infrastructure/database/repositories/class.repository";
 import { D1SubjectRepository } from "../../../infrastructure/database/repositories/subject.repository";
 import {
 	handleError,
@@ -18,6 +20,7 @@ import {
 import {
 	type CreateSubjectInput,
 	CreateSubjectSchema,
+	GetSubjectQuerySchema,
 	ListSubjectsByTermSchema,
 	type UpdateSubjectInput,
 	UpdateSubjectSchema,
@@ -80,6 +83,51 @@ const SuccessHardDeleteResponse = z.object({
 	result: z.object({ id: z.string() }),
 });
 
+const ClassItemSchema = z.object({
+	id: z.string(),
+	title: z.string().nullable(),
+	startDate: z.string().nullable(),
+	endDate: z.string().nullable(),
+	link: z.string().nullable(),
+	meetingLink: z.string().nullable(),
+	status: z.string(),
+	aiStatus: z.string(),
+	topics: z.string().nullable(),
+	durationSeconds: z.number(),
+	roomLocation: z.string().nullable(),
+	isProcessed: z.number(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+});
+
+const PaginationSchema = z.object({
+	total: z.number(),
+	page: z.number(),
+	limit: z.number(),
+	totalPages: z.number(),
+});
+
+const SubjectDetailSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	termId: z.string(),
+	professor: z.string().nullable(),
+	credits: z.number().nullable(),
+	location: z.string().nullable(),
+	scheduleText: z.string().nullable(),
+	syllabusUrl: z.string().nullable(),
+	colorTheme: z.string().nullable(),
+	createdAt: z.string(),
+	updatedAt: z.string(),
+	classes: z.array(ClassItemSchema),
+	pagination: PaginationSchema,
+});
+
+const SuccessGetSubjectResponse = z.object({
+	success: z.literal(true),
+	result: SubjectDetailSchema,
+});
+
 function ensureAuthenticatedUser(c: SubjectContext): string {
 	const auth = getAuth(c);
 	if (!auth?.userId) {
@@ -91,6 +139,11 @@ function ensureAuthenticatedUser(c: SubjectContext): string {
 function getSubjectRepository(c: SubjectContext) {
 	const db = DatabaseFactory.create(c.env.DB);
 	return new D1SubjectRepository(db);
+}
+
+function getClassRepository(c: SubjectContext) {
+	const db = DatabaseFactory.create(c.env.DB);
+	return new D1ClassRepository(db);
 }
 
 function validateCreatePayload(body: unknown): CreateSubjectInput {
@@ -156,6 +209,45 @@ async function listSubjects(c: SubjectContext) {
 					createdAt: subject.createdAt,
 					updatedAt: subject.updatedAt,
 				})),
+			},
+			200,
+		);
+	} catch (error) {
+		return handleError(error, c);
+	}
+}
+
+async function getSubject(c: SubjectContext) {
+	try {
+		const userId = ensureAuthenticatedUser(c);
+		const subjectId = extractSubjectId(c);
+		const query = c.req.query();
+		const parsed = GetSubjectQuerySchema.safeParse(query);
+		const options = parsed.success ? parsed.data : {};
+
+		const subjectRepository = getSubjectRepository(c);
+		const classRepository = getClassRepository(c);
+		const useCase = new GetSubjectUseCase(subjectRepository, classRepository);
+		const subject = await useCase.execute(userId, subjectId, options);
+
+		return c.json(
+			{
+				success: true,
+				result: {
+					id: subject.id,
+					name: subject.name,
+					termId: subject.termId,
+					professor: subject.professor ?? null,
+					credits: subject.credits ?? null,
+					location: subject.location ?? null,
+					scheduleText: subject.scheduleText ?? null,
+					syllabusUrl: subject.syllabusUrl ?? null,
+					colorTheme: subject.colorTheme ?? null,
+					createdAt: subject.createdAt,
+					updatedAt: subject.updatedAt,
+					classes: subject.classes,
+					pagination: subject.pagination,
+				},
 			},
 			200,
 		);
@@ -299,6 +391,45 @@ export class ListSubjectsEndpoint extends OpenAPIRoute {
 
 	async handle(c: SubjectContext) {
 		return listSubjects(c);
+	}
+}
+
+export class GetSubjectEndpoint extends OpenAPIRoute {
+	schema = {
+		tags: ["Subjects"],
+		summary: "Get a subject by ID with its classes",
+		description:
+			"Retrieve a single subject with all details and paginated list of associated classes.",
+		request: {
+			params: z.object({ id: z.string().min(1, "Subject ID is required") }),
+			query: GetSubjectQuerySchema,
+		},
+		responses: {
+			"200": {
+				description: "Subject with classes returned",
+				...contentJson(SuccessGetSubjectResponse),
+			},
+			"400": {
+				description: "Invalid request parameters",
+				...contentJson(ErrorResponseSchema),
+			},
+			"401": {
+				description: "Missing or invalid authentication",
+				...contentJson(ErrorResponseSchema),
+			},
+			"404": {
+				description: "Subject not found",
+				...contentJson(ErrorResponseSchema),
+			},
+			"500": {
+				description: "Internal server error",
+				...contentJson(ErrorResponseSchema),
+			},
+		},
+	};
+
+	async handle(c: SubjectContext) {
+		return getSubject(c);
 	}
 }
 

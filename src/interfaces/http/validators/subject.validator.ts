@@ -74,3 +74,13 @@ export const UpdateSubjectSchema = z
 export const ListSubjectsByTermSchema = z.object({
 	term_id: z.string().min(1, "Term ID is required"),
 });
+
+/**
+ * Validation schema for get subject query parameters.
+ * - page: optional, positive integer (1-based)
+ * - limit: optional, positive integer (1-100)
+ */
+export const GetSubjectQuerySchema = z.object({
+	page: z.coerce.number().int().positive().optional(),
+	limit: z.coerce.number().int().positive().max(100).optional(),
+});

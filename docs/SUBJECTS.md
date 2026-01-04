@@ -61,7 +61,73 @@ List all non-deleted subjects for a specific term.
 
 ---
 
-### 2. Create a Subject
+### 2. Get a Subject by ID
+
+**GET** `/subjects/{id}`
+
+Retrieve a single subject with all details and paginated list of associated classes.
+
+#### Path Parameters
+- `id` (required): The subject ID to retrieve
+
+#### Query Parameters
+- `page` (optional): Page number (1-based, defaults to 1)
+- `limit` (optional): Items per page (1-100, defaults to 20)
+
+#### Response (200)
+```json
+{
+  "success": true,
+  "result": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "name": "Mathematics",
+    "termId": "term-123",
+    "professor": "Dr. Smith",
+    "credits": 4,
+    "location": "Room 101",
+    "scheduleText": "MWF 10:00 AM - 11:30 AM",
+    "syllabusUrl": "https://example.com/syllabus.pdf",
+    "colorTheme": "blue",
+    "createdAt": "2024-10-16T10:00:00.000Z",
+    "updatedAt": "2024-10-16T10:00:00.000Z",
+    "classes": [
+      {
+        "id": "class-uuid-1",
+        "title": "Introduction to Calculus",
+        "startDate": "2024-10-16T10:00:00.000Z",
+        "endDate": "2024-10-16T11:30:00.000Z",
+        "link": "https://example.com/recording",
+        "meetingLink": "https://zoom.us/meeting123",
+        "status": "completed",
+        "aiStatus": "done",
+        "topics": "Limits, Derivatives",
+        "durationSeconds": 5400,
+        "roomLocation": "Room 101",
+        "isProcessed": 1,
+        "createdAt": "2024-10-16T10:00:00.000Z",
+        "updatedAt": "2024-10-16T12:00:00.000Z"
+      }
+    ],
+    "pagination": {
+      "total": 15,
+      "page": 1,
+      "limit": 20,
+      "totalPages": 1
+    }
+  }
+}
+```
+
+#### Error Response (404)
+```json
+{
+  "error": "Subject not found"
+}
+```
+
+---
+
+### 3. Create a Subject
 
 **POST** `/subjects`
 
@@ -98,7 +164,7 @@ Create a new subject within a term.
 
 ---
 
-### 3. Update a Subject
+### 4. Update a Subject
 
 **PATCH** `/subjects/{id}`
 
@@ -174,7 +240,7 @@ All fields are optional. At least one must be provided:
 
 ---
 
-### 4. Soft Delete a Subject
+### 5. Soft Delete a Subject
 
 **DELETE** `/subjects/{id}`
 
@@ -207,7 +273,7 @@ The data is preserved but marked as deleted.
 
 ---
 
-### 5. Hard Delete a Subject
+### 6. Hard Delete a Subject
 
 **DELETE** `/subjects/{id}/hard`
 
@@ -283,6 +349,14 @@ Cause: Unexpected server error. Check logs for details.
 curl -X GET "https://api.classmate.studio/subjects?term_id=term-123" \
   -H "Authorization: Bearer <clerk-token>"
 
+# Get a subject by ID with classes (first page, default 20 items)
+curl -X GET "https://api.classmate.studio/subjects/550e8400-e29b-41d4-a716-446655440000" \
+  -H "Authorization: Bearer <clerk-token>"
+
+# Get a subject by ID with classes (paginated)
+curl -X GET "https://api.classmate.studio/subjects/550e8400-e29b-41d4-a716-446655440000?page=2&limit=10" \
+  -H "Authorization: Bearer <clerk-token>"
+
 # Create a subject
 curl -X POST "https://api.classmate.studio/subjects" \
   -H "Authorization: Bearer <clerk-token>" \
@@ -331,6 +405,17 @@ const headers = {
 const subjects = await fetch(`${apiBase}/subjects?term_id=term-123`, {
   headers
 }).then(res => res.json());
+
+// Get a subject with classes (paginated)
+const subjectWithClasses = await fetch(
+  `${apiBase}/subjects/550e8400-e29b-41d4-a716-446655440000?page=1&limit=20`,
+  { headers }
+).then(res => res.json());
+
+// Access subject details and classes
+console.log(subjectWithClasses.result.name);
+console.log(subjectWithClasses.result.classes);
+console.log(subjectWithClasses.result.pagination);
 
 // Create subject
 const newSubject = await fetch(`${apiBase}/subjects`, {
@@ -418,5 +503,6 @@ Currently no rate limiting is enforced, but it's recommended to implement it for
 
 ## Version History
 
+- **v1.2.0** (2026-01-04): Added GET /subjects/{id} endpoint to retrieve a single subject with paginated classes
 - **v1.1.0** (2026-01-04): Added support for updating all subject fields (professor, credits, location, scheduleText, syllabusUrl, colorTheme, termId)
 - **v1.0.0** (2024-10-17): Initial release with CRUD and cascade delete operations

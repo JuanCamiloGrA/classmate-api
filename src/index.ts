@@ -64,6 +64,7 @@ import {
 } from "./interfaces/http/routes/scribe";
 import {
 	CreateSubjectEndpoint,
+	GetSubjectEndpoint,
 	HardDeleteSubjectEndpoint,
 	ListSubjectsEndpoint,
 	SoftDeleteSubjectEndpoint,
@@ -350,6 +351,7 @@ export default {
 
 		// Subject endpoints
 		apiApp.get("/subjects", ListSubjectsEndpoint);
+		apiApp.get("/subjects/:id", GetSubjectEndpoint);
 		apiApp.post("/subjects", CreateSubjectEndpoint);
 		apiApp.put("/subjects/:id", UpdateSubjectEndpoint);
 		apiApp.delete("/subjects/:id", SoftDeleteSubjectEndpoint);
