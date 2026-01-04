@@ -95,6 +95,34 @@ export class D1SubjectRepository implements SubjectRepository {
 			updatePayload.name = data.name;
 		}
 
+		if (data.termId !== undefined) {
+			updatePayload.termId = data.termId;
+		}
+
+		if (data.professor !== undefined) {
+			updatePayload.professor = data.professor;
+		}
+
+		if (data.credits !== undefined) {
+			updatePayload.credits = data.credits;
+		}
+
+		if (data.location !== undefined) {
+			updatePayload.location = data.location;
+		}
+
+		if (data.scheduleText !== undefined) {
+			updatePayload.scheduleText = data.scheduleText;
+		}
+
+		if (data.syllabusUrl !== undefined) {
+			updatePayload.syllabusUrl = data.syllabusUrl;
+		}
+
+		if (data.colorTheme !== undefined) {
+			updatePayload.colorTheme = data.colorTheme;
+		}
+
 		const updated = await this.db
 			.update(subjects)
 			.set(updatePayload)

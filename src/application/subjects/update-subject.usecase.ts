@@ -9,6 +9,20 @@ import { ValidationError } from "../../interfaces/http/middleware/error-handler"
 export interface UpdateSubjectInput {
 	/** Subject name (optional) */
 	name?: string;
+	/** Term ID (optional) */
+	termId?: string;
+	/** Professor name (optional) */
+	professor?: string;
+	/** Credit hours (optional) */
+	credits?: number;
+	/** Location (optional) */
+	location?: string;
+	/** Schedule text (optional) */
+	scheduleText?: string;
+	/** Syllabus URL (optional) */
+	syllabusUrl?: string;
+	/** Color theme (optional) */
+	colorTheme?: string;
 }
 
 /**
@@ -45,20 +59,62 @@ export class UpdateSubjectUseCase {
 		input: UpdateSubjectInput,
 	): Promise<Subject> {
 		// Validate that at least one field is provided
-		if (!input.name) {
+		const hasAtLeastOneField = Object.keys(input).length > 0;
+		if (!hasAtLeastOneField) {
 			throw new ValidationError(
 				"At least one field must be provided for update",
 			);
 		}
 
-		if (input.name && input.name.trim().length === 0) {
+		// Validate non-empty strings if provided
+		if (input.name !== undefined && input.name.trim().length === 0) {
 			throw new ValidationError("Name must be a non-empty string");
 		}
 
+		if (input.termId !== undefined && input.termId.trim().length === 0) {
+			throw new ValidationError("Term ID must be a non-empty string");
+		}
+
+		if (
+			input.colorTheme !== undefined &&
+			input.colorTheme.trim().length === 0
+		) {
+			throw new ValidationError("Color theme must be a non-empty string");
+		}
+
+		// Build update data object
 		const updateData: SubjectUpdateData = {};
 
 		if (input.name !== undefined) {
 			updateData.name = input.name;
+		}
+
+		if (input.termId !== undefined) {
+			updateData.termId = input.termId;
+		}
+
+		if (input.professor !== undefined) {
+			updateData.professor = input.professor;
+		}
+
+		if (input.credits !== undefined) {
+			updateData.credits = input.credits;
+		}
+
+		if (input.location !== undefined) {
+			updateData.location = input.location;
+		}
+
+		if (input.scheduleText !== undefined) {
+			updateData.scheduleText = input.scheduleText;
+		}
+
+		if (input.syllabusUrl !== undefined) {
+			updateData.syllabusUrl = input.syllabusUrl;
+		}
+
+		if (input.colorTheme !== undefined) {
+			updateData.colorTheme = input.colorTheme;
 		}
 
 		return this.subjectRepository.update(userId, subjectId, updateData);

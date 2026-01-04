@@ -36,11 +36,17 @@ const SubjectSchema = z.object({
 	updatedAt: z.string(),
 });
 
-const SubjectUpdateSchema = SubjectSchema.pick({
-	id: true,
-	name: true,
-	termId: true,
-	updatedAt: true,
+const SubjectUpdateSchema = z.object({
+	id: z.string(),
+	name: z.string(),
+	termId: z.string(),
+	professor: z.string().nullable(),
+	credits: z.number().nullable(),
+	location: z.string().nullable(),
+	scheduleText: z.string().nullable(),
+	syllabusUrl: z.string().nullable(),
+	colorTheme: z.string().nullable(),
+	updatedAt: z.string(),
 });
 
 const SubjectSoftDeleteSchema = z.object({
@@ -200,6 +206,12 @@ async function updateSubject(c: SubjectContext) {
 					id: subject.id,
 					name: subject.name,
 					termId: subject.termId,
+					professor: subject.professor ?? null,
+					credits: subject.credits ?? null,
+					location: subject.location ?? null,
+					scheduleText: subject.scheduleText ?? null,
+					syllabusUrl: subject.syllabusUrl ?? null,
+					colorTheme: subject.colorTheme ?? null,
 					updatedAt: subject.updatedAt,
 				},
 			},
@@ -329,7 +341,7 @@ export class UpdateSubjectEndpoint extends OpenAPIRoute {
 		tags: ["Subjects"],
 		summary: "Update an existing subject",
 		description:
-			"Update the name of an existing subject belonging to the authenticated user.",
+			"Update any fields of an existing subject belonging to the authenticated user. All fields are optional, but at least one must be provided.",
 		request: {
 			params: z.object({ id: z.string().min(1, "Subject ID is required") }),
 			body: contentJson(UpdateSubjectSchema),

@@ -11,6 +11,18 @@ export interface Subject {
 	termId: string;
 	/** Subject name (e.g., "Mathematics") */
 	name: string;
+	/** Professor name */
+	professor: string | null;
+	/** Credit hours */
+	credits: number | null;
+	/** Location */
+	location: string | null;
+	/** Schedule text */
+	scheduleText: string | null;
+	/** Syllabus URL */
+	syllabusUrl: string | null;
+	/** Color theme */
+	colorTheme: string | null;
 	/** Soft delete flag (1 = deleted, 0 = active) */
 	isDeleted: number;
 	/** ISO 8601 timestamp of soft deletion, null if not deleted */
@@ -41,4 +53,18 @@ export interface SubjectData {
 export interface SubjectUpdateData {
 	/** Subject name (optional) */
 	name?: string;
+	/** Term ID (optional) */
+	termId?: string;
+	/** Professor name (optional) */
+	professor?: string;
+	/** Credit hours (optional) */
+	credits?: number;
+	/** Location (optional) */
+	location?: string;
+	/** Schedule text (optional) */
+	scheduleText?: string;
+	/** Syllabus URL (optional) */
+	syllabusUrl?: string;
+	/** Color theme (optional) */
+	colorTheme?: string;
 }
