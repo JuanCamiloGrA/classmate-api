@@ -313,8 +313,8 @@ export class D1ClassRepository implements ClassRepository {
 
 		const now = new Date().toISOString();
 
-		// Soft delete the class
-		await this.db
+		// Soft delete the class and return updated record in single query
+		const deleted = await this.db
 			.update(classes)
 			.set({
 				isDeleted: 1,
@@ -322,17 +322,11 @@ export class D1ClassRepository implements ClassRepository {
 				updatedAt: now,
 			})
 			.where(and(eq(classes.id, classId), eq(classes.userId, userId)))
-			.run();
-
-		// Return the updated class
-		const deleted = await this.db
-			.select()
-			.from(classes)
-			.where(and(eq(classes.id, classId), eq(classes.userId, userId)))
+			.returning()
 			.get();
 
 		if (!deleted) {
-			throw new Error("Failed to retrieve soft deleted class");
+			throw new Error("Failed to soft delete class");
 		}
 
 		return deleted;

@@ -290,8 +290,8 @@ export class D1TaskRepository implements TaskRepository {
 
 		const now = new Date().toISOString();
 
-		// Soft delete the task
-		await this.db
+		// Soft delete the task and return updated record in single query
+		const deleted = await this.db
 			.update(tasks)
 			.set({
 				isDeleted: 1,
@@ -299,17 +299,11 @@ export class D1TaskRepository implements TaskRepository {
 				updatedAt: now,
 			})
 			.where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
-			.run();
-
-		// Return the updated task
-		const deleted = await this.db
-			.select()
-			.from(tasks)
-			.where(and(eq(tasks.id, taskId), eq(tasks.userId, userId)))
+			.returning()
 			.get();
 
 		if (!deleted) {
-			throw new Error("Failed to retrieve soft deleted task");
+			throw new Error("Failed to soft delete task");
 		}
 
 		return deleted;

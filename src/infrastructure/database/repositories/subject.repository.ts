@@ -152,8 +152,8 @@ export class D1SubjectRepository implements SubjectRepository {
 
 		const now = new Date().toISOString();
 
-		// Soft delete the subject
-		await this.db
+		// Soft delete the subject and return updated record in single query
+		const deleted = await this.db
 			.update(subjects)
 			.set({
 				isDeleted: 1,
@@ -161,7 +161,12 @@ export class D1SubjectRepository implements SubjectRepository {
 				updatedAt: now,
 			})
 			.where(and(eq(subjects.id, subjectId), eq(subjects.userId, userId)))
-			.run();
+			.returning()
+			.get();
+
+		if (!deleted) {
+			throw new Error("Failed to soft delete subject");
+		}
 
 		// Cascade: soft delete all tasks related to this subject
 		await this.db
@@ -184,12 +189,6 @@ export class D1SubjectRepository implements SubjectRepository {
 			})
 			.where(and(eq(classes.subjectId, subjectId), eq(classes.userId, userId)))
 			.run();
-
-		// Return the updated subject
-		const deleted = await this.findByIdAndUserId(userId, subjectId);
-		if (!deleted) {
-			throw new Error("Failed to retrieve soft deleted subject");
-		}
 
 		return deleted;
 	}

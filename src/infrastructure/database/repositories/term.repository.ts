@@ -109,8 +109,8 @@ export class D1TermRepository implements TermRepository {
 
 		const now = new Date().toISOString();
 
-		// Soft delete the term
-		await this.db
+		// Soft delete the term and return updated record in single query
+		const deleted = await this.db
 			.update(terms)
 			.set({
 				isDeleted: 1,
@@ -118,7 +118,12 @@ export class D1TermRepository implements TermRepository {
 				updatedAt: now,
 			})
 			.where(and(eq(terms.id, termId), eq(terms.userId, userId)))
-			.run();
+			.returning()
+			.get();
+
+		if (!deleted) {
+			throw new Error("Failed to soft delete term");
+		}
 
 		// Cascade: soft delete all subjects related to this term
 		await this.db
@@ -130,12 +135,6 @@ export class D1TermRepository implements TermRepository {
 			})
 			.where(and(eq(subjects.termId, termId), eq(subjects.userId, userId)))
 			.run();
-
-		// Return the updated term
-		const deleted = await this.findByIdAndUserId(userId, termId);
-		if (!deleted) {
-			throw new Error("Failed to retrieve soft deleted term");
-		}
 
 		return deleted;
 	}
