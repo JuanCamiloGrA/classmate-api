@@ -1,6 +1,6 @@
 /**
  * AI-powered Chat Title Generator
- * Uses a small, fast model (gemini-2.5-flash-lite) to generate
+ * Uses a small, fast model to generate
  * concise chat titles based on the first user message.
  */
 
@@ -16,7 +16,7 @@ const MAX_INPUT_CONTENT = 500;
 const TITLE_MAX_OUTPUT_TOKENS = 30;
 const DEFAULT_TITLE_MODEL_ID =
 	(process.env.CHAT_TITLE_MODEL_ID as string | undefined) ??
-	("google/gemini-2.5-flash-lite" as const);
+	("openai/gpt-5-nano" as const);
 
 function buildTitlePrompt(message: string): string {
 	return `Generate a very short chat title (max ${MAX_TITLE_LENGTH} characters) for this message.
@@ -30,7 +30,7 @@ Message: "${message}"`;
 }
 
 /**
- * AI-based title generator using Gemini 2.5 Flash Lite.
+ * AI-based title generator.
  * Generates short, contextual titles in the same language as the input.
  */
 export class AIChatTitleGenerator implements AsyncChatTitleGenerator {
