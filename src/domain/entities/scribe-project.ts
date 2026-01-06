@@ -54,9 +54,7 @@ export interface ScribeProject {
 	/** ID of the Cloudflare Workflow execution */
 	workflowId: string | null;
 	/** R2 key of the final generated PDF file */
-	finalPdfFileId: string | null;
-	/** Presigned URL to access the final PDF (expires after 7 days) */
-	finalPdfUrl: string | null;
+	finalPdfR2Key: string | null;
 	/** ISO 8601 timestamp of creation */
 	createdAt: string;
 	/** ISO 8601 timestamp of last update */
@@ -116,7 +114,5 @@ export interface UpdateScribeProjectData {
 	/** Workflow ID update */
 	workflowId?: string | null;
 	/** R2 key of the final generated PDF */
-	finalPdfFileId?: string | null;
-	/** Presigned URL to access the final PDF */
-	finalPdfUrl?: string | null;
+	finalPdfR2Key?: string | null;
 }

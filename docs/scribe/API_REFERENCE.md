@@ -7,7 +7,8 @@ This document describes the Scribe v2 backend API and the required client workfl
 - Scribe is **iterative**: the client calls `POST /scribe` multiple times.
 - Each call returns either:
   - a **form schema** (needs more info), or
-  - the **final result** (PDF presigned URL + exam).
+  - the **final result** (R2 key + exam).
+- **Important**: URLs to R2 files are NOT stored in the database. Clients must request presigned URLs on-demand using dedicated endpoints.
 - For any `image_file` field in a form, the client must:
   1) request a presigned upload URL
   2) upload the image to R2
@@ -88,7 +89,8 @@ Request body:
 ```json
 {
   "fileName": "rubric.pdf",
-  "contentType": "application/pdf"
+  "contentType": "application/pdf",
+  "sizeBytes": 2500000
 }
 ```
 
@@ -97,14 +99,13 @@ Response (200):
 ```json
 {
   "signedUrl": "https://...",
-  "key": "users/<userId>/rubrics/2025/10/<uuid>-rubric.pdf",
-  "publicUrl": "https://..."
+  "key": "users/<userId>/rubrics/2025/10/<uuid>-rubric.pdf"
 }
 ```
 
 Client steps:
 - `PUT signedUrl` with `Content-Type: contentType`
-- then pass `rubricFileUrl = publicUrl` and `rubricMimeType = contentType` to `POST /scribe`
+- then pass `rubricFileR2Key = key` and `rubricMimeType = contentType` to `POST /scribe`
 
 ---
 
@@ -120,7 +121,8 @@ Request body:
 {
   "questionId": "q_screenshot_1",
   "fileName": "screenshot.png",
-  "contentType": "image/png"
+  "contentType": "image/png",
+  "sizeBytes": 500000
 }
 ```
 
@@ -170,7 +172,7 @@ Or create with rubric file reference:
 {
   "title": "Ensayo final",
   "templateId": "apa",
-  "rubricFileUrl": "https://...", 
+  "rubricFileR2Key": "users/<userId>/rubrics/2025/10/<uuid>-rubric.pdf", 
   "rubricMimeType": "application/pdf"
 }
 ```
@@ -229,7 +231,7 @@ Response when the agent can generate the final result (200):
   "kind": "result",
   "projectId": "<scribeProjectId>",
   "status": "blocked",
-  "pdfUrl": "https://...",
+  "finalPdfR2Key": "users/<userId>/scribe/<projectId>/generated.pdf",
   "exam": {
     "questions": [
       {
@@ -244,7 +246,7 @@ Response when the agent can generate the final result (200):
 ```
 
 Notes:
-- `status="blocked"` is UX-only gating. The response includes `pdfUrl`.
+- `status="blocked"` is UX-only gating. Use `GET /scribe/{id}/pdf` to get a temporary URL.
 
 ---
 
@@ -274,16 +276,44 @@ Response (example):
   "title": "...",
   "status": "blocked",
   "rubricContent": null,
-  "rubricFileUrl": "https://...",
+  "rubricFileR2Key": "users/<userId>/rubrics/2025/10/<uuid>-rubric.pdf",
   "rubricMimeType": "application/pdf",
   "formSchema": null,
   "userAnswers": { },
   "exam": { "questions": [] },
-  "finalPdfUrl": "https://...",
+  "finalPdfR2Key": "users/<userId>/scribe/<projectId>/generated.pdf",
   "createdAt": "...",
   "updatedAt": "..."
 }
 ```
+
+---
+
+## Scribe: Get PDF URL (On-Demand)
+
+### Generate temporary presigned URL to view the PDF
+
+**GET** `/scribe/{id}/pdf`
+
+Returns a presigned URL valid for **1 hour** to download/view the generated PDF.
+
+Response (200):
+
+```json
+{
+  "pdfUrl": "https://...",
+  "expiresInSeconds": 3600
+}
+```
+
+Errors:
+- `404` if project not found or PDF not generated yet
+
+Client workflow:
+1. Check project status is `blocked` or `available`
+2. Call `GET /scribe/{id}/pdf` to get temporary URL
+3. Use `pdfUrl` immediately (valid for 1 hour)
+4. If URL expires, request a new one
 
 ---
 

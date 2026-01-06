@@ -18,7 +18,6 @@ import type {
 } from "../../infrastructure/pdf/scribe-pdf.service";
 import { ScribePdfGenerationError } from "../../infrastructure/pdf/scribe-pdf.service";
 
-const PDF_PRESIGNED_URL_EXPIRATION_SECONDS = 7 * 24 * 60 * 60;
 const ATTACHMENT_URL_EXPIRATION_SECONDS = 60 * 60;
 
 type FileAttachment = { url: string; mediaType: string; filename?: string };
@@ -56,7 +55,7 @@ export type RunScribeIterationResult =
 			kind: "result";
 			projectId: string;
 			status: "blocked";
-			pdfUrl: string;
+			finalPdfR2Key: string;
 			exam: ScribeExam;
 	  };
 
@@ -286,12 +285,6 @@ export class RunScribeIterationUseCase {
 			throw new Error("PDF generation failed after fixer attempts");
 		}
 
-		const pdfUrl = await this.storage.generatePresignedGetUrl(
-			this.options.bucket,
-			pdfResult.r2Key,
-			PDF_PRESIGNED_URL_EXPIRATION_SECONDS,
-		);
-
 		// Exam agent (rubric + generated pdf)
 		const examFiles: FileAttachment[] = [];
 		if (project.rubricFileR2Key && project.rubricMimeType) {
@@ -326,8 +319,7 @@ export class RunScribeIterationUseCase {
 
 		await this.scribeProjectRepository.update(params.userId, params.projectId, {
 			status: "blocked",
-			finalPdfFileId: pdfResult.r2Key,
-			finalPdfUrl: pdfUrl,
+			finalPdfR2Key: pdfResult.r2Key,
 			exam,
 		});
 
@@ -335,7 +327,7 @@ export class RunScribeIterationUseCase {
 			kind: "result",
 			projectId: params.projectId,
 			status: "blocked",
-			pdfUrl,
+			finalPdfR2Key: pdfResult.r2Key,
 			exam,
 		};
 	}

@@ -56,6 +56,7 @@ import {
 import {
 	GenerateScribeAnswerUploadUrlEndpoint,
 	GenerateScribeRubricUploadUrlEndpoint,
+	GetScribePdfUrlEndpoint,
 	GetScribeProjectEndpoint,
 	IterateScribeEndpoint,
 	ListScribeProjectsEndpoint,
@@ -392,6 +393,7 @@ export default {
 		apiApp.get("/scribe", ListScribeProjectsEndpoint);
 		apiApp.get("/scribe/templates", ListScribeTemplatesEndpoint);
 		apiApp.get("/scribe/:id", GetScribeProjectEndpoint);
+		apiApp.get("/scribe/:id/pdf", GetScribePdfUrlEndpoint);
 		apiApp.post("/scribe/:id/unlock_pdf", UnlockScribePdfEndpoint);
 
 		// Library endpoints

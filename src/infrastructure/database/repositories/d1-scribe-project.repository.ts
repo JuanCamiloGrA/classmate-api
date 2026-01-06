@@ -72,7 +72,7 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 				currentTypstJson: null,
 				reviewFeedback: null,
 				workflowId: null,
-				finalPdfFileId: null,
+				finalPdfR2Key: null,
 				createdAt: now,
 				updatedAt: now,
 			})
@@ -122,10 +122,8 @@ export class D1ScribeProjectRepository implements ScribeProjectRepository {
 			updatePayload.reviewFeedback = data.reviewFeedback;
 		if (data.workflowId !== undefined)
 			updatePayload.workflowId = data.workflowId;
-		if (data.finalPdfFileId !== undefined)
-			updatePayload.finalPdfFileId = data.finalPdfFileId;
-		if (data.finalPdfUrl !== undefined)
-			updatePayload.finalPdfUrl = data.finalPdfUrl;
+		if (data.finalPdfR2Key !== undefined)
+			updatePayload.finalPdfR2Key = data.finalPdfR2Key;
 
 		const updated = await this.db
 			.update(scribeProjects)

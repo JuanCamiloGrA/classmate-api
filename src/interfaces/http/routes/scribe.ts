@@ -163,7 +163,6 @@ const GenerateRubricUploadUrlSchema = z.object({
 const GenerateRubricUploadUrlResponseSchema = z.object({
 	signedUrl: z.string().url(),
 	key: z.string(),
-	publicUrl: z.string().url(),
 });
 
 const AnswerUploadMimeTypes = [
@@ -210,7 +209,7 @@ const ScribeProjectResponseSchema = z.object({
 	formSchema: z.unknown().nullable(),
 	userAnswers: z.unknown().nullable(),
 	exam: z.unknown().nullable(),
-	finalPdfUrl: z.string().nullable(),
+	finalPdfR2Key: z.string().nullable(),
 	createdAt: z.string(),
 	updatedAt: z.string(),
 });
@@ -226,12 +225,17 @@ const IterateScribeResponseSchema = z.discriminatedUnion("kind", [
 		kind: z.literal("result"),
 		projectId: z.string(),
 		status: z.literal("blocked"),
-		pdfUrl: z.string().url(),
+		finalPdfR2Key: z.string(),
 		exam: z.unknown(),
 	}),
 ]);
 
 const UnlockPdfResponseSchema = z.object({ success: z.literal(true) });
+
+const GetScribePdfUrlResponseSchema = z.object({
+	pdfUrl: z.string().url(),
+	expiresInSeconds: z.number(),
+});
 
 const ScribeTemplateSchema = z.object({
 	id: z.string(),
@@ -313,13 +317,7 @@ export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
 				expiresInSeconds: env.R2_PRESIGNED_URL_EXPIRATION_SECONDS,
 			});
 
-			const publicUrl = await storage.generatePresignedGetUrl(
-				bucket,
-				key,
-				7 * 24 * 60 * 60,
-			);
-
-			return c.json({ signedUrl: uploadUrl, key, publicUrl }, 200);
+			return c.json({ signedUrl: uploadUrl, key }, 200);
 		} catch (e) {
 			return handleError(e, c);
 		}
@@ -562,7 +560,6 @@ export class ListScribeProjectsEndpoint extends OpenAPIRoute {
 					contentMarkdown: _contentMarkdown,
 					currentTypstJson: _currentTypstJson,
 					reviewFeedback: _reviewFeedback,
-					finalPdfFileId: _finalPdfFileId,
 					workflowId: _workflowId,
 					...rest
 				}) => rest,
@@ -604,7 +601,6 @@ export class GetScribeProjectEndpoint extends OpenAPIRoute {
 				contentMarkdown: _contentMarkdown,
 				currentTypstJson: _currentTypstJson,
 				reviewFeedback: _reviewFeedback,
-				finalPdfFileId: _finalPdfFileId,
 				workflowId: _workflowId,
 				...publicProject
 			} = project;
@@ -642,6 +638,73 @@ export class UnlockScribePdfEndpoint extends OpenAPIRoute {
 			await useCase.execute({ userId, projectId });
 
 			return c.json({ success: true }, 200);
+		} catch (e) {
+			return handleError(e, c);
+		}
+	}
+}
+
+/**
+ * Default expiration time for on-demand PDF presigned URLs (1 hour).
+ * This is shorter than upload URLs since it's for viewing, not persistence.
+ */
+const PDF_VIEW_URL_EXPIRATION_SECONDS = 60 * 60; // 1 hour
+
+export class GetScribePdfUrlEndpoint extends OpenAPIRoute {
+	schema = {
+		tags: ["Scribe"],
+		summary: "Generate a temporary presigned URL to view the final PDF",
+		description:
+			"Returns a presigned URL valid for 1 hour to download/view the generated PDF. " +
+			"The PDF must exist (project status = blocked or available).",
+		request: {
+			params: z.object({ id: z.string().min(1) }),
+		},
+		responses: {
+			"200": {
+				description: "Presigned URL generated",
+				...contentJson(GetScribePdfUrlResponseSchema),
+			},
+			"404": {
+				description: "Project not found or PDF not generated yet",
+			},
+		},
+	};
+
+	async handle(c: ScribeContext) {
+		try {
+			const userId = ensureUserId(c);
+			const projectId = c.req.param("id");
+
+			const db = DatabaseFactory.create(c.env.DB);
+			const repo = new D1ScribeProjectRepository(db);
+
+			const project = await repo.findById(userId, projectId);
+			if (!project) {
+				throw new NotFoundError("Project not found");
+			}
+
+			if (!project.finalPdfR2Key) {
+				throw new NotFoundError(
+					`PDF not generated yet. Project status: ${project.status}`,
+				);
+			}
+
+			const { storage, bucket } = await createPersistentStorageAdapter(c);
+
+			const pdfUrl = await storage.generatePresignedGetUrl(
+				bucket,
+				project.finalPdfR2Key,
+				PDF_VIEW_URL_EXPIRATION_SECONDS,
+			);
+
+			return c.json(
+				{
+					pdfUrl,
+					expiresInSeconds: PDF_VIEW_URL_EXPIRATION_SECONDS,
+				},
+				200,
+			);
 		} catch (e) {
 			return handleError(e, c);
 		}
