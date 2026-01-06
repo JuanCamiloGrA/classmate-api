@@ -27,7 +27,7 @@ bun run db:migrate:remote
 # Deploy, but we will be using Github PRs and automatic CI/CD for the main branch.
 bun run deploy
 
-# Test
+# Test (Note: Use Vitest 3.x, as v4 is not yet compatible with @cloudflare/vitest-pool-workers)
 bun run test
 
 # Lint and format (Biome)
@@ -60,6 +60,9 @@ src/
 │   │   └── client.ts    # D1 client wrapper
 │   ├── auth/            # Clerk adapter
 │   └── cache/           # KV adapter (if used)
+│
+│   ⚠️ IMPORTANT: Keep vitest@^3.x.x and @vitest/ui@^3.x.x in package.json
+│      Vitest 4.x is NOT compatible with @cloudflare/vitest-pool-workers yet.
 │
 ├── interfaces/          # HTTP layer
 │   ├── http/
@@ -289,6 +292,9 @@ app.get('/protected', (c) => {
 ## Testing Strategy
 
 ### Unit Tests (Domain & Application)
+
+> **Note**: This project uses **Vitest 3.x** because `@cloudflare/vitest-pool-workers` is not yet compatible with Vitest 4.x. 
+> Do not upgrade to Vitest 4 until the pool worker package is updated.
 
 ```typescript
 // application/users/create-user.usecase.test.ts
