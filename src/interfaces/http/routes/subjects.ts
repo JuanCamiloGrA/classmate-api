@@ -150,7 +150,7 @@ function validateCreatePayload(body: unknown): CreateSubjectInput {
 	const result = CreateSubjectSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -162,7 +162,7 @@ function validateUpdatePayload(body: unknown): UpdateSubjectInput {
 	const result = UpdateSubjectSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -182,7 +182,7 @@ function validateTermIdQuery(query: Record<string, string>): string {
 	const result = ListSubjectsByTermSchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);

@@ -54,6 +54,7 @@ const ClassListItemSchema = z.object({
 	is_processed: z.number(),
 	created_at: z.string(),
 	updated_at: z.string(),
+	slug: z.string(),
 });
 
 const ClassResourceSchema = z.object({
@@ -85,6 +86,7 @@ const ClassDetailSchema = z.object({
 	deleted_at: z.string().nullable(),
 	created_at: z.string(),
 	updated_at: z.string(),
+	slug: z.string(),
 	resources: z.array(ClassResourceSchema),
 });
 
@@ -103,10 +105,10 @@ const ClassCreateResponseSchema = z.object({
 	content: z.string().nullable(),
 	summary: z.string().nullable(),
 	transcription_text: z.string().nullable(),
-	room_location: z.string().nullable(),
 	is_processed: z.number(),
 	created_at: z.string(),
 	updated_at: z.string(),
+	slug: z.string(),
 });
 
 const ClassUpdateResponseSchema = z.object({
@@ -123,10 +125,10 @@ const ClassUpdateResponseSchema = z.object({
 	duration_seconds: z.number(),
 	content: z.string().nullable(),
 	summary: z.string().nullable(),
-	transcription_text: z.string().nullable(),
 	room_location: z.string().nullable(),
 	is_processed: z.number(),
 	updated_at: z.string(),
+	slug: z.string(),
 });
 
 const ClassSoftDeleteSchema = z.object({
@@ -239,7 +241,7 @@ function validateCreatePayload(body: unknown): CreateClassInput {
 	const result = CreateClassSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -267,7 +269,7 @@ function validateUpdatePayload(body: unknown): UpdateClassInput {
 	const result = UpdateClassSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -302,7 +304,7 @@ function validateListQuery(query: Record<string, string>): ClassFilters {
 	const result = ListClassesSchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -430,6 +432,7 @@ async function createClass(c: ClassContext) {
 					is_processed: classItem.isProcessed,
 					created_at: classItem.createdAt,
 					updated_at: classItem.updatedAt,
+					slug: classItem.slug,
 				},
 			},
 			201,
@@ -469,6 +472,7 @@ async function updateClass(c: ClassContext) {
 					room_location: classItem.roomLocation,
 					is_processed: classItem.isProcessed,
 					updated_at: classItem.updatedAt,
+					slug: classItem.slug,
 				},
 			},
 			200,

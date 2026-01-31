@@ -43,7 +43,7 @@ const NOTIFICATION_TYPES = [
 const NotificationListItemSchema = z.object({
 	id: z.string(),
 	type: z.enum(NOTIFICATION_TYPES),
-	payload: z.record(z.unknown()),
+	payload: z.record(z.string(), z.unknown()),
 	is_read: z.number(),
 	action_url: z.string().nullable(),
 	created_at: z.string(),
@@ -53,7 +53,7 @@ const NotificationDetailSchema = z.object({
 	id: z.string(),
 	user_id: z.string(),
 	type: z.enum(NOTIFICATION_TYPES),
-	payload: z.record(z.unknown()),
+	payload: z.record(z.string(), z.unknown()),
 	is_read: z.number(),
 	read_at: z.string().nullable(),
 	action_url: z.string().nullable(),
@@ -177,7 +177,7 @@ function validateListQuery(query: Record<string, string>): NotificationFilters {
 	const result = ListNotificationsSchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -263,7 +263,7 @@ async function createNotification(c: NotificationContext) {
 		const result = CreateNotificationSchema.safeParse(body);
 		if (!result.success) {
 			throw new ValidationError(
-				result.error.errors
+				result.error.issues
 					.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 					.join("; "),
 			);

@@ -138,7 +138,7 @@ function validateListQuery(query: Record<string, string>): LibraryFilters {
 	const result = ListLibrarySchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -216,7 +216,7 @@ async function generateUploadUrl(c: LibraryContext) {
 		const result = GenerateUploadUrlSchema.safeParse(body);
 		if (!result.success) {
 			throw new ValidationError(
-				result.error.errors
+				result.error.issues
 					.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 					.join("; "),
 			);
@@ -276,7 +276,7 @@ async function confirmUpload(c: LibraryContext) {
 		const result = ConfirmUploadSchema.safeParse(body);
 		if (!result.success) {
 			throw new ValidationError(
-				result.error.errors
+				result.error.issues
 					.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 					.join("; "),
 			);

@@ -58,7 +58,7 @@ export const ScribeTypstPayloadSchema = z.object({
 			),
 		references: z.string(),
 	}),
-	template_config: z.record(z.any()),
+	template_config: z.record(z.string(), z.any()),
 });
 
 export type ScribeTypstPayload = z.infer<typeof ScribeTypstPayloadSchema>;

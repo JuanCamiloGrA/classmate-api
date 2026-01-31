@@ -25,7 +25,7 @@ export const CreateNotificationSchema = z.object({
 	type: z.enum(NOTIFICATION_TYPES, {
 		message: `Type must be one of: ${NOTIFICATION_TYPES.join(", ")}`,
 	}),
-	payload: z.record(z.unknown()).default({}),
+	payload: z.record(z.string(), z.unknown()).default({}),
 	action_url: z.string().nullable().optional(),
 });
 

@@ -47,7 +47,7 @@ async function processUrl(c: ClassContext) {
 		const validationResult = ProcessUrlSchema.safeParse(body);
 		if (!validationResult.success) {
 			throw new ValidationError(
-				validationResult.error.errors
+				validationResult.error.issues
 					.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 					.join("; "),
 			);

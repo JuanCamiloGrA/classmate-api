@@ -57,7 +57,7 @@ async function confirmUploadByKey(c: UploadsContext) {
 		const result = ConfirmUploadByKeySchema.safeParse(body);
 		if (!result.success) {
 			throw new ValidationError(
-				result.error.errors
+				result.error.issues
 					.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 					.join("; "),
 			);

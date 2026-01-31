@@ -90,7 +90,7 @@ function validateCreatePayload(body: unknown): CreateTermInput {
 	const result = CreateTermSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -102,7 +102,7 @@ function validateUpdatePayload(body: unknown): UpdateTermInput {
 	const result = UpdateTermSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);

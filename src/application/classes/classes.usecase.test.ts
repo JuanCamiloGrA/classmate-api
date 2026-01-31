@@ -36,6 +36,7 @@ const mockClass: Class = {
 	deletedAt: null,
 	createdAt: "2024-10-16T10:00:00.000Z",
 	updatedAt: "2024-10-16T10:00:00.000Z",
+	slug: "chapter-5-introduction",
 };
 
 const mockClassListItem: ClassListItem = {
@@ -54,6 +55,7 @@ const mockClassListItem: ClassListItem = {
 	isProcessed: 0,
 	createdAt: "2024-10-16T10:00:00.000Z",
 	updatedAt: "2024-10-16T10:00:00.000Z",
+	slug: "chapter-5-introduction",
 };
 
 const mockClassWithResources: ClassWithResources = {

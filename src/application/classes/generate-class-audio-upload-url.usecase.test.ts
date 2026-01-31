@@ -31,6 +31,7 @@ const mockClass: ClassWithResources = {
 	deletedAt: null,
 	createdAt: "2024-10-16T10:00:00.000Z",
 	updatedAt: "2024-10-16T10:00:00.000Z",
+	slug: "test-class",
 	resources: [],
 };
 

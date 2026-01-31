@@ -152,11 +152,12 @@ async function createIterationUseCase(c: ScribeContext) {
 
 const GenerateRubricUploadUrlSchema = z.object({
 	fileName: z.string().min(1, "File name is required"),
-	contentType: z.enum(SUPPORTED_RUBRIC_MIME_TYPES, {
-		errorMap: () => ({
+	contentType: z.enum(
+		[...SUPPORTED_RUBRIC_MIME_TYPES] as [string, ...string[]],
+		{
 			message: `Unsupported file type. Allowed: ${SUPPORTED_RUBRIC_MIME_TYPES.join(", ")}`,
-		}),
-	}),
+		},
+	),
 	sizeBytes: z.number().int().positive("File size must be positive"),
 });
 
@@ -194,7 +195,7 @@ const IterateScribeSchema = z.object({
 	rubricFileR2Key: z.string().optional(),
 	rubricMimeType: z.string().optional(),
 	// Optional: answers from the latest form iteration
-	userAnswers: z.record(z.unknown()).optional(),
+	userAnswers: z.record(z.string(), z.unknown()).optional(),
 });
 
 const ScribeProjectResponseSchema = z.object({
@@ -274,7 +275,7 @@ export class GenerateScribeRubricUploadUrlEndpoint extends OpenAPIRoute {
 			const validation = GenerateRubricUploadUrlSchema.safeParse(body);
 			if (!validation.success) {
 				throw new ValidationError(
-					validation.error.errors
+					validation.error.issues
 						.map((e) => `${e.path.join(".")}: ${e.message}`)
 						.join("; "),
 				);

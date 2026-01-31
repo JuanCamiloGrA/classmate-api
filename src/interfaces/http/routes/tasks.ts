@@ -155,7 +155,7 @@ function validateCreatePayload(body: unknown): CreateTaskInput {
 	const result = CreateTaskSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -175,7 +175,7 @@ function validateUpdatePayload(body: unknown): UpdateTaskInput {
 	const result = UpdateTaskSchema.safeParse(body);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
@@ -202,7 +202,7 @@ function validateListQuery(query: Record<string, string>): TaskFilters {
 	const result = ListTasksSchema.safeParse(query);
 	if (!result.success) {
 		throw new ValidationError(
-			result.error.errors
+			result.error.issues
 				.map((issue) => `${issue.path.join(".")}: ${issue.message}`)
 				.join("; "),
 		);
