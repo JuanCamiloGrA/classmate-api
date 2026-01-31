@@ -4,7 +4,6 @@ import { VercelAIService } from "../../infrastructure/ai/vercel.ai.service";
 import { DatabaseFactory } from "../../infrastructure/database/client";
 import { D1SummaryRepository } from "../../infrastructure/database/repositories/summary.repository";
 import { DevLogger } from "../../infrastructure/logging/dev-logger";
-import { MiniGFMMarkdownService } from "../../infrastructure/markdown/minigfm.markdown.service";
 import { CloudRunProcessingService } from "../../infrastructure/processing/cloud-run.processing.service";
 import { AssetsPromptService } from "../../infrastructure/prompt/assets.prompt.service";
 import { R2StorageAdapter } from "../../infrastructure/storage/r2.storage";
@@ -52,7 +51,6 @@ export async function createSummarizeClassWorkflowHandler(
 		secretAccessKey: r2SecretAccessKey,
 		bucketName: r2BucketName,
 	});
-	const markdownService = new MiniGFMMarkdownService();
 
 	// Create storage adapter for generating presigned URLs
 	const storageRepository = new R2StorageAdapter({
@@ -72,7 +70,6 @@ export async function createSummarizeClassWorkflowHandler(
 		storageService,
 		storageRepository,
 		summaryRepository,
-		markdownService,
 		promptService,
 		r2BucketName,
 	);

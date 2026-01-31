@@ -3,7 +3,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
-import type { MarkdownService } from "../../domain/services/markdown.service";
 import type { ProcessingService } from "../../domain/services/processing.service";
 import type { PromptService } from "../../domain/services/prompt.service";
 import type { StorageService } from "../../domain/services/storage.service";
@@ -17,7 +16,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 	let mockStorageService: StorageService;
 	let mockStorageRepository: StorageRepository;
 	let mockSummaryRepository: SummaryRepository;
-	let mockMarkdownService: MarkdownService;
 	let mockPromptService: PromptService;
 	let mockStep: WorkflowStep;
 
@@ -48,10 +46,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			updateAIStatus: vi.fn(),
 		};
 
-		mockMarkdownService = {
-			parse: vi.fn(),
-		};
-
 		mockPromptService = {
 			loadPrompt: vi.fn(),
 			getPrompt: vi.fn(),
@@ -73,7 +67,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			mockStorageService,
 			mockStorageRepository,
 			mockSummaryRepository,
-			mockMarkdownService,
 			mockPromptService,
 			"temporal-bucket",
 		);
@@ -101,7 +94,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			const mockFileUrl =
 				"https://bucket.r2.example.com/temp/user-456/audio.mp3?signed";
 			const mockSummaryMarkdown = "# Test Summary\n\nContent here";
-			const mockSummaryHtml = "<h1>Test Summary</h1><p>Content here</p>";
 
 			(
 				mockPromptService.loadPrompt as ReturnType<typeof vi.fn>
@@ -114,9 +106,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			(
 				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue(mockSummaryMarkdown);
-			(mockMarkdownService.parse as ReturnType<typeof vi.fn>).mockReturnValue(
-				mockSummaryHtml,
-			);
 
 			// Act
 			await handler.run(mockEvent, mockStep);
@@ -131,13 +120,10 @@ describe("SummarizeClassWorkflowHandler", () => {
 				mockFileUrl,
 				"audio/mpeg",
 			);
-			expect(mockMarkdownService.parse).toHaveBeenCalledWith(
-				mockSummaryMarkdown,
-			);
 			expect(mockSummaryRepository.save).toHaveBeenCalledWith(
 				"class-123",
 				"user-456",
-				mockSummaryHtml,
+				mockSummaryMarkdown,
 			);
 			expect(mockSummaryRepository.updateAIStatus).toHaveBeenCalledWith(
 				"class-123",
@@ -175,7 +161,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			const mockFileUrl =
 				"https://bucket.r2.example.com/temp/user-456/notes.txt?signed";
 			const mockSummaryMarkdown = "# Summary";
-			const mockSummaryHtml = "<h1>Summary</h1>";
 
 			(
 				mockPromptService.loadPrompt as ReturnType<typeof vi.fn>
@@ -188,9 +173,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			(
 				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue(mockSummaryMarkdown);
-			(mockMarkdownService.parse as ReturnType<typeof vi.fn>).mockReturnValue(
-				mockSummaryHtml,
-			);
 
 			// Act
 			await handler.run(mockEvent, mockStep);
@@ -273,9 +255,6 @@ describe("SummarizeClassWorkflowHandler", () => {
 			(
 				mockAIService.generateSummaryFromUrl as ReturnType<typeof vi.fn>
 			).mockResolvedValue("# Summary\n\nTest");
-			(mockMarkdownService.parse as ReturnType<typeof vi.fn>).mockReturnValue(
-				"<h1>Summary</h1>",
-			);
 
 			// Act
 			await handler.run(mockEvent, mockStep);

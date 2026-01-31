@@ -14,7 +14,7 @@ export class D1SummaryRepository implements SummaryRepository {
 	async save(
 		classId: string,
 		userId: string,
-		summaryHtml: string,
+		summaryMarkdown: string,
 	): Promise<void> {
 		try {
 			console.log("💾 [SUMMARY_REPO] Saving summary", { classId });
@@ -22,7 +22,7 @@ export class D1SummaryRepository implements SummaryRepository {
 			await this.db
 				.update(classes)
 				.set({
-					summary: summaryHtml,
+					summary: summaryMarkdown,
 					updatedAt: sql`(strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))`,
 				})
 				.where(and(eq(classes.id, classId), eq(classes.userId, userId)))

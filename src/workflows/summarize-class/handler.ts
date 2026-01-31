@@ -3,7 +3,6 @@ import type { ClassAIStatus } from "../../domain/entities/class";
 import type { StorageRepository } from "../../domain/repositories/storage.repository";
 import type { SummaryRepository } from "../../domain/repositories/summary.repository";
 import type { AIService } from "../../domain/services/ai.service";
-import type { MarkdownService } from "../../domain/services/markdown.service";
 import type { ProcessingService } from "../../domain/services/processing.service";
 import type { PromptService } from "../../domain/services/prompt.service";
 import type { StorageService } from "../../domain/services/storage.service";
@@ -34,7 +33,6 @@ export class SummarizeClassWorkflowHandler {
 		private storageService: StorageService,
 		private storageRepository: StorageRepository,
 		private summaryRepository: SummaryRepository,
-		private markdownService: MarkdownService,
 		private promptService: PromptService,
 		private r2TemporalBucketName: string,
 	) {
@@ -76,7 +74,7 @@ export class SummarizeClassWorkflowHandler {
 				},
 			);
 
-			// Step 2: Convert markdown to HTML and save to database
+			// Step 2: Save markdown summary to database
 			await step.do("save-summary", SAVE_SUMMARY_CONFIG, async () => {
 				await this.saveSummary(payload, summaryMarkdown);
 			});
@@ -170,11 +168,8 @@ export class SummarizeClassWorkflowHandler {
 	): Promise<void> {
 		const { classId, userId } = payload;
 
-		// Convert markdown to HTML
-		const htmlSummary = this.markdownService.parse(summaryMarkdown);
-
-		// Save to database
-		await this.summaryRepository.save(classId, userId, htmlSummary);
+		// Save raw markdown to database
+		await this.summaryRepository.save(classId, userId, summaryMarkdown);
 	}
 
 	private async cleanupTempFile(file: FileInput): Promise<void> {

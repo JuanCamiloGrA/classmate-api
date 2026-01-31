@@ -8,7 +8,7 @@ export interface SummaryRepository {
 	/**
 	 * Save generated summary for a class
 	 */
-	save(classId: string, userId: string, summaryHtml: string): Promise<void>;
+	save(classId: string, userId: string, summaryMarkdown: string): Promise<void>;
 
 	/**
 	 * Update AI processing status for a class
