@@ -9,6 +9,7 @@ import {
 	like,
 	lte,
 } from "drizzle-orm";
+import slugify from "slugify";
 import type {
 	Class,
 	ClassData,
@@ -108,6 +109,7 @@ export class D1ClassRepository implements ClassRepository {
 				isProcessed: classes.isProcessed,
 				createdAt: classes.createdAt,
 				updatedAt: classes.updatedAt,
+				slug: classes.slug,
 			})
 			.from(classes)
 			.where(whereClause)
@@ -210,6 +212,7 @@ export class D1ClassRepository implements ClassRepository {
 				deletedAt: null,
 				createdAt: now,
 				updatedAt: now,
+				slug: slugify(data.title || "class", { lower: true }),
 			})
 			.returning()
 			.get();
@@ -244,6 +247,7 @@ export class D1ClassRepository implements ClassRepository {
 
 		if (data.title !== undefined) {
 			updatePayload.title = data.title;
+			updatePayload.slug = slugify(data.title || "class", { lower: true });
 		}
 		if (data.startDate !== undefined) {
 			updatePayload.startDate = data.startDate;

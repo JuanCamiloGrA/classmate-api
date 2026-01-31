@@ -48,6 +48,8 @@ export interface Class {
 	createdAt: string;
 	/** ISO 8601 timestamp of last update */
 	updatedAt: string;
+	/** URL-friendly identifier */
+	slug: string;
 }
 
 /**
@@ -185,4 +187,6 @@ export interface ClassListItem {
 	createdAt: string;
 	/** Update timestamp */
 	updatedAt: string;
+	/** URL-friendly identifier */
+	slug: string;
 }

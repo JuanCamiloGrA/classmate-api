@@ -120,6 +120,13 @@
 			"when": 1767724303084,
 			"tag": "0016_yellow_bulldozer",
 			"breakpoints": true
+		},
+		{
+			"idx": 17,
+			"version": "6",
+			"when": 1769898126834,
+			"tag": "0017_goofy_kulan_gath",
+			"breakpoints": true
 		}
 	]
 }

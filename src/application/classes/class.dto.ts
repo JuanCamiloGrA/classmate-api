@@ -24,6 +24,7 @@ export interface ClassListDTO {
 	is_processed: number;
 	created_at: string;
 	updated_at: string;
+	slug: string;
 }
 
 /**
@@ -50,6 +51,7 @@ export interface ClassDetailDTO {
 	deleted_at: string | null;
 	created_at: string;
 	updated_at: string;
+	slug: string;
 	resources: Array<{
 		id: string;
 		original_filename: string;
@@ -79,6 +81,7 @@ export function toClassListDTO(classItem: ClassListItem): ClassListDTO {
 		is_processed: classItem.isProcessed,
 		created_at: classItem.createdAt,
 		updated_at: classItem.updatedAt,
+		slug: classItem.slug,
 	};
 }
 
@@ -109,6 +112,7 @@ export function toClassDetailDTO(
 		deleted_at: classItem.deletedAt,
 		created_at: classItem.createdAt,
 		updated_at: classItem.updatedAt,
+		slug: classItem.slug,
 		resources: classItem.resources.map((resource) => ({
 			id: resource.id,
 			original_filename: resource.originalFilename,

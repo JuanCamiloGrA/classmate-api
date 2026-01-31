@@ -149,6 +149,7 @@ export const classes = sqliteTable(
 		deletedAt: text("deleted_at"),
 		createdAt: text("created_at").notNull().default(timestampDefault),
 		updatedAt: text("updated_at").notNull().default(timestampDefault),
+		slug: text("slug").notNull().default(""),
 	},
 	(table) => [
 		index("idx_classes_user_id_subject_id").on(table.userId, table.subjectId),

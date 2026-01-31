@@ -1,0 +1,1 @@
+ALTER TABLE `classes` ADD `slug` text DEFAULT '' NOT NULL;
