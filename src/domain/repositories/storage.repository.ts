@@ -12,6 +12,13 @@ export interface StorageRepository {
 		expiresInSeconds: number,
 	): Promise<string>;
 
+	putObject(
+		bucket: string,
+		key: string,
+		body: ArrayBuffer | Uint8Array,
+		contentType: string,
+	): Promise<void>;
+
 	/**
 	 * Get object metadata (size, etag, etc.) without downloading the object.
 	 * Returns null if object doesn't exist.

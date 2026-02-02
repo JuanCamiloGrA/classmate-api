@@ -7,13 +7,20 @@
 import { contentJson, OpenAPIRoute } from "chanfana";
 import type { Context } from "hono";
 import { z } from "zod";
+import { ProcessChatAttachmentThumbnailUseCase } from "../../../application/chat/process-chat-attachment-thumbnail.usecase";
+import { StoreChatAttachmentsUseCase } from "../../../application/chat/store-chat-attachments.usecase";
 import { SyncMessagesUseCase } from "../../../application/chat/sync-messages.usecase";
 import type { Bindings, Variables } from "../../../config/bindings";
 import { resolveSecretBinding } from "../../../config/bindings";
 import type { MessageRole } from "../../../domain/entities/chat";
+import { buildChatAttachmentThumbnailKey } from "../../../domain/services/r2-path.service";
 import { AIChatTitleGenerator } from "../../../infrastructure/ai/chat-title.ai.service";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ChatRepository } from "../../../infrastructure/database/repositories/chat.repository";
+import { D1ChatAttachmentRepository } from "../../../infrastructure/database/repositories/chat-attachment.repository";
+import { D1LibraryRepository } from "../../../infrastructure/database/repositories/library.repository";
+import { D1StorageAccountingRepository } from "../../../infrastructure/database/repositories/storage-accounting.repository";
+import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
 import { UuidSchema } from "../validators/chat.validator";
 
 type HonoContext = { Bindings: Bindings; Variables: Variables };
@@ -29,6 +36,17 @@ const SyncMessageSchema = z.object({
 	role: z.enum(["user", "assistant", "system", "tool"]),
 	sequence: z.number().int().min(1),
 	content: z.string(),
+	attachments: z
+		.array(
+			z.object({
+				r2Key: z.string(),
+				thumbnailR2Key: z.string().nullable().optional(),
+				originalFilename: z.string(),
+				mimeType: z.string(),
+				sizeBytes: z.number().int().nonnegative(),
+			}),
+		)
+		.optional(),
 	status: z.enum(["streaming", "complete", "error"]).nullable().optional(),
 	latencyMs: z.number().int().nullable().optional(),
 	inputTokens: z.number().int().nullable().optional(),
@@ -145,6 +163,9 @@ export class SyncChatMessagesEndpoint extends OpenAPIRoute {
 			// 3. Setup repositories
 			const db = DatabaseFactory.create(c.env.DB);
 			const chatRepository = new D1ChatRepository(db);
+			const chatAttachmentRepository = new D1ChatAttachmentRepository(db);
+			const libraryRepository = new D1LibraryRepository(db);
+			const storageAccountingRepository = new D1StorageAccountingRepository(db);
 
 			// 4. Auto-provision chat if it doesn't exist (self-healing)
 			const chatExists = await chatRepository.exists(
@@ -202,6 +223,120 @@ export class SyncChatMessagesEndpoint extends OpenAPIRoute {
 					})),
 				},
 			});
+
+			const persistentBucket = await resolveSecretBinding(
+				c.env.R2_PERSISTENT_BUCKET_NAME,
+				"R2_PERSISTENT_BUCKET_NAME",
+			);
+			const endpoint = await resolveSecretBinding(
+				c.env.R2_S3_PERSISTENT_API_ENDPOINT,
+				"R2_S3_PERSISTENT_API_ENDPOINT",
+			);
+			const accessKeyId = await resolveSecretBinding(
+				c.env.R2_PERSISTENT_ACCESS_KEY_ID,
+				"R2_PERSISTENT_ACCESS_KEY_ID",
+			);
+			const secretAccessKey = await resolveSecretBinding(
+				c.env.R2_PERSISTENT_SECRET_ACCESS_KEY,
+				"R2_PERSISTENT_SECRET_ACCESS_KEY",
+			);
+			const storageAdapter = new R2StorageAdapter({
+				endpoint,
+				accessKeyId,
+				secretAccessKey,
+			});
+			const attachmentUseCase = new StoreChatAttachmentsUseCase(
+				chatRepository,
+				chatAttachmentRepository,
+				storageAccountingRepository,
+				libraryRepository,
+				storageAdapter,
+			);
+			const thumbnailUseCase = new ProcessChatAttachmentThumbnailUseCase(
+				storageAdapter,
+				storageAccountingRepository,
+				libraryRepository,
+			);
+
+			const messageIdMap = await chatRepository.getMessages(
+				validated.userId,
+				validated.chatId,
+				validated.messages.length + validated.lastSyncedSequence,
+			);
+			const messageBySequence = new Map(
+				messageIdMap.map((message) => [message.sequence, message.id]),
+			);
+
+			const totalAttachmentBytes = validated.messages.reduce(
+				(total, message) =>
+					total +
+					(message.attachments?.reduce(
+						(innerTotal, attachment) => innerTotal + attachment.sizeBytes,
+						0,
+					) ?? 0),
+				0,
+			);
+
+			if (totalAttachmentBytes > 40 * 1024 * 1024) {
+				return c.json(
+					{ error: "Attachments exceed total size limit of 40MB" },
+					400,
+				);
+			}
+
+			for (const message of validated.messages) {
+				if (!message.attachments || message.attachments.length === 0) {
+					continue;
+				}
+				const messageId = messageBySequence.get(message.sequence);
+				if (!messageId) {
+					continue;
+				}
+
+				const storedAttachments = await attachmentUseCase.execute({
+					userId: validated.userId,
+					chatId: validated.chatId,
+					messageId,
+					bucket: persistentBucket,
+					attachments: message.attachments.map(
+						(attachment, attachmentIndex) => ({
+							r2Key: attachment.r2Key,
+							thumbnailR2Key:
+								attachment.thumbnailR2Key ??
+								(attachment.mimeType.startsWith("image/")
+									? buildChatAttachmentThumbnailKey({
+											userId: validated.userId,
+											chatId: validated.chatId,
+											messageId,
+											attachmentId:
+												attachment.r2Key.split("/").pop()?.split("-")[0] ??
+												`${messageId}-${attachmentIndex}`,
+										})
+									: null),
+							originalFilename: attachment.originalFilename,
+							mimeType: attachment.mimeType,
+							sizeBytes: attachment.sizeBytes,
+						}),
+					),
+				});
+
+				for (const attachment of storedAttachments) {
+					if (!attachment.mimeType.startsWith("image/")) {
+						continue;
+					}
+					if (!attachment.thumbnailR2Key) {
+						continue;
+					}
+					await thumbnailUseCase.execute({
+						userId: validated.userId,
+						chatId: validated.chatId,
+						messageId,
+						attachmentId: attachment.id,
+						r2Key: attachment.r2Key,
+						bucket: persistentBucket,
+					});
+				}
+			}
 
 			return c.json({
 				success: true,

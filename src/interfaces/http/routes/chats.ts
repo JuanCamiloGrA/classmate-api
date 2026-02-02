@@ -11,14 +11,22 @@ import {
 	CreateChatUseCase,
 } from "../../../application/chat/create-chat.usecase";
 import { GetChatUseCase } from "../../../application/chat/get-chat.usecase";
+import { GetChatMessagesUseCase } from "../../../application/chat/get-chat-messages.usecase";
+import { HardDeleteChatUseCase } from "../../../application/chat/hard-delete-chat.usecase";
 import { ListChatsUseCase } from "../../../application/chat/list-chats.usecase";
 import { SoftDeleteChatUseCase } from "../../../application/chat/soft-delete-chat.usecase";
 import { UpdateChatUseCase } from "../../../application/chat/update-chat.usecase";
 import type { Bindings, Variables } from "../../../config/bindings";
+import { resolveSecretBinding } from "../../../config/bindings";
 import { getAuth } from "../../../infrastructure/auth";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ChatRepository } from "../../../infrastructure/database/repositories/chat.repository";
+import { D1ChatAttachmentRepository } from "../../../infrastructure/database/repositories/chat-attachment.repository";
+import { D1LibraryRepository } from "../../../infrastructure/database/repositories/library.repository";
 import { D1ProfileRepository } from "../../../infrastructure/database/repositories/profile.repository";
+import { D1StorageAccountingRepository } from "../../../infrastructure/database/repositories/storage-accounting.repository";
+import { R2StorageAdapter } from "../../../infrastructure/storage/r2.storage";
+import { R2StorageService } from "../../../infrastructure/storage/r2.storage.service";
 import {
 	ChatIdParamSchema,
 	CreateChatSchema,
@@ -64,6 +72,21 @@ const MessageSchema = z.object({
 	role: z.enum(["user", "assistant", "system", "tool"]),
 	sequence: z.number(),
 	content: z.string(),
+	attachments: z
+		.array(
+			z.object({
+				id: z.string(),
+				r2Key: z.string(),
+				thumbnailR2Key: z.string().nullable(),
+				originalFilename: z.string(),
+				mimeType: z.string(),
+				sizeBytes: z.number(),
+				url: z.string().nullable(),
+				thumbnailUrl: z.string().nullable(),
+				expiresAt: z.string().nullable(),
+			}),
+		)
+		.optional(),
 	created_at: z.string(),
 });
 
@@ -90,6 +113,53 @@ function getRepositories(c: ChatContext) {
 		chatRepository: new D1ChatRepository(db),
 		profileRepository: new D1ProfileRepository(db),
 	};
+}
+
+async function getPersistentStorageAdapter(c: ChatContext) {
+	const endpoint = await resolveSecretBinding(
+		c.env.R2_S3_PERSISTENT_API_ENDPOINT,
+		"R2_S3_PERSISTENT_API_ENDPOINT",
+	);
+	const accessKeyId = await resolveSecretBinding(
+		c.env.R2_PERSISTENT_ACCESS_KEY_ID,
+		"R2_PERSISTENT_ACCESS_KEY_ID",
+	);
+	const secretAccessKey = await resolveSecretBinding(
+		c.env.R2_PERSISTENT_SECRET_ACCESS_KEY,
+		"R2_PERSISTENT_SECRET_ACCESS_KEY",
+	);
+
+	return new R2StorageAdapter({ endpoint, accessKeyId, secretAccessKey });
+}
+
+async function getPersistentBucketName(c: ChatContext): Promise<string> {
+	return resolveSecretBinding(
+		c.env.R2_PERSISTENT_BUCKET_NAME,
+		"R2_PERSISTENT_BUCKET_NAME",
+	);
+}
+
+async function getPersistentStorageService(c: ChatContext) {
+	const endpoint = await resolveSecretBinding(
+		c.env.R2_S3_PERSISTENT_API_ENDPOINT,
+		"R2_S3_PERSISTENT_API_ENDPOINT",
+	);
+	const accessKeyId = await resolveSecretBinding(
+		c.env.R2_PERSISTENT_ACCESS_KEY_ID,
+		"R2_PERSISTENT_ACCESS_KEY_ID",
+	);
+	const secretAccessKey = await resolveSecretBinding(
+		c.env.R2_PERSISTENT_SECRET_ACCESS_KEY,
+		"R2_PERSISTENT_SECRET_ACCESS_KEY",
+	);
+	const bucketName = await getPersistentBucketName(c);
+
+	return new R2StorageService({
+		endpoint,
+		accessKeyId,
+		secretAccessKey,
+		bucketName,
+	});
 }
 
 // ============================================
@@ -426,34 +496,32 @@ export class GetChatMessagesEndpoint extends OpenAPIRoute {
 			const query = GetMessagesQuerySchema.parse(c.req.query());
 
 			const { chatRepository } = getRepositories(c);
+			const storageAdapter = await getPersistentStorageAdapter(c);
+			const bucket = await getPersistentBucketName(c);
+			const urlExpires = 3600;
 
-			// First verify chat exists and belongs to user
-			const chatExists = await chatRepository.exists(userId, chatId);
-			if (!chatExists) {
-				return c.json({ error: "Chat not found" }, 404);
-			}
-
-			// Get messages
-			const messages = await chatRepository.getMessages(
+			const useCase = new GetChatMessagesUseCase(
+				chatRepository,
+				storageAdapter,
+			);
+			const { messages, hasMore } = await useCase.execute({
 				userId,
 				chatId,
-				query.limit + 1, // Fetch one extra to check if there are more
-				query.after_sequence,
-			);
-
-			const hasMore = messages.length > query.limit;
-			const resultMessages = hasMore
-				? messages.slice(0, query.limit)
-				: messages;
+				limit: query.limit,
+				afterSequence: query.after_sequence,
+				attachmentUrlExpiresInSeconds: urlExpires,
+				bucket,
+			});
 
 			return c.json({
 				success: true,
 				result: {
-					messages: resultMessages.map((msg) => ({
+					messages: messages.map((msg) => ({
 						id: msg.id,
 						role: msg.role,
 						sequence: msg.sequence,
 						content: msg.content,
+						attachments: msg.attachments,
 						created_at: msg.createdAt,
 					})),
 					has_more: hasMore,
@@ -635,6 +703,86 @@ export class DeleteChatEndpoint extends OpenAPIRoute {
 				return c.json({ error: "Chat not found" }, 404);
 			}
 			console.error("Error deleting chat:", error);
+			return c.json({ error: "Internal server error" }, 500);
+		}
+	}
+}
+
+// ============================================
+// HARD DELETE CHAT ENDPOINT
+// ============================================
+
+export class HardDeleteChatEndpoint extends OpenAPIRoute {
+	schema = {
+		tags: ["Chats"],
+		summary: "Hard delete chat",
+		description:
+			"Permanently delete a chat, its messages, attachments, and R2 objects.",
+		request: {
+			params: ChatIdParamSchema,
+		},
+		responses: {
+			"200": {
+				description: "Chat deleted",
+				...contentJson(
+					z.object({
+						success: z.literal(true),
+						result: z.object({
+							id: z.string(),
+						}),
+					}),
+				),
+			},
+			"401": {
+				description: "Unauthorized",
+				...contentJson(ErrorResponseSchema),
+			},
+			"404": {
+				description: "Chat not found",
+				...contentJson(ErrorResponseSchema),
+			},
+		},
+	};
+
+	async handle(c: ChatContext) {
+		try {
+			const userId = ensureAuthenticatedUser(c);
+			const { id: chatId } = ChatIdParamSchema.parse(c.req.param());
+
+			const db = DatabaseFactory.create(c.env.DB);
+			const chatRepository = new D1ChatRepository(db);
+			const chatAttachmentRepository = new D1ChatAttachmentRepository(db);
+			const storageAccountingRepository = new D1StorageAccountingRepository(db);
+			const libraryRepository = new D1LibraryRepository(db);
+			const storageService = await getPersistentStorageService(c);
+
+			const useCase = new HardDeleteChatUseCase(
+				chatRepository,
+				chatAttachmentRepository,
+				storageAccountingRepository,
+				libraryRepository,
+				storageService,
+			);
+
+			const deleted = await useCase.execute({ userId, chatId });
+			if (!deleted) {
+				return c.json({ error: "Chat not found" }, 404);
+			}
+
+			return c.json({
+				success: true,
+				result: {
+					id: chatId,
+				},
+			});
+		} catch (error) {
+			if (error instanceof Error && error.message === "UNAUTHORIZED") {
+				return c.json({ error: "Unauthorized" }, 401);
+			}
+			if (error instanceof z.ZodError) {
+				return c.json({ error: "Invalid chat ID format" }, 400);
+			}
+			console.error("Error hard deleting chat:", error);
 			return c.json({ error: "Internal server error" }, 500);
 		}
 	}

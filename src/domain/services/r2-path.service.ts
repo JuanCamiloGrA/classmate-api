@@ -3,6 +3,7 @@ export type R2Category =
 	| "class_audio"
 	| "rubrics"
 	| "user_uploads"
+	| "chat_attachments"
 	| "avatars"
 	| "temp";
 
@@ -37,4 +38,15 @@ export function buildUserR2Key(params: {
 	const uuid = params.uuid ?? crypto.randomUUID();
 	const safeName = sanitizeFilename(params.filename);
 	return `users/${params.userId}/${params.category}/${year}/${month}/${uuid}-${safeName}`;
+}
+
+export function buildChatAttachmentThumbnailKey(params: {
+	userId: string;
+	chatId: string;
+	messageId: string;
+	attachmentId: string;
+	now?: Date;
+}): string {
+	const { year, month } = getUtcYearMonth(params.now);
+	return `users/${params.userId}/chat_attachments/${year}/${month}/thumb/${params.chatId}/${params.messageId}/${params.attachmentId}.webp`;
 }

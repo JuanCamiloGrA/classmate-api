@@ -330,6 +330,36 @@ export const messages = sqliteTable(
 	],
 );
 
+export const messageAttachments = sqliteTable(
+	"message_attachments",
+	{
+		id: text("id").primaryKey(),
+		messageId: text("message_id")
+			.notNull()
+			.references(() => messages.id, { onDelete: "cascade" }),
+		chatId: text("chat_id")
+			.notNull()
+			.references(() => chats.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => profiles.id, { onDelete: "cascade" }),
+		r2Key: text("r2_key").notNull(),
+		thumbnailR2Key: text("thumbnail_r2_key"),
+		originalFilename: text("original_filename").notNull(),
+		mimeType: text("mime_type").notNull(),
+		sizeBytes: integer("size_bytes").notNull(),
+		createdAt: text("created_at").notNull().default(timestampDefault),
+	},
+	(table) => [
+		index("idx_message_attachments_message_id").on(table.messageId),
+		index("idx_message_attachments_chat_id").on(table.chatId),
+		uniqueIndex("idx_message_attachments_message_r2_key").on(
+			table.messageId,
+			table.r2Key,
+		),
+	],
+);
+
 export const scribeProjects = sqliteTable("scribe_projects", {
 	id: text("id").primaryKey(),
 	userId: text("user_id")
@@ -461,6 +491,12 @@ export type Message = typeof messages.$inferSelect;
 export type NewMessage = typeof messages.$inferInsert;
 export const messageSchema = createSelectSchema(messages);
 export const newMessageSchema = createInsertSchema(messages);
+
+export type MessageAttachment = typeof messageAttachments.$inferSelect;
+export type NewMessageAttachment = typeof messageAttachments.$inferInsert;
+export const messageAttachmentSchema = createSelectSchema(messageAttachments);
+export const newMessageAttachmentSchema =
+	createInsertSchema(messageAttachments);
 
 export type ScribeProject = typeof scribeProjects.$inferSelect;
 export type NewScribeProject = typeof scribeProjects.$inferInsert;

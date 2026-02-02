@@ -82,6 +82,17 @@ export const syncMessagesRequestSchema = z.object({
 			role: messageRoleSchema,
 			sequence: z.number().int().min(1),
 			content: z.string(),
+			attachments: z
+				.array(
+					z.object({
+						r2Key: z.string(),
+						thumbnailR2Key: z.string().nullable().optional(),
+						originalFilename: z.string(),
+						mimeType: z.string(),
+						sizeBytes: z.number().int().nonnegative(),
+					}),
+				)
+				.optional(),
 			status: messageStatusSchema.optional().nullable(),
 			latencyMs: z.number().int().optional().nullable(),
 			inputTokens: z.number().int().optional().nullable(),
@@ -157,6 +168,21 @@ export const messageResponseSchema = z.object({
 	role: messageRoleSchema,
 	sequence: z.number().int(),
 	content: z.string(),
+	attachments: z
+		.array(
+			z.object({
+				id: z.string().uuid(),
+				r2Key: z.string(),
+				thumbnailR2Key: z.string().nullable(),
+				originalFilename: z.string(),
+				mimeType: z.string(),
+				sizeBytes: z.number().int(),
+				expiresAt: z.string().nullable().optional(),
+				url: z.string().nullable().optional(),
+				thumbnailUrl: z.string().nullable().optional(),
+			}),
+		)
+		.optional(),
 	status: messageStatusSchema.nullable(),
 	latencyMs: z.number().nullable(),
 	inputTokens: z.number().nullable(),
@@ -167,6 +193,19 @@ export const messageResponseSchema = z.object({
 });
 
 export type MessageResponse = z.infer<typeof messageResponseSchema>;
+
+export const chatAttachmentUploadResponseSchema = z.object({
+	success: z.literal(true),
+	result: z.object({
+		attachmentId: z.string().uuid(),
+		uploadUrl: z.string(),
+		r2Key: z.string(),
+	}),
+});
+
+export type ChatAttachmentUploadResponse = z.infer<
+	typeof chatAttachmentUploadResponseSchema
+>;
 
 /**
  * Chat with messages response.

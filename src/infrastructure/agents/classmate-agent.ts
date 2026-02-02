@@ -69,6 +69,13 @@ interface ConvertedMessage {
 	role: MessageRole;
 	content: string;
 	sequence: number;
+	attachments?: Array<{
+		r2Key: string;
+		thumbnailR2Key?: string | null;
+		originalFilename: string;
+		mimeType: string;
+		sizeBytes: number;
+	}>;
 }
 
 // ============================================
@@ -491,6 +498,7 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 						role: m.role,
 						sequence: m.sequence,
 						content: m.content,
+						attachments: m.attachments,
 					})),
 				}),
 			});
@@ -579,11 +587,15 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 	 * Convert UI messages to sync-friendly format with sequence numbers
 	 */
 	private convertMessagesForSync(): ConvertedMessage[] {
-		return this.messages.map((msg, index) => ({
-			role: msg.role as MessageRole,
-			content: this.extractTextFromMessage(msg),
-			sequence: index + 1, // 1-based sequence
-		}));
+		return this.messages.map((msg, index) => {
+			const attachments = this.extractAttachmentsFromMessage(msg);
+			return {
+				role: msg.role as MessageRole,
+				content: this.extractTextFromMessage(msg),
+				sequence: index + 1,
+				attachments,
+			};
+		});
 	}
 
 	/**
@@ -611,6 +623,37 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 			return JSON.stringify(msg.content);
 		}
 		return "";
+	}
+
+	private extractAttachmentsFromMessage(msg: any):
+		| Array<{
+				r2Key: string;
+				thumbnailR2Key?: string | null;
+				originalFilename: string;
+				mimeType: string;
+				sizeBytes: number;
+		  }>
+		| undefined {
+		const metadata = msg.metadata as
+			| { attachments?: Array<Record<string, unknown>> }
+			| undefined;
+		const attachments = metadata?.attachments;
+		if (!attachments || attachments.length === 0) {
+			return undefined;
+		}
+
+		return attachments
+			.map((attachment) => ({
+				r2Key: String(attachment.r2Key ?? ""),
+				thumbnailR2Key: attachment.thumbnailR2Key
+					? String(attachment.thumbnailR2Key)
+					: null,
+				originalFilename: String(attachment.originalFilename ?? ""),
+				mimeType: String(attachment.mimeType ?? ""),
+				sizeBytes:
+					typeof attachment.sizeBytes === "number" ? attachment.sizeBytes : 0,
+			}))
+			.filter((attachment) => attachment.r2Key && attachment.mimeType);
 	}
 
 	/**

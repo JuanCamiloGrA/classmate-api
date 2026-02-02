@@ -3,7 +3,7 @@
  * Handles chat and message persistence using Drizzle ORM.
  */
 
-import { and, asc, count, desc, eq, gt, like, max } from "drizzle-orm";
+import { and, asc, count, desc, eq, gt, inArray, like, max } from "drizzle-orm";
 import type {
 	Chat,
 	ChatContextType,
@@ -12,6 +12,7 @@ import type {
 	ChatUpdateData,
 	ChatWithMessages,
 	Message,
+	MessageAttachment,
 	MessageSyncBatch,
 } from "../../../domain/entities/chat";
 import type {
@@ -21,7 +22,7 @@ import type {
 } from "../../../domain/repositories/chat.repository";
 import { NotFoundError } from "../../../interfaces/http/middleware/error-handler";
 import type { Database } from "../client";
-import { chats, messages } from "../schema";
+import { chats, messageAttachments, messages } from "../schema";
 
 /**
  * D1 implementation of the ChatRepository interface.
@@ -96,9 +97,30 @@ export class D1ChatRepository implements ChatRepository {
 			.where(eq(messages.chatId, chatId))
 			.orderBy(asc(messages.sequence));
 
+		const messageIds = chatMessages.map((message) => message.id);
+		const attachments = messageIds.length
+			? await this.db
+					.select()
+					.from(messageAttachments)
+					.where(
+						and(
+							eq(messageAttachments.chatId, chatId),
+							inArray(messageAttachments.messageId, messageIds),
+						),
+					)
+			: [];
+		const attachmentsByMessageId = attachments.reduce((acc, attachment) => {
+			const list = acc.get(attachment.messageId) ?? [];
+			list.push(attachment);
+			acc.set(attachment.messageId, list);
+			return acc;
+		}, new Map<string, (typeof messageAttachments.$inferSelect)[]>());
+
 		return {
 			...chat,
-			messages: chatMessages.map(this.mapToMessage),
+			messages: chatMessages.map((message) =>
+				this.mapToMessage(message, attachmentsByMessageId.get(message.id)),
+			),
 		};
 	}
 
@@ -314,7 +336,57 @@ export class D1ChatRepository implements ChatRepository {
 			.orderBy(asc(messages.sequence))
 			.limit(limit);
 
-		return result.map(this.mapToMessage);
+		const messageIds = result.map((message) => message.id);
+		const attachments = messageIds.length
+			? await this.getMessageAttachments(userId, chatId, messageIds)
+			: [];
+		const attachmentsByMessageId = attachments.reduce((acc, attachment) => {
+			const list = acc.get(attachment.messageId) ?? [];
+			list.push(attachment);
+			acc.set(attachment.messageId, list);
+			return acc;
+		}, new Map<string, (typeof messageAttachments.$inferSelect)[]>());
+
+		return result.map((message) =>
+			this.mapToMessage(message, attachmentsByMessageId.get(message.id)),
+		);
+	}
+
+	async getMessageAttachments(
+		userId: string,
+		chatId: string,
+		messageIds: string[],
+	): Promise<MessageAttachment[]> {
+		if (messageIds.length === 0) return [];
+
+		const chatExists = await this.exists(userId, chatId);
+		if (!chatExists) {
+			throw new NotFoundError("Chat not found");
+		}
+
+		const attachments = await this.db
+			.select()
+			.from(messageAttachments)
+			.where(
+				and(
+					eq(messageAttachments.chatId, chatId),
+					inArray(messageAttachments.messageId, messageIds),
+				),
+			)
+			.all();
+
+		return attachments.map((attachment) => ({
+			id: attachment.id,
+			messageId: attachment.messageId,
+			chatId: attachment.chatId,
+			userId: attachment.userId,
+			r2Key: attachment.r2Key,
+			thumbnailR2Key: attachment.thumbnailR2Key,
+			originalFilename: attachment.originalFilename,
+			mimeType: attachment.mimeType,
+			sizeBytes: attachment.sizeBytes,
+			createdAt: attachment.createdAt,
+		}));
 	}
 
 	async getLastSequence(chatId: string): Promise<number> {
@@ -458,7 +530,10 @@ export class D1ChatRepository implements ChatRepository {
 		};
 	}
 
-	private mapToMessage(row: typeof messages.$inferSelect): Message {
+	private mapToMessage(
+		row: typeof messages.$inferSelect,
+		attachments?: (typeof messageAttachments.$inferSelect)[],
+	): Message {
 		return {
 			id: row.id,
 			chatId: row.chatId,
@@ -466,6 +541,18 @@ export class D1ChatRepository implements ChatRepository {
 			role: row.role as Message["role"],
 			sequence: row.sequence,
 			content: row.content,
+			attachments: attachments?.map((attachment) => ({
+				id: attachment.id,
+				messageId: attachment.messageId,
+				chatId: attachment.chatId,
+				userId: attachment.userId,
+				r2Key: attachment.r2Key,
+				thumbnailR2Key: attachment.thumbnailR2Key,
+				originalFilename: attachment.originalFilename,
+				mimeType: attachment.mimeType,
+				sizeBytes: attachment.sizeBytes,
+				createdAt: attachment.createdAt,
+			})),
 			status: row.status as Message["status"],
 			latencyMs: row.latencyMs,
 			inputTokens: row.inputTokens,

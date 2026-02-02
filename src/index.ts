@@ -8,11 +8,13 @@ import { DatabaseFactory } from "./infrastructure/database/client";
 import { D1ChatRepository } from "./infrastructure/database/repositories/chat.repository";
 import { createApp } from "./interfaces";
 import { verifyClerkAuth } from "./interfaces/http/routes/chat";
+import { GenerateChatAttachmentUploadUrlEndpoint } from "./interfaces/http/routes/chat-attachments";
 import {
 	CreateChatEndpoint,
 	DeleteChatEndpoint,
 	GetChatEndpoint,
 	GetChatMessagesEndpoint,
+	HardDeleteChatEndpoint,
 	ListChatsEndpoint,
 	UpdateChatEndpoint,
 } from "./interfaces/http/routes/chats";
@@ -420,8 +422,13 @@ export default {
 		apiApp.get("/chats", ListChatsEndpoint);
 		apiApp.get("/chats/:id", GetChatEndpoint);
 		apiApp.get("/chats/:id/messages", GetChatMessagesEndpoint);
+		apiApp.post(
+			"/chats/:id/attachments",
+			GenerateChatAttachmentUploadUrlEndpoint,
+		);
 		apiApp.put("/chats/:id", UpdateChatEndpoint);
 		apiApp.delete("/chats/:id", DeleteChatEndpoint);
+		apiApp.delete("/chats/:id/hard", HardDeleteChatEndpoint);
 
 		// Internal endpoints (DO → Worker)
 		apiApp.post("/internal/chats/sync", SyncChatMessagesEndpoint);

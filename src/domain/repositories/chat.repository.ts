@@ -10,6 +10,7 @@ import type {
 	ChatUpdateData,
 	ChatWithMessages,
 	Message,
+	MessageAttachment,
 	MessageSyncBatch,
 } from "../entities/chat";
 
@@ -143,6 +144,15 @@ export interface ChatRepository {
 		limit?: number,
 		afterSequence?: number,
 	): Promise<Message[]>;
+
+	/**
+	 * Get attachments for a chat's messages.
+	 */
+	getMessageAttachments(
+		userId: string,
+		chatId: string,
+		messageIds: string[],
+	): Promise<MessageAttachment[]>;
 
 	/**
 	 * Get the highest sequence number for a chat.

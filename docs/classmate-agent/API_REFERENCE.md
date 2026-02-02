@@ -529,6 +529,98 @@ await sendMessage(
 );
 ```
 
+### Message with Attachments
+
+Use `POST /chats/:id/attachments` to get a presigned upload URL, upload to R2,
+then include attachment metadata in `metadata.attachments` when sending the
+message. See `docs/chat/ATTACHMENTS.md` for full details.
+
+```tsx
+// 1) Generate upload URL
+const uploadRes = await fetch(`${API_HOST}/chats/${chatId}/attachments`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    filename: file.name,
+    mimeType: file.type,
+    sizeBytes: file.size
+  })
+}).then((r) => r.json());
+
+// 2) Upload to R2
+await fetch(uploadRes.result.uploadUrl, {
+  method: "PUT",
+  headers: { "Content-Type": file.type },
+  body: file
+});
+
+// 3) Send message with attachment metadata
+await sendMessage({
+  role: "user",
+  parts: [{ type: "text", text: "Please analyze this file." }],
+  metadata: {
+    attachments: [
+      {
+        r2Key: uploadRes.result.r2Key,
+        thumbnailR2Key: null,
+        originalFilename: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size
+      }
+    ]
+  }
+});
+```
+
+### Message with Attachments
+
+Use `POST /chats/:id/attachments` to get a presigned upload URL, upload to R2,
+then include attachment metadata in `metadata.attachments` when sending the
+message. See `docs/chat/ATTACHMENTS.md` for full details.
+
+```tsx
+// 1) Generate upload URL
+const uploadRes = await fetch(`${API_HOST}/chats/${chatId}/attachments`, {
+  method: "POST",
+  headers: {
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json"
+  },
+  body: JSON.stringify({
+    filename: file.name,
+    mimeType: file.type,
+    sizeBytes: file.size
+  })
+}).then((r) => r.json());
+
+// 2) Upload to R2
+await fetch(uploadRes.result.uploadUrl, {
+  method: "PUT",
+  headers: { "Content-Type": file.type },
+  body: file
+});
+
+// 3) Send message with attachment metadata
+await sendMessage({
+  role: "user",
+  parts: [{ type: "text", text: "Please analyze this file." }],
+  metadata: {
+    attachments: [
+      {
+        r2Key: uploadRes.result.r2Key,
+        thumbnailR2Key: null,
+        originalFilename: file.name,
+        mimeType: file.type,
+        sizeBytes: file.size
+      }
+    ]
+  }
+});
+```
+
 ---
 
 ## Tool Calls & HITL

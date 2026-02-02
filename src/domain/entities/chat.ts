@@ -107,6 +107,7 @@ export interface Message {
 	role: MessageRole;
 	sequence: number;
 	content: string;
+	attachments?: MessageAttachment[];
 	status: MessageStatus | null;
 	latencyMs: number | null;
 	inputTokens: number | null;
@@ -125,6 +126,7 @@ export interface MessageCreateData {
 	role: MessageRole;
 	sequence: number;
 	content: string;
+	attachments?: MessageAttachmentCreateData[];
 	status?: MessageStatus | null;
 	latencyMs?: number | null;
 	inputTokens?: number | null;
@@ -143,6 +145,30 @@ export interface MessageSyncBatch {
 	messages: MessageCreateData[];
 	/** Last sequence number already synced to D1 */
 	lastSyncedSequence: number;
+}
+
+export interface MessageAttachment {
+	id: string;
+	messageId: string;
+	chatId: string;
+	userId: string;
+	r2Key: string;
+	thumbnailR2Key: string | null;
+	originalFilename: string;
+	mimeType: string;
+	sizeBytes: number;
+	createdAt: string;
+}
+
+export interface MessageAttachmentCreateData {
+	messageId: string;
+	chatId: string;
+	userId: string;
+	r2Key: string;
+	thumbnailR2Key?: string | null;
+	originalFilename: string;
+	mimeType: string;
+	sizeBytes: number;
 }
 
 /**

@@ -59,6 +59,23 @@ export class R2StorageAdapter implements StorageRepository {
 		});
 	}
 
+	async putObject(
+		bucket: string,
+		key: string,
+		body: ArrayBuffer | Uint8Array,
+		contentType: string,
+	): Promise<void> {
+		const payload = body instanceof ArrayBuffer ? new Uint8Array(body) : body;
+		const command = new PutObjectCommand({
+			Bucket: bucket,
+			Key: key,
+			Body: payload,
+			ContentType: contentType,
+		});
+
+		await this.client.send(command);
+	}
+
 	async headObject(
 		bucket: string,
 		key: string,

@@ -104,6 +104,26 @@ export const UpdateChatSchema = z
  */
 export type UpdateChatInput = z.infer<typeof UpdateChatSchema>;
 
+export const ChatAttachmentUploadSchema = z.object({
+	filename: z.string().min(1).max(255),
+	mimeType: z.enum([
+		"image/jpeg",
+		"image/png",
+		"image/webp",
+		"image/gif",
+		"application/pdf",
+	]),
+	sizeBytes: z
+		.number()
+		.int()
+		.positive()
+		.max(10 * 1024 * 1024),
+});
+
+export type ChatAttachmentUploadInput = z.infer<
+	typeof ChatAttachmentUploadSchema
+>;
+
 /**
  * Helper function to check if a string is a valid UUID.
  */
