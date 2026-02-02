@@ -23,17 +23,7 @@
 	 * https://developers.cloudflare.com/workers/static-assets/binding/
 	 */
 	"assets": { "directory": "./assets/", "binding": "ASSETS" },
-	/**
-	 * Webhook Secrets (normal worker secrets)
-	 * Set via:
-	 * - wrangler secret put CLERK_NEW_USER_WEBHOOK_SECRET
-	 * - wrangler secret put CLERK_UPDATE_USER_WEBHOOK_SECRET
-	 *
-	 * In development, create .dev.vars file with:
-	 * - CLERK_NEW_USER_WEBHOOK_SECRET=whsec_your_secret_here
-	 * - CLERK_UPDATE_USER_WEBHOOK_SECRET=whsec_your_secret_here
-	 * - ENVIRONMENT=development|production
-	 */
+
 	"vars": {
 		"ENVIRONMENT": "production",
 		"R2_PRESIGNED_URL_EXPIRATION_SECONDS": "300"
@@ -43,6 +33,16 @@
 	 * https://developers.cloudflare.com/secrets-store/integrations/workers/
 	 */
 	"secrets_store_secrets": [
+		{
+			"binding": "CLERK_NEW_USER_WEBHOOK_SECRET",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "CLERK_NEW_USER_WEBHOOK_SECRET"
+		},
+		{
+			"binding": "CLERK_UPDATE_USER_WEBHOOK_SECRET",
+			"store_id": "0c02e81d551048c5a3f672338d397a68",
+			"secret_name": "CLERK_UPDATE_USER_WEBHOOK_SECRET"
+		},
 		{
 			"binding": "ALLOWED_ORIGIN",
 			"store_id": "0c02e81d551048c5a3f672338d397a68",
