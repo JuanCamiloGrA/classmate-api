@@ -33,6 +33,7 @@ import { createExecutions } from "../ai/tools/executions";
 import { cleanupMessages, processToolCalls } from "../ai/utils";
 import { DatabaseFactory } from "../database/client";
 import { D1ClassRepository } from "../database/repositories/class.repository";
+import { D1SubjectRepository } from "../database/repositories/subject.repository";
 import { D1TaskRepository } from "../database/repositories/task.repository";
 import { AssetsPromptService } from "../prompt/assets.prompt.service";
 
@@ -699,11 +700,13 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 		const db = DatabaseFactory.create(this.env.DB);
 		const classRepository = new D1ClassRepository(db);
 		const taskRepository = new D1TaskRepository(db);
+		const subjectRepository = new D1SubjectRepository(db);
 
 		return {
 			userId: this.state.userId,
 			classRepository,
 			taskRepository,
+			subjectRepository,
 		};
 	}
 

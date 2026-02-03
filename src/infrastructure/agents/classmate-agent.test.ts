@@ -5,6 +5,7 @@
 /** biome-ignore-all lint/suspicious/noExplicitAny: Test file uses any for mock contexts and type assertions */
 import { describe, expect, it, vi } from "vitest";
 import type { ClassRepository } from "../../domain/repositories/class.repository";
+import type { SubjectRepository } from "../../domain/repositories/subject.repository";
 import type { TaskRepository } from "../../domain/repositories/task.repository";
 import { APPROVAL } from "../ai/shared";
 import type { ToolDependencies } from "../ai/tools/definitions";
@@ -42,11 +43,23 @@ function createMockTaskRepository(): TaskRepository {
 	};
 }
 
+function createMockSubjectRepository(): SubjectRepository {
+	return {
+		findByTermIdAndUserId: vi.fn(),
+		findByIdAndUserId: vi.fn(),
+		create: vi.fn(),
+		update: vi.fn(),
+		softDelete: vi.fn(),
+		hardDelete: vi.fn(),
+	};
+}
+
 function createMockDependencies(): ToolDependencies {
 	return {
 		userId: "test-user-id",
 		classRepository: createMockClassRepository(),
 		taskRepository: createMockTaskRepository(),
+		subjectRepository: createMockSubjectRepository(),
 	};
 }
 

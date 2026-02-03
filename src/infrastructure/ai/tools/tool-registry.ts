@@ -17,6 +17,12 @@ import type {
 	ToolMetadata,
 } from "./definitions";
 import {
+	createSubjectTools,
+	type SubjectTools,
+	subjectToolsMeta,
+	subjectToolsRequiringConfirmation,
+} from "./subject-tools";
+import {
 	createTaskTools,
 	type TaskTools,
 	taskToolsMeta,
@@ -27,7 +33,7 @@ import {
 // COMBINED TYPES
 // ============================================
 
-export type AllTools = ClassTools & TaskTools;
+export type AllTools = ClassTools & TaskTools & SubjectTools;
 
 // ============================================
 // TOOL SETS BY MODE
@@ -50,6 +56,9 @@ const DEFAULT_TOOLS: ClassmateToolName[] = [
 	"createTask",
 	"deleteTask", // HITL - requires confirmation
 	"updateTask", // HITL - requires confirmation
+	// Subject tools
+	"createSubject",
+	"updateSubject",
 ];
 
 /**
@@ -106,10 +115,12 @@ const MODE_TOOLS_MAP: Record<AgentMode, ClassmateToolName[]> = {
 export function createAllTools(deps: ToolDependencies): AllTools {
 	const classTools = createClassTools(deps);
 	const taskTools = createTaskTools(deps);
+	const subjectTools = createSubjectTools(deps);
 
 	return {
 		...classTools,
 		...taskTools,
+		...subjectTools,
 	};
 }
 
@@ -137,12 +148,17 @@ export function getToolsForMode(mode: AgentMode, deps: ToolDependencies) {
 // ============================================
 
 /** All tool metadata combined */
-const allToolsMeta: ToolMetadata[] = [...classToolsMeta, ...taskToolsMeta];
+const allToolsMeta: ToolMetadata[] = [
+	...classToolsMeta,
+	...taskToolsMeta,
+	...subjectToolsMeta,
+];
 
 /** All tools requiring confirmation combined */
 const allToolsRequiringConfirmation = [
 	...classToolsRequiringConfirmation,
 	...taskToolsRequiringConfirmation,
+	...subjectToolsRequiringConfirmation,
 ];
 
 /**
@@ -192,6 +208,8 @@ export {
 	classToolsRequiringConfirmation,
 	taskToolsMeta,
 	taskToolsRequiringConfirmation,
+	subjectToolsMeta,
+	subjectToolsRequiringConfirmation,
 	allToolsMeta,
 	allToolsRequiringConfirmation,
 	MODE_TOOLS_MAP,

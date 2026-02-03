@@ -222,10 +222,18 @@ Tools are functions the AI can call to interact with the system:
 
 | Tool | Category | HITL | Description |
 |------|----------|------|-------------|
-| `readClassContent` | class | No | Retrieve full class content |
 | `listClasses` | class | No | List user's classes |
-| `getClassSummary` | class | No | Get brief class summary |
-| `removeClass` | class | **Yes** | Delete a class (requires approval) |
+| `getClass` | class | No | Get full class details |
+| `createClass` | class | No | Create a class for a subject |
+| `deleteClass` | class | **Yes** | Permanently delete a class |
+| `updateClass` | class | **Yes** | Update class fields |
+| `listTasks` | task | No | List tasks |
+| `getTask` | task | No | Get full task details |
+| `createTask` | task | No | Create a task for a subject |
+| `deleteTask` | task | **Yes** | Permanently delete a task |
+| `updateTask` | task | **Yes** | Update task fields |
+| `createSubject` | subject | No | Create a subject within a term |
+| `updateSubject` | subject | No | Update subject fields |
 
 ---
 
@@ -366,10 +374,18 @@ In `src/infrastructure/ai/tools/definitions.ts`, add the tool name to the union 
 
 ```typescript
 export type ClassmateToolName =
-  | "readClassContent"
-  | "removeClass"
   | "listClasses"
-  | "getClassSummary"
+  | "getClass"
+  | "createClass"
+  | "deleteClass"
+  | "updateClass"
+  | "listTasks"
+  | "getTask"
+  | "createTask"
+  | "deleteTask"
+  | "updateTask"
+  | "createSubject"
+  | "updateSubject"
   | "newToolName";  // Add your tool
 ```
 
@@ -459,7 +475,7 @@ export function getToolsForMode(mode: AgentMode) {
 export function getToolMetadataForMode(mode: AgentMode): ToolMetadata[] {
   const toolNames = MODE_TOOLS_MAP[mode] || MODE_TOOLS_MAP.DEFAULT;
   
-  const allMeta = [...classToolsMeta, ...myToolsMeta];  // Add new metadata
+  const allMeta = [...classToolsMeta, ...taskToolsMeta, ...subjectToolsMeta, ...myToolsMeta];  // Add new metadata
   
   return allMeta.filter((meta) =>
     toolNames.includes(meta.name as ClassmateToolName)
@@ -636,8 +652,8 @@ In `src/infrastructure/ai/tools/tool-registry.ts`:
 
 ```typescript
 const NEWMODE_TOOLS: ClassmateToolName[] = [
-  "readClassContent",
-  "getClassSummary",
+  "listClasses",
+  "getClass",
   // Add tools appropriate for this mode
 ];
 
@@ -743,8 +759,8 @@ const processedMessages = await processToolCalls({
 Mark tools requiring confirmation in metadata:
 
 ```typescript
-export const removeClassMeta: ToolMetadata = {
-  name: "removeClass",
+export const deleteClassMeta: ToolMetadata = {
+  name: "deleteClass",
   description: "Permanently delete a class",
   requiresConfirmation: true,  // <-- Important flag
   category: "class",

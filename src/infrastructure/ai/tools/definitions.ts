@@ -4,6 +4,7 @@
  */
 import type { z } from "zod";
 import type { ClassRepository } from "../../../domain/repositories/class.repository";
+import type { SubjectRepository } from "../../../domain/repositories/subject.repository";
 import type { TaskRepository } from "../../../domain/repositories/task.repository";
 
 /**
@@ -24,6 +25,7 @@ export interface ToolDependencies {
 	userId: string;
 	classRepository: ClassRepository;
 	taskRepository: TaskRepository;
+	subjectRepository: SubjectRepository;
 }
 
 /**
@@ -57,6 +59,7 @@ export type ToolInputSchema<T extends z.ZodTypeAny> = T;
  * Available tool names (union type for type safety)
  * Classes: list, get, create, delete, update
  * Tasks: list, get, create, delete, update
+ * Subjects: create, update
  */
 export type ClassmateToolName =
 	// Class tools
@@ -70,7 +73,10 @@ export type ClassmateToolName =
 	| "getTask"
 	| "createTask"
 	| "deleteTask"
-	| "updateTask";
+	| "updateTask"
+	// Subject tools
+	| "createSubject"
+	| "updateSubject";
 
 /**
  * Mode identifiers

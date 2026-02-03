@@ -40,7 +40,12 @@ import { useAuth } from "@clerk/nextjs"; // or @clerk/clerk-react
 import type { UIMessage } from "@ai-sdk/react";
 
 // Tools requiring human confirmation (must match backend)
-const toolsRequiringConfirmation = ["removeClass"];
+const toolsRequiringConfirmation = [
+  "deleteClass",
+  "updateClass",
+  "deleteTask",
+  "updateTask"
+];
 
 // Approval constants (must match backend shared.ts)
 const APPROVAL = {
@@ -654,7 +659,12 @@ Some tools require user approval before execution. Define which tools need confi
 
 ```tsx
 // Must match tools without execute() on the backend
-const toolsRequiringConfirmation = ["removeClass", "deleteTask"];
+const toolsRequiringConfirmation = [
+  "deleteClass",
+  "updateClass",
+  "deleteTask",
+  "updateTask"
+];
 ```
 
 Handle approval with `addToolResult`:
@@ -880,7 +890,12 @@ import type { UIMessage } from "@ai-sdk/react";
 
 // Configuration
 const API_HOST = process.env.NEXT_PUBLIC_API_URL || "https://api.classmate.studio";
-const toolsRequiringConfirmation = ["removeClass", "deleteTask"];
+const toolsRequiringConfirmation = [
+  "deleteClass",
+  "updateClass",
+  "deleteTask",
+  "updateTask"
+];
 const APPROVAL = {
   YES: "Yes, confirmed.",
   NO: "No, denied."
