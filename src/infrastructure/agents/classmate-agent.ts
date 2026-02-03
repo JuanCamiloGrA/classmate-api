@@ -625,6 +625,7 @@ export class ClassmateAgent extends AIChatAgent<any, ClassmateAgentState> {
 		return "";
 	}
 
+	// biome-ignore lint/suspicious/noExplicitAny: UIMessage type varies by SDK version
 	private extractAttachmentsFromMessage(msg: any):
 		| Array<{
 				r2Key: string;

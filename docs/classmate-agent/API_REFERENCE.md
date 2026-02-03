@@ -2,7 +2,7 @@
 
 > **For**: Frontend/Client Developers  
 > **Version**: 5.0.0  
-> **Last Updated**: December 2025
+> **Last Updated**: February 2026
 
 This reference documents how to integrate the ClassmateAgent into your frontend application using the official Cloudflare Agents SDK.
 
