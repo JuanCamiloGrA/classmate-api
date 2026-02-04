@@ -32,7 +32,10 @@ export class D1ChatAttachmentRepository implements ChatAttachmentRepository {
 					createdAt: now,
 				})),
 			)
+			.onConflictDoNothing()
 			.returning();
+
+		if (created.length === 0) return [];
 
 		return created.map((attachment) => ({
 			id: attachment.id,

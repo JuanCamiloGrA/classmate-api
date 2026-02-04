@@ -10,6 +10,7 @@ export interface ProcessChatAttachmentThumbnailInput {
 	messageId: string;
 	attachmentId: string;
 	r2Key: string;
+	thumbnailR2Key: string | null;
 	bucket: string;
 }
 
@@ -43,12 +44,14 @@ export class ProcessChatAttachmentThumbnailUseCase {
 		}
 
 		const bytes = new Uint8Array(await resizeResponse.arrayBuffer());
-		const thumbnailKey = buildChatAttachmentThumbnailKey({
-			userId: input.userId,
-			chatId: input.chatId,
-			messageId: input.messageId,
-			attachmentId: input.attachmentId,
-		});
+		const thumbnailKey =
+			input.thumbnailR2Key ??
+			buildChatAttachmentThumbnailKey({
+				userId: input.userId,
+				chatId: input.chatId,
+				messageId: input.messageId,
+				attachmentId: input.attachmentId,
+			});
 
 		await this.storageRepository.putObject(
 			input.bucket,
@@ -62,6 +65,17 @@ export class ProcessChatAttachmentThumbnailUseCase {
 			this.libraryRepository,
 			this.storageRepository,
 		);
+
+		const existing =
+			await this.storageAccountingRepository.getByR2Key(thumbnailKey);
+		if (!existing) {
+			await this.storageAccountingRepository.createOrUpdatePending({
+				userId: input.userId,
+				r2Key: thumbnailKey,
+				bucketType: "persistent",
+				sizeBytes: bytes.length,
+			});
+		}
 
 		await confirmService.confirmUpload({
 			r2Key: thumbnailKey,

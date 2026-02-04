@@ -13,7 +13,6 @@ import { SyncMessagesUseCase } from "../../../application/chat/sync-messages.use
 import type { Bindings, Variables } from "../../../config/bindings";
 import { resolveSecretBinding } from "../../../config/bindings";
 import type { MessageRole } from "../../../domain/entities/chat";
-import { buildChatAttachmentThumbnailKey } from "../../../domain/services/r2-path.service";
 import { AIChatTitleGenerator } from "../../../infrastructure/ai/chat-title.ai.service";
 import { DatabaseFactory } from "../../../infrastructure/database/client";
 import { D1ChatRepository } from "../../../infrastructure/database/repositories/chat.repository";
@@ -298,26 +297,13 @@ export class SyncChatMessagesEndpoint extends OpenAPIRoute {
 					chatId: validated.chatId,
 					messageId,
 					bucket: persistentBucket,
-					attachments: message.attachments.map(
-						(attachment, attachmentIndex) => ({
-							r2Key: attachment.r2Key,
-							thumbnailR2Key:
-								attachment.thumbnailR2Key ??
-								(attachment.mimeType.startsWith("image/")
-									? buildChatAttachmentThumbnailKey({
-											userId: validated.userId,
-											chatId: validated.chatId,
-											messageId,
-											attachmentId:
-												attachment.r2Key.split("/").pop()?.split("-")[0] ??
-												`${messageId}-${attachmentIndex}`,
-										})
-									: null),
-							originalFilename: attachment.originalFilename,
-							mimeType: attachment.mimeType,
-							sizeBytes: attachment.sizeBytes,
-						}),
-					),
+					attachments: message.attachments.map((attachment) => ({
+						r2Key: attachment.r2Key,
+						thumbnailR2Key: attachment.thumbnailR2Key ?? null,
+						originalFilename: attachment.originalFilename,
+						mimeType: attachment.mimeType,
+						sizeBytes: attachment.sizeBytes,
+					})),
 				});
 
 				for (const attachment of storedAttachments) {
@@ -333,6 +319,7 @@ export class SyncChatMessagesEndpoint extends OpenAPIRoute {
 						messageId,
 						attachmentId: attachment.id,
 						r2Key: attachment.r2Key,
+						thumbnailR2Key: attachment.thumbnailR2Key,
 						bucket: persistentBucket,
 					});
 				}
